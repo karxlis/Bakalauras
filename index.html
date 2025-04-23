@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>AR Hit-Test Placement • A-Frame</title>
+    <meta name="description" content="Place cubes in AR using hit-testing where the reticle appears.">
+    <!-- Using official stable release 1.5.0 -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+
+    <style>
+      /* --- Stylesadgagadgadgadg --- */ 
+      body { font-family: sans-serif; margin: 0; overflow: hidden; }
+      .overlay-widget { color: white; position: absolute; inset: 0 auto auto 0; background: #00000099; border-radius: 0.5em; padding: 1em; user-select: none; font-size: 14px; }
+      .hide-labels .xr-select-through { display: none; }
+      #placement-reticle { pointer-events: none; }
+      #dom-overlay { position: absolute; top:0; left:0; right:0; bottom:0; pointer-events: none; }
+      #dom-overlay > * { pointer-events: auto; }
+      #controls-widget { position: absolute; bottom: 1em; left: 1em; z-index: 1; }
+      #exitVRButton { display: none; margin-top: 0.5em; }
+      #controls-widget label { margin-left: 0.5em; }
+      /* Style for scanning feedback div */
+      #scanning-feedback {
+        position: absolute;
+        top: 1em;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #000000A0;
+        color: white;
+        padding: 0.5em 1em;
+        border-radius: 0.5em;
+        text-align: center;
+        display: none; /* Start hidden */
+        z-index: 2;
+        pointer-events: none;
+        white-space: pre; /* Allow newline */
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Scene using ar-hit-test -->
+    <a-scene
+      reflection="directionalLight:a-light[type=directional]"
+      ar-hit-test="target: #placement-reticle; type: footprint;" 
+      renderer="physicallyCorrectLights:true;colorManagement:true;exposure:1;toneMapping:ACESFilmic;"
+      webxr="overlayElement:#dom-overlay; optionalFeatures: hit-test;"
+      cursor__mouse="rayOrigin: mouse;"
+      cursor__xr="rayOrigin: controller;" 
+      raycaster="objects: .interactive;"
+      vr-mode-ui="enterARButton: #myEnterARButton"
+      background="color: #ECECEC;"
+    >
+      <!-- Assets -->
+      <a-assets>
+        <a-mixin id="cursor_animations"
+          animation__mouseenter="property: scale; to: 1.2 1.2 1.2; startEvents: mouseenter; dur: 200"
+          animation__mouseleave="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 200"
+          animation__jump="startEvents:click;property:object3D.position.y;from: 0.5; to: 0.8; dir:alternate;loop:1;easing:easeOutQuad;dur:300;">
+        </a-mixin>
+      </a-assets>
+
+      <!-- Lighting -->
+      <a-light type="directional" light="castShadow:true;" position="1 1 1" intensity="0.5" shadow-camera-automatic=".interactive"></a-light>
+      <a-light type="ambient" intensity="0.6"></a-light>
+
+      <!-- Camera -->
+      <a-camera position="0 0.4 0" wasd-controls="enabled: false;"></a-camera>
+
+      <!-- Initial Objects -->
+      <a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1">
+        <a-box class="interactive" mixin="cursor_animations" position="-1 0.5 1" rotation="0 45 0" color="#4CC3D9" attach-dom-element="#box-label" shadow draggable></a-box>
+        <a-sphere class="interactive" mixin="cursor_animations" position="0 1.25 -1" radius="1.25" color="#EF2D5E" attach-dom-element="#sphere-label" shadow draggable></a-sphere>
+        <a-cylinder class="interactive" mixin="cursor_animations" position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D" attach-dom-element="#cylinder-label" shadow draggable></a-cylinder>
+      </a-entity>
+
+      <!-- Shadow Plane -->
+      <a-plane follow-shadow="#objects" material="shader:shadow; transparent: true; opacity: 0.4;" shadow="cast:false; receive:true" rotation="-90 0 0" width="30" height="30"></a-plane>
+      <!-- Sky -->
+      <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
+
+      <!-- Placement Reticle (Target for hit-test) -->
+      <a-entity id="placement-reticle" visible="false">
+         <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
+      </a-entity>
+
+    </a-scene> <!-- End of A-Frame Scene -->
+
+    <!-- DOM Overlay -->
+    <section id="dom-overlay" class="hide-labels">
+       <!-- Scanning Feedback Div -->
+       <div id="scanning-feedback">Scanning for surfaces...<br>Move phone slowly.</div>
+
+       <!-- Controls Widget -->
+      <div id="controls-widget" style="inset:auto auto 1em 1em;" class="overlay-widget">
+        <h1 style="margin: 0 0 0.5em 0;">My 3D Life</h1>
+        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Sphere Color</legend> <input onclick="toggleSphereColor(this)" type="radio" id="red" name="sphereColor" value="#EF2D5E" checked><label for="red"> Red</label> <input onclick="toggleSphereColor(this)" type="radio" id="blue" name="sphereColor" value="#4CC3D9"><label for="blue"> Blue</label></fieldset>
+        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Show Labels</legend> <input onclick="toggleLabels(this)" type="radio" id="no" name="labelsVisible" value="no" checked><label for="no"> Hide</label> <input onclick="toggleLabels(this)" type="radio" id="yes" name="labelsVisible" value="yes"><label for="yes"> Show</label></fieldset>
+        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Interaction Mode</legend> <input type="checkbox" id="placementModeCheckbox"><label for="placementModeCheckbox">Enable Cube Placement</label> <div style="font-size: 0.8em; margin-top: 0.3em;">(Tap screen to place at marker)</div></fieldset> <!-- Help text updated -->
+        <fieldset style="border:none; padding: 0;"><button id="myEnterARButton" onclick="document.querySelector('a-scene').enterAR()">Enter AR</button> <button id="exitVRButton" onclick="AFRAME.scenes[0].exitVR()" style="display: none;">Exit Immersive</button></fieldset>
+      </div>
+       <!-- Labels -->
+      <div id="sphere-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A red sphere</div>
+      <div id="box-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A blue box</div>
+      <div id="cylinder-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A yellow cylinder</div>
+    </section> <!-- End of DOM Overlay -->
+
+    <!-- JavaScript Logic -->
+    <script>
+      // --- Component Definitions ---
+      AFRAME.registerComponent('follow-shadow', {
+        schema: {type: 'selector'},
+        init() {this.el.object3D.renderOrder = -1;},
+        tick() { 
+          if (this.data) {
+            this.el.object3D.position.copy(this.data.object3D.position); 
+            this.el.object3D.position.y-=0.001; // stop z-fighting
+          }
+        }
+      });
+
+      const vector = new THREE.Vector3();
+      AFRAME.registerComponent('attach-dom-element', {
+        schema: {default: ''},
+        tick() {
+          for (const el of Array.from(Array.from(document.querySelectorAll(this.data)))) {
+            this.el.object3D.getWorldPosition(vector);
+            vector.project(this.el.sceneEl.camera);
+            const w = window.innerWidth * 0.5;
+            const h = window.innerHeight * 0.5;
+            el.style.transform = `translate(${w + w * vector.x}px, ${h - h * vector.y}px) translate(-50%, -50%)`
+          }
+        }
+      });
+
+      // --- Scene Setup & Listeners ---
+      document.addEventListener('DOMContentLoaded', () => {
+
+          const sceneEl = document.querySelector('a-scene');
+          const overlay = document.getElementById('dom-overlay');
+          const reticleEl = document.getElementById('placement-reticle'); // Using reticle again
+          const exitVRButton = document.getElementById('exitVRButton');
+          const placementCheckbox = document.getElementById('placementModeCheckbox');
+          const scanningFeedbackEl = document.getElementById('scanning-feedback'); // Using DOM feedback
+
+          if (!sceneEl || !overlay || !reticleEl || !exitVRButton || !placementCheckbox || !scanningFeedbackEl) {
+              console.error("Essential page elements not found!"); return;
+          }
+
+          // We are NOT tracking hitTestSourceAvailable anymore, we trust the events
+          const SCANNING_MESSAGE = "Scanning for surfaces...\nMove phone slowly.";
+
+          // --- Overlay Interaction ---
+          overlay.addEventListener('beforexrselect', function (e) {
+              const widget = e.target.closest('.overlay-widget');
+              if (e.target === overlay || (widget && !(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT'))) {
+                  e.preventDefault();
+              }
+          });
+
+          // --- UI Functions ---
+         function toggleSphereColor({value}) {
+        document.querySelector('a-sphere').setAttribute('color', value);
+      }
+          window.toggleLabels = function({value}) { overlay.classList.toggle('hide-labels', value === 'no'); }
+
+          // --- AR State Handling ---
+          sceneEl.addEventListener('enter-vr', () => {
+            console.log('Event: enter-vr');
+            // Initial setup when entering AR
+            if (sceneEl.is('ar-mode')) {
+                 console.log('AR Mode detected.');
+                 if(exitVRButton) exitVRButton.style.display = 'inline-block';
+                 if(reticleEl) reticleEl.setAttribute('visible', false); // Reticle starts hidden
+                 // Show scanning message if placement is initially checked
+                 if (placementCheckbox.checked) {
+                     scanningFeedbackEl.textContent = SCANNING_MESSAGE;
+                     scanningFeedbackEl.style.display = 'block';
+                 } else {
+                     scanningFeedbackEl.style.display = 'none';
+                 }
+            } else {
+                 console.warn('VR Mode or AR Session Failed.');
+                 if(exitVRButton) exitVRButton.style.display = 'none';
+            }
+          });
+
+          sceneEl.addEventListener('exit-vr', () => {
+            console.log('Event: exit-vr');
+            if(exitVRButton) exitVRButton.style.display = 'none';
+            if(reticleEl) reticleEl.setAttribute('visible', false);
+            scanningFeedbackEl.style.display = 'none'; // Hide feedback
+          });
+
+
+          // --- AR Hit Test Listeners ---
+           sceneEl.addEventListener('ar-hit-test-start', () => {
+              console.log('Event: ar-hit-test-start');
+             if (reticleEl) reticleEl.setAttribute('visible', 'false');
+             if (placementCheckbox.checked) { // Show scanning if in placement mode
+                 scanningFeedbackEl.textContent = SCANNING_MESSAGE;
+                 scanningFeedbackEl.style.display = 'block';
+             }
+           });
+
+           sceneEl.addEventListener('ar-hit-test-achieved', () => {
+              console.log('Event: ar-hit-test-achieved');
+             if (placementCheckbox.checked) { // Only show reticle/hide message if placement active
+                 if (reticleEl) reticleEl.setAttribute('visible', 'true');
+                 scanningFeedbackEl.style.display = 'none'; // Hide scanning message
+             }
+           });
+
+           sceneEl.addEventListener('ar-hit-test-lost', () => {
+              console.log('Event: ar-hit-test-lost');
+             if (reticleEl) reticleEl.setAttribute('visible', 'false'); // Hide reticle
+             if (placementCheckbox.checked) { // Show scanning message again if placement active
+                 scanningFeedbackEl.textContent = SCANNING_MESSAGE;
+                 scanningFeedbackEl.style.display = 'block';
+             }
+           });
+
+           // --- Checkbox Change Listener ---
+           placementCheckbox.addEventListener('change', () => {
+               if (sceneEl.is('ar-mode')) { // Only act if in AR
+                   if (!placementCheckbox.checked) { // Switched to Interaction
+                       if(reticleEl) reticleEl.setAttribute('visible', 'false'); // Hide reticle
+                       scanningFeedbackEl.style.display = 'none'; // Hide scanning message
+                   } else { // Switched to Placement
+                       // Show scanning message. If a surface is already tracked,
+                       // achieved event should fire quickly and hide it.
+                       scanningFeedbackEl.textContent = SCANNING_MESSAGE;
+                       scanningFeedbackEl.style.display = 'block';
+                       // Reticle visibility depends on hit-test state now
+                   }
+               }
+           });
+
+          // --- AR Placement on Select ---
+          sceneEl.addEventListener('ar-hit-test-select', (e) => {
+             console.log("Event: ar-hit-test-select"); // Reduce noise
+
+            const isPlacementMode = placementCheckbox.checked;
+            // We place if placement mode is on AND the reticle is currently visible
+            // (meaning hit-test achieved was the last relevant event)
+            const isReticleVisible = reticleEl && reticleEl.getAttribute('visible');
+
+            if (isPlacementMode && isReticleVisible) {
+               console.log('Conditions met: Attempting to place cube...'); // Reduce noise
+              const position = reticleEl.getAttribute('position');
+              if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) {
+                  console.error("Placement failed: Invalid position from reticle.", position);
+                  return;
+              }
+              const newBox = document.createElement('a-box');
+              if (!newBox) { console.error("Failed to create a-box!"); return; }
+
+              newBox.classList.add('interactive');
+              newBox.setAttribute('position', position); // Use reticle position
+              newBox.setAttribute('scale', '0.2 0.2 0.2');
+              newBox.setAttribute('color', '#228B22');
+              newBox.setAttribute('shadow', 'cast: true; receive: false;');
+              newBox.setAttribute('draggable', ''); // Make draggable via extras
+
+              sceneEl.appendChild(newBox);
+              console.log('New box placed via hit-test-select at reticle location.');
+
+            }
+            // If not in placement mode, or reticle not visible, do nothing here.
+            // The event might be used by cursor__xr for interaction.
+          });
+
+          // --- Initialize UI ---
+          setTimeout(() => { window.toggleLabels({value: document.querySelector('input[name="labelsVisible"]:checked')?.value || 'no'}); }, 0);
+          window.toggleSphereColor({value: document.querySelector('input[name="sphereColor"]:checked')?.value || '#EF2D5E'});
+          document.getElementById('sphere-label').textContent = 'A red sphere';
+          document.getElementById('box-label').textContent = 'A blue box';
+          document.getElementById('cylinder-label').textContent = 'A yellow cylinder';
+
+          // --- Set willReadFrequently on Canvas ---
+          sceneEl.addEventListener('loaded', () => {
+             const canvas = sceneEl.canvas;
+             if (canvas) {
+                 try { canvas.getContext('2d', { willReadFrequently: true }); } catch (e) {
+                     try { canvas.getContext('webgl', { antialias: true }); } catch(glError) { /* Ignore */ }
+                 }
+             }
+           }); // End of scene loaded listener
+
+      }); // End of DOMContentLoaded listener
+    </script>
+  </body>
+</html>
