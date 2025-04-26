@@ -1,0 +1,90 @@
+/* --- Styles --- */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    overflow: hidden;
+  }
+  
+  .overlay-widget {
+    color: white;
+    position: absolute;
+    inset: 0 auto auto 0;
+    background: #00000099;
+    border-radius: 0.5em;
+    padding: 1em;
+    user-select: none;
+    font-size: 14px;
+  }
+  
+  /* Hides elements with xr-select-through when hide-labels is active */
+  .hide-labels .xr-select-through {
+    display: none !important; /* Use !important to ensure override */
+  }
+  
+  #placement-reticle {
+    pointer-events: none; /* Reticle for cube placement */
+  }
+  
+  #camera-aim-marker > * {
+    pointer-events: none; /* Marker for shooting aim */
+  }
+  
+  #dom-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+  }
+  
+  #dom-overlay > * {
+    pointer-events: auto;
+  }
+  
+  #controls-widget {
+    position: absolute;
+    bottom: 1em;
+    left: 1em;
+    z-index: 1;
+  }
+  
+  #exitVRButton {
+    display: none;
+    margin-top: 0.5em;
+  }
+  
+  #controls-widget label {
+    margin-left: 0.5em;
+  }
+  
+  /* Style for scanning feedback div */
+  #scanning-feedback {
+    position: absolute;
+    top: 1em;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #000000A0;
+    color: white;
+    padding: 0.5em 1em;
+    border-radius: 0.5em;
+    text-align: center;
+    display: none; /* Start hidden */
+    z-index: 2;
+    pointer-events: none;
+    white-space: pre; /* Allow newline */
+    font-size: 14px;
+  }
+  
+  /* Ensure labels are absolutely positioned */
+  #sphere-label,
+  #box-label,
+  #cylinder-label {
+    position: absolute;
+  }
+  
+  #shootButton {
+    padding: 0.8em 1.2em; /* Increase padding */
+    font-size: 1.2em;   /* Increase font size */
+    margin-left: 0.5em; /* Add some space */
+  }

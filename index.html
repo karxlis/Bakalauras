@@ -2,51 +2,31 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>AR Hit-Test Placement • A-Frame</title>
-    <meta name="description" content="Place cubes in AR using hit-testing where the reticle appears.">
-    <!-- Using official stable release 1.5.0 -->
+    <title>AR Placement & Shooting Combined v2 • A-Frame</title>
+    <meta name="description" content="Place cubes via hit-test or shoot projectiles towards camera marker.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- A-Frame Core -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <!-- A-Frame Extras (for draggable, etc.) -->
     <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
 
-    <style>
-      /* --- Stylesadgagadgadgadg --- */ 
-      body { font-family: sans-serif; margin: 0; overflow: hidden; }
-      .overlay-widget { color: white; position: absolute; inset: 0 auto auto 0; background: #00000099; border-radius: 0.5em; padding: 1em; user-select: none; font-size: 14px; }
-      .hide-labels .xr-select-through { display: none; }
-      #placement-reticle { pointer-events: none; }
-      #dom-overlay { position: absolute; top:0; left:0; right:0; bottom:0; pointer-events: none; }
-      #dom-overlay > * { pointer-events: auto; }
-      #controls-widget { position: absolute; bottom: 1em; left: 1em; z-index: 1; }
-      #exitVRButton { display: none; margin-top: 0.5em; }
-      #controls-widget label { margin-left: 0.5em; }
-      /* Style for scanning feedback div */
-      #scanning-feedback {
-        position: absolute;
-        top: 1em;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #000000A0;
-        color: white;
-        padding: 0.5em 1em;
-        border-radius: 0.5em;
-        text-align: center;
-        display: none; /* Start hidden */
-        z-index: 2;
-        pointer-events: none;
-        white-space: pre; /* Allow newline */
-        font-size: 14px;
-      }
-    </style>
+    <!-- Link to external CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Link to external JavaScript - 'defer' ensures it runs after HTML parsing -->
+    <script src="script.js" defer></script>
   </head>
   <body>
-    <!-- Scene using ar-hit-test -->
+    <!-- Scene Setup: Attributes here, logic in JS -->
     <a-scene
+      id="myScene"
       reflection="directionalLight:a-light[type=directional]"
-      ar-hit-test="target: #placement-reticle; type: footprint;" 
+      ar-hit-test="target: #placement-reticle; type: footprint;"
       renderer="physicallyCorrectLights:true;colorManagement:true;exposure:1;toneMapping:ACESFilmic;"
-      webxr="overlayElement:#dom-overlay; optionalFeatures: hit-test;"
+      webxr="overlayElement:#dom-overlay; optionalFeatures: hit-test, dom-overlay;"
       cursor__mouse="rayOrigin: mouse;"
-      cursor__xr="rayOrigin: controller;" 
+      cursor__xr="rayOrigin: controller;"
       raycaster="objects: .interactive;"
       vr-mode-ui="enterARButton: #myEnterARButton"
       background="color: #ECECEC;"
@@ -64,22 +44,65 @@
       <a-light type="directional" light="castShadow:true;" position="1 1 1" intensity="0.5" shadow-camera-automatic=".interactive"></a-light>
       <a-light type="ambient" intensity="0.6"></a-light>
 
-      <!-- Camera -->
-      <a-camera id="player-camera" position="0 0.4 0" wasd-controls="enabled: false;"></a-camera>
+      <!-- Camera with Aiming Marker -->
+<!-- Camera with Aiming Marker -->
+<a-camera id="player-camera" position="0 0.4 0" wasd-controls="enabled: false;">
+  <a-entity id="camera-aim-marker" position="0 -0.1 -1.5">
+       <a-ring color="white" radius-inner="0.01" radius-outer="0.02"></a-ring>
+  </a-entity>
+</a-camera>
 
-      <!-- Initial Objects -->
-      <a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1">
-        <a-box class="interactive" mixin="cursor_animations" position="-1 0.5 1" rotation="0 45 0" color="#4CC3D9" attach-dom-element="#box-label" shadow draggable></a-box>
-        <a-sphere class="interactive" mixin="cursor_animations" position="0 1.25 -1" radius="1.25" color="#EF2D5E" attach-dom-element="#sphere-label" shadow draggable></a-sphere>
-        <a-cylinder class="interactive" mixin="cursor_animations" position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D" attach-dom-element="#cylinder-label" shadow draggable></a-cylinder>
-      </a-entity>
+<!-- Initial Objects -->
+<a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1" visible="true">
+  <!-- Original Objects -->
+  <a-box class="interactive" mixin="cursor_animations" position="-1 0.5 1" rotation="0 45 0" color="#4CC3D9" attach-dom-element="#box-label" shadow draggable></a-box>
+  <a-sphere class="interactive" mixin="cursor_animations" position="0 1.25 -1" radius="1.25" color="#EF2D5E" attach-dom-element="#sphere-label" shadow draggable></a-sphere>
+  <a-cylinder id="target-cylinder" class="interactive" mixin="cursor_animations" position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D" attach-dom-element="#cylinder-label" shadow draggable></a-cylinder>
+
+  <!-- **** Orbiting BOXES **** -->
+  <a-box id="orbit-box1" class="orbiting-target" 
+    width="0.5" height="0.5" depth="0.5"
+    material="color: #FFDB58; shader: standard;"
+    hit-receiver 
+    start-orbit-in-ar="radius: 3; speed: 0.6; initialAngle: 0;">
+</a-box>
+<a-box id="orbit-box2" class="orbiting-target" 
+    width="0.4" height="0.4" depth="0.4"
+    material="color: #C3B1E1; shader: standard;"
+    hit-receiver 
+    start-orbit-in-ar="radius: 3.5; speed: -0.4; initialAngle: 1.57;">
+</a-box>
+<a-box id="orbit-box3" class="orbiting-target" 
+    width="0.6" height="0.6" depth="0.6"
+    material="color: #90EE90; shader: standard;"
+    hit-receiver 
+    start-orbit-in-ar="radius: 2.8; speed: 0.7; initialAngle: 3.14;">
+</a-box>
+   <!-- Add more boxes if desired -->
+
+</a-entity>
+
+<!-- Shadow Plane -->
+<a-plane follow-shadow="#objects" material="shader:shadow; transparent: true; opacity: 0.4;" shadow="cast:false; receive:true" rotation="-90 0 0" width="30" height="30"></a-plane>
+<!-- Sky -->
+<a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
+
+<!-- Placement Reticle -->
+<a-entity id="placement-reticle" visible="false">
+   <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
+</a-entity>
+
+<!-- **** ADD SINGLE STATIC PYRAMID **** -->
+
+
+</a-scene> <!-- End of A-Frame Scene -->
 
       <!-- Shadow Plane -->
       <a-plane follow-shadow="#objects" material="shader:shadow; transparent: true; opacity: 0.4;" shadow="cast:false; receive:true" rotation="-90 0 0" width="30" height="30"></a-plane>
       <!-- Sky -->
       <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
 
-      <!-- Placement Reticle (Target for hit-test) -->
+      <!-- Placement Reticle -->
       <a-entity id="placement-reticle" visible="false">
          <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
       </a-entity>
@@ -88,226 +111,23 @@
 
     <!-- DOM Overlay -->
     <section id="dom-overlay" class="hide-labels">
-       <!-- Scanning Feedback Div -->
        <div id="scanning-feedback">Scanning for surfaces...<br>Move phone slowly.</div>
-
-       <!-- Controls Widget -->
-      <div id="controls-widget" style="inset:auto auto 1em 1em;" class="overlay-widget">
-        <h1 style="margin: 0 0 0.5em 0;">testas n shit</h1>
-        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;">
-          <legend>Sphere Color</legend> <input onclick="toggleSphereColor(this)" type="radio" id="red" name="sphereColor" value="#EF2D5E" checked><label for="red"> Red</label> 
-          <input onclick="toggleSphereColor(this)" type="radio" id="blue" name="sphereColor" value="#4CC3D9">
-          <label for="blue"> Blue</label></fieldset>
-        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;">
-          <legend>Show Labels</legend> <input onclick="toggleLabels(this)" type="radio" id="no" name="labelsVisible" value="no" checked><label for="no"> Hide</label> 
-          <input onclick="toggleLabels(this)" type="radio" id="yes" name="labelsVisible" value="yes">
-          <label for="yes"> Show</label></fieldset>
-        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;">
-          <legend>Interaction Mode</legend> <input type="checkbox" id="placementModeCheckbox"><label for="placementModeCheckbox">Enable Cube Placement</label> 
-          <div style="font-size: 0.8em; margin-top: 0.3em;">(Tap screen to place at marker)</div></fieldset> <!-- Help text updated -->
-        <fieldset style="border:none; padding: 0;"><button id="myEnterARButton" onclick="document.querySelector('a-scene').enterAR()">Enter AR</button> 
-          <button id="exitVRButton" onclick="AFRAME.scenes[0].exitVR()" style="display: none;">Exit Immersive</button>
-          <button id="shootButton">Shoot</button>
-        </fieldset>
+       <div id="controls-widget" style="inset:auto auto 1em 1em;" class="overlay-widget">
+        <h1 style="margin: 0 0 0.5em 0;">My 3D Life</h1>
+        <div id="score-display" style="margin-bottom: 1em; font-size: 1.1em; font-weight: bold;">Score: 0</div>
+        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Sphere Color</legend> <input onclick="toggleSphereColor(this)" type="radio" id="red" name="sphereColor" value="#EF2D5E" checked><label for="red"> Red</label> <input onclick="toggleSphereColor(this)" type="radio" id="blue" name="sphereColor" value="#4CC3D9"><label for="blue"> Blue</label></fieldset>
+        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Show Labels</legend> <input onclick="toggleLabels(this)" type="radio" id="no" name="labelsVisible" value="no" checked><label for="no"> Hide</label> <input onclick="toggleLabels(this)" type="radio" id="yes" name="labelsVisible" value="yes"><label for="yes"> Show</label></fieldset>
+        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Interaction Mode</legend> <input type="checkbox" id="placementModeCheckbox"><label for="placementModeCheckbox">Enable Cube Placement</label> <div style="font-size: 0.8em; margin-top: 0.3em;">(Tap screen to place at blue marker)</div></fieldset>
+        <fieldset style="border:none; padding: 0;">
+            <button id="myEnterARButton" onclick="document.querySelector('a-scene').enterAR()">Enter AR</button>
+            <button id="exitVRButton" onclick="AFRAME.scenes[0].exitVR()" style="display: none;">Exit Immersive</button>
+            <button id="shootButton">Shoot</button>
+         </fieldset>
       </div>
-       <!-- Labels -->
       <div id="sphere-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A red sphere</div>
       <div id="box-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A blue box</div>
       <div id="cylinder-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A yellow cylinder</div>
     </section> <!-- End of DOM Overlay -->
 
-    <!-- JavaScript Logic -->
-    <script>
-      // --- Component Definitions ---
-      AFRAME.registerComponent('follow-shadow', {
-            schema: {type: 'selector'},
-            init() { this.el.object3D.renderOrder = -1; },
-            tick() { if (this.data?.object3D) { this.el.object3D.position.copy(this.data.object3D.position); this.el.object3D.position.y = 0.001; } }
-      });
-
-      const vector = new THREE.Vector3();
-      AFRAME.registerComponent('attach-dom-element', {
-            schema: { type: 'string', default: '' },
-            init: function() {
-                 this.screenElements = [];
-                 this.updateElements();
-                 this.el.addEventListener('componentchanged', (evt) => {
-                     if (evt.detail.name === 'attach-dom-element') { this.updateElements(); }
-                 });
-            },
-            updateElements: function() {
-                if (!this.data) { this.screenElements = []; return; }
-                try { this.screenElements = Array.from(document.querySelectorAll(this.data)); }
-                catch (e) { console.error(`Invalid selector "${this.data}"...`, e); this.screenElements = []; }
-            },
-            tick() {
-                if (this.screenElements.length === 0 || !this.el.sceneEl?.hasLoaded || !this.el.sceneEl.camera?.el || !this.el.object3D) return;
-                if (!this.el.object3D.visible) { this.screenElements.forEach(el => { if (el) el.style.display = 'none'; }); return; }
-                this.el.object3D.getWorldPosition(vector);
-                vector.project(this.el.sceneEl.camera);
-                const w = window.innerWidth * 0.5; const h = window.innerHeight * 0.5;
-                const screenX = w + w * vector.x; const screenY = h - h * vector.y;
-                for (const el of this.screenElements) {
-                    if (!el) continue;
-                    if (vector.z < 1) { el.style.transform = `translate(${screenX}px, ${screenY}px) translate(-50%, -50%)`; el.style.display = 'block'; }
-                    else { el.style.display = 'none'; }
-                }
-            }
-      });
-
-      AFRAME.registerComponent('projectile', {
-        schema: { speed: { default: 15.0 }, lifetime: { default: 2000.0 }, direction: { type: 'vec3' } },
-        init: function () {
-          this.startTime = this.el.sceneEl.time;
-          this.data.direction.normalize();
-          // console.log("Projectile initialized with direction:", this.data.direction);
-        },
-        tick: function (time, timeDelta) {
-          const data = this.data; const el = this.el; const elapsedTime = time - this.startTime;
-          if (elapsedTime > data.lifetime) {
-            // console.log("Projectile lifetime ended. Removing.");
-            if (el.parentNode) { el.parentNode.removeChild(el); }
-            return;
-          }
-          const distance = data.speed * (timeDelta / 1000);
-          el.object3D.position.addScaledVector(data.direction, distance);
-        }
-      });
-
-
-      // --- Scene Setup & Listeners ---
-      document.addEventListener('DOMContentLoaded', () => {
-          console.log("DOM Content Loaded. Setting up listeners...");
-
-          const sceneEl = document.querySelector('a-scene');
-          const overlay = document.getElementById('dom-overlay');
-          const reticleEl = document.getElementById('placement-reticle');
-          const objectsGroupEl = document.getElementById('objects');
-          const cameraEl = document.getElementById('player-camera'); // **** NEEDS id="player-camera" on <a-camera> ****
-          const exitVRButton = document.getElementById('exitVRButton');
-          const placementCheckbox = document.getElementById('placementModeCheckbox');
-          const scanningFeedbackEl = document.getElementById('scanning-feedback');
-          const shootButton = document.getElementById('shootButton');
-
-          if (!sceneEl || !overlay || !reticleEl || !objectsGroupEl || !cameraEl || !exitVRButton || !placementCheckbox || !scanningFeedbackEl || !shootButton) {
-              console.error("Essential page elements not found! Check IDs.", {sceneEl, overlay, reticleEl, objectsGroupEl, cameraEl, exitVRButton, placementCheckbox, scanningFeedbackEl, shootButton}); return;
-          } else {
-              console.log("All essential elements found, including cameraEl:", cameraEl ? 'FOUND' : 'MISSING');
-          }
-
-          const SCANNING_MESSAGE = "Scanning for surfaces...\nMove phone slowly.";
-          // Vectors for shooting
-          const shootCameraWorldPos = new THREE.Vector3();
-          const shootCameraWorldDir = new THREE.Vector3();
-          const projectileStartPos = new THREE.Vector3();
-
-          // --- Overlay Interaction ---
-          overlay.addEventListener('beforexrselect', function (e) {
-              const widget = e.target.closest('.overlay-widget');
-              if (e.target === overlay || (widget && !(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT'))) {
-                  e.preventDefault();
-              }
-          });
-
-          // --- UI Functions ---
-         window.toggleSphereColor = function({value}) {
-            console.log("Toggle Sphere Color:", value);
-            const sphere = sceneEl.querySelector('#objects a-sphere');
-            if (sphere) {
-                sphere.setAttribute('color', value);
-                const label = document.getElementById('sphere-label');
-                if (label) label.textContent = `A ${value === '#EF2D5E' ? 'red' : 'blue'} sphere`;
-            } else { console.warn("Could not find the sphere element."); }
-         }
-         window.toggleLabels = function({value}) { overlay.classList.toggle('hide-labels', value === 'no'); }
-
-          // --- AR State Handling ---
-          sceneEl.addEventListener('enter-vr', () => { /* ... unchanged ... */ });
-          sceneEl.addEventListener('exit-vr', () => { /* ... unchanged ... */ });
-
-          // --- AR Hit Test Listeners ---
-           sceneEl.addEventListener('ar-hit-test-start', () => { /* ... unchanged ... */ });
-           sceneEl.addEventListener('ar-hit-test-achieved', () => { /* ... unchanged ... */ });
-           sceneEl.addEventListener('ar-hit-test-lost', () => { /* ... unchanged ... */ });
-
-           // --- Checkbox Change Listener ---
-           placementCheckbox.addEventListener('change', () => { /* ... unchanged ... */ });
-
-          // --- AR Placement on Select ---
-          sceneEl.addEventListener('ar-hit-test-select', (e) => { /* ... unchanged ... */ });
-
-          // --- Shoot Button Listener ---
-          // This listener IS DEFINITELY inside DOMContentLoaded scope
-          shootButton.addEventListener('click', () => {
-              console.log("Shoot button clicked.");
-              if (!sceneEl.is('ar-mode')) { console.log("Shoot ignored: Not in AR mode."); return; }
-
-              // **** CRITICAL CHECK: Ensure cameraEl was found and is valid ****
-              if (!cameraEl || !cameraEl.object3D) {
-                  console.error("Cannot shoot: Camera element or its object3D is not ready/found!");
-                  // Try finding it again just in case?
-                  const currentCamera = document.getElementById('player-camera');
-                  if(!currentCamera || !currentCamera.object3D){
-                       console.error("Still cannot find valid camera element.");
-                       return;
-                  }
-                  // If found now, use currentCamera instead of cameraEl below (though this shouldn't happen if initial check passed)
-                  console.warn("Camera element was not valid initially but found now? Proceeding cautiously.");
-                   cameraEl.object3D.getWorldPosition(shootCameraWorldPos); // Use original cameraEl if logic proceeds
-                   cameraEl.object3D.getWorldDirection(shootCameraWorldDir);
-                   // ... rest of the logic ...
-                   return; // Or perhaps try proceeding using 'currentCamera' if you want to be robust?
-
-              }
-
-              // 1. Get camera's current position and direction (using the valid cameraEl)
-              cameraEl.object3D.getWorldPosition(shootCameraWorldPos);
-              cameraEl.object3D.getWorldDirection(shootCameraWorldDir);
-              shootCameraWorldDir.normalize();
-
-              console.log(`Shooting from pos: ${shootCameraWorldPos.x.toFixed(2)}, ${shootCameraWorldPos.y.toFixed(2)}, ${shootCameraWorldPos.z.toFixed(2)}`);
-              console.log(`Shooting in dir: ${shootCameraWorldDir.x.toFixed(2)}, ${shootCameraWorldDir.y.toFixed(2)}, ${shootCameraWorldDir.z.toFixed(2)}`);
-
-              // 2. Create the projectile cylinder
-              const projectile = document.createElement('a-cylinder');
-              console.log("Projectile element created.");
-
-              // 3. Set initial position slightly in front of camera
-              const startOffset = 0.2;
-              projectileStartPos.copy(shootCameraWorldPos).addScaledVector(shootCameraWorldDir, startOffset);
-              projectile.setAttribute('position', projectileStartPos);
-
-              // 4. Set visual attributes
-              projectile.setAttribute('color', 'yellow');
-              projectile.setAttribute('radius', '0.05');
-              projectile.setAttribute('height', '0.2');
-
-              // 5. Add the projectile component
-              const projectileDirection = shootCameraWorldDir.clone();
-              projectile.setAttribute('projectile', {
-                  direction: projectileDirection,
-                  speed: 10,
-                  lifetime: 2000
-              });
-               console.log("Projectile component attributes set.");
-
-               // 6. Add to scene
-               sceneEl.appendChild(projectile);
-               console.log("Projectile added to scene.");
-          });
-
-
-          // --- Initialize UI ---
-          setTimeout(() => { window.toggleLabels({value: document.querySelector('input[name="labelsVisible"]:checked')?.value || 'no'}); }, 0);
-          window.toggleSphereColor({value: document.querySelector('input[name="sphereColor"]:checked')?.value || '#AAAAAA'}); // Corrected default color from your code
-          document.getElementById('sphere-label').textContent = 'A red sphere';
-          document.getElementById('box-label').textContent = 'A blue box';
-          document.getElementById('cylinder-label').textContent = 'A yellow cylinder';
-
-          // --- Set willReadFrequently on Canvas ---
-          sceneEl.addEventListener('loaded', () => { /* ... unchanged ... */ });
-
-      }); // End of DOMContentLoaded listener
-    </script>
   </body>
 </html>
