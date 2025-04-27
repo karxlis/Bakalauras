@@ -59,26 +59,8 @@
   <a-sphere class="interactive" mixin="cursor_animations" position="0 1.25 -1" radius="1.25" color="#EF2D5E" attach-dom-element="#sphere-label" shadow draggable></a-sphere>
   <a-cylinder id="target-cylinder" class="interactive" mixin="cursor_animations" position="1 0.75 1" radius="0.5" height="1.5" color="#FFC65D" attach-dom-element="#cylinder-label" shadow draggable></a-cylinder>
 
-  <!-- **** Orbiting BOXES **** -->
-  <a-box id="orbit-box1" class="orbiting-target" 
-    width="0.5" height="0.5" depth="0.5"
-    material="color: #FFDB58; shader: standard;"
-    hit-receiver 
-    start-orbit-in-ar="radius: 3; speed: 0.6; initialAngle: 0;">
-</a-box>
-<a-box id="orbit-box2" class="orbiting-target" 
-    width="0.4" height="0.4" depth="0.4"
-    material="color: #C3B1E1; shader: standard;"
-    hit-receiver 
-    start-orbit-in-ar="radius: 3.5; speed: -0.4; initialAngle: 1.57;">
-</a-box>
-<a-box id="orbit-box3" class="orbiting-target" 
-    width="0.6" height="0.6" depth="0.6"
-    material="color: #90EE90; shader: standard;"
-    hit-receiver 
-    start-orbit-in-ar="radius: 2.8; speed: 0.7; initialAngle: 3.14;">
-</a-box>
-   <!-- Add more boxes if desired -->
+  <!-- **** Orbiting enemies **** -->
+  <a-entity id="enemies"></a-entity>
 
 </a-entity>
 
@@ -111,7 +93,28 @@
 
     <!-- DOM Overlay -->
     <section id="dom-overlay" class="hide-labels">
+      <div id="tower-health-indicator" class="overlay-widget" style="top: 1em; left: 1em; display: none;">
+        Tower Health: 10/10
+    </div>
        <div id="scanning-feedback">Scanning for surfaces...<br>Move phone slowly.</div>
+       <div id="level-up-popup">
+        <div class="level-up-text">Level Up!</div>
+        <div id="level-number">Level: 1</div>
+    </div>
+    <div id="place-tower-popup" style="display: none;">
+      <div>Place Your Tower!</div>
+      <div style="font-size: 0.8em; margin: 0.5em 0;">Tap the blue marker on a surface.</div>
+      <button id="startGameButton" disabled>Start Game</button>
+      <div id="tower-placed-feedback" style="font-size: 0.8em; margin-top: 0.5em; color: lightgreen; display: none;">Tower Placed!</div>
+      
+  </div>
+
+  <div id="game-over-screen" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 2em;">
+    <h2>Game Over!</h2>
+    <p id="final-score">Your Score: 0</p>
+    <button id="tryAgainButton">Try Again</button>
+</div>
+
        <div id="controls-widget" style="inset:auto auto 1em 1em;" class="overlay-widget">
         <h1 style="margin: 0 0 0.5em 0;">My 3D Life</h1>
         <div id="score-display" style="margin-bottom: 1em; font-size: 1.1em; font-weight: bold;">Score: 0</div>

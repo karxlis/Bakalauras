@@ -88,3 +88,100 @@ body {
     font-size: 1.2em;   /* Increase font size */
     margin-left: 0.5em; /* Add some space */
   }
+
+  #level-up-popup {
+    position: absolute;
+    top: 30%; /* Position vertically */
+    left: 50%;
+    transform: translate(-50%, -50%); /* Center horizontally and vertically */
+    background-color: rgba(40, 180, 40, 0.85); /* Greenish background */
+    color: white;
+    padding: 20px 30px;
+    border-radius: 15px;
+    border: 3px solid #FFFFFF;
+    text-align: center;
+    z-index: 10; /* Ensure it's on top */
+    pointer-events: none; /* Don't block interactions */
+    display: none; /* Start hidden */
+    font-size: 1.5em; /* Make text larger */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  }
+  #level-up-popup .level-up-text {
+      font-weight: bold;
+      font-size: 1.2em;
+      margin-bottom: 5px;
+  }
+  #level-number {
+      font-size: 0.9em;
+  }
+
+  #place-tower-popup {
+    position: absolute;
+    top: 1em; /* Or position differently, e.g., top: 50%, left: 50%, transform: translate(-50%, -50%); */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 50, 100, 0.85); /* Dark blue background */
+    color: white;
+    padding: 1em 1.5em;
+    border-radius: 0.8em;
+    border: 2px solid #FFFFFF;
+    text-align: center;
+    z-index: 10;
+    pointer-events: auto; /* Allow button click */
+    display: none; /* Start hidden */
+    font-size: 1.2em;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  }
+
+
+  /* **** ADD TOWER HEALTH STYLES **** */
+#tower-health-indicator {
+  position: absolute; /* Ensure positioning works */
+  top: 1em;
+  left: 1em;
+  background-color: rgba(150, 0, 0, 0.7); /* Dark red background */
+  z-index: 5; /* Above controls maybe */
+  padding: 0.5em 1em;
+  font-weight: bold;
+}
+/* **** END TOWER HEALTH STYLES **** */
+
+
+/* **** ADD GAME OVER SCREEN STYLES **** */
+#game-over-screen {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(50, 0, 0, 0.9); /* Darker red background */
+  border: 3px solid white;
+  border-radius: 1em;
+  z-index: 20; /* Highest priority */
+  padding: 2em;
+  text-align: center;
+  display: none; /* Start hidden */
+}
+
+#game-over-screen h2 {
+  margin-top: 0;
+  color: #FF8080; /* Light red text */
+}
+
+#game-over-screen p {
+    font-size: 1.2em;
+    margin-bottom: 1.5em;
+}
+
+#game-over-screen button {
+    padding: 0.8em 1.5em;
+    font-size: 1.1em;
+    cursor: pointer;
+    background-color: #CCCCCC;
+    border: none;
+    border-radius: 0.3em;
+    color: black;
+}
+
+#game-over-screen button:hover {
+    background-color: #AAAAAA;
+}

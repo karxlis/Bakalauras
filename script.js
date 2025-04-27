@@ -71,87 +71,97 @@ AFRAME.registerComponent('attach-dom-element', {
     }
 });
 
-// Projectile Component with Collision Detection
 AFRAME.registerComponent('projectile-hitter', {
     schema: {
       speed: { default: 10.0 },
       lifetime: { default: 3000.0 },
       direction: { type: 'vec3' },
-      targetSelector: { type: 'string', default: '.orbiting-target' },
-      collisionRadius: { type: 'number', default: 0.15 } // Approx combined radius
+      targetSelector: { type: 'string', default: '.enemy' }, // Target enemies
+      collisionRadius: { type: 'number', default: 0.2 }
     },
     init: function () {
       this.startTime = this.el.sceneEl.time;
       if (this.data.direction.lengthSq() > 0.001) { this.data.direction.normalize(); }
       else { this.data.direction.set(0, 0, -1); }
 
-      this.targets = []; // Initialize empty
-      this.targetsFound = false; // Flag to only query until found
+      this.targets = [];
+      this.targetsFound = false;
       this.projectileWorldPos = new THREE.Vector3();
       this.targetWorldPos = new THREE.Vector3();
       this.collisionRadiusSq = this.data.collisionRadius * this.data.collisionRadius;
 
       // Defer target query slightly
       setTimeout(() => {
-          this.targets = Array.from(this.el.sceneEl.querySelectorAll(this.data.targetSelector));
-          console.log(`[projectile-hitter] Initialized for ${this.el.id || 'projectile'}. Targeting: ${this.data.targetSelector}. Found ${this.targets.length} targets.`);
-          if(this.targets.length === 0) console.warn("[projectile-hitter] No targets found!");
+        this.targets = Array.from(this.el.sceneEl.querySelectorAll(this.data.targetSelector));
+        console.log(`[projectile-hitter] Initialized. Targeting: ${this.data.targetSelector}. Found ${this.targets.length} initial targets.`);
+        if(this.targets.length === 0) console.warn(`[projectile-hitter] No initial targets found for ${this.data.targetSelector}`);
+        this.targetsFound = this.targets.length > 0;
       }, 100);
     },
     tick: function (time, timeDelta) {
-      const data = this.data;
-      const el = this.el;
-      const elapsedTime = time - this.startTime;
+       const data = this.data; // Define inside tick
+       const el = this.el;     // Define inside tick
+       const elapsedTime = time - this.startTime; // Define inside tick
 
-      // Lifetime check
-      if (elapsedTime > data.lifetime) {
-        if (el.parentNode) { el.parentNode.removeChild(el); }
-        return;
-      }
+       // *** ADD dynamic target finding inside tick ***
+       if (!this.targetsFound || time % 1000 < timeDelta) { // Check periodically
+         const currentTargets = Array.from(this.el.sceneEl.querySelectorAll(this.data.targetSelector));
+         if (currentTargets.length !== this.targets.length) {
+           this.targets = currentTargets;
+         }
+         this.targetsFound = this.targets.length > 0;
+       }
+       // *** END dynamic target finding ***
 
-      // Movement logic
-      const distance = data.speed * (timeDelta / 1000);
-      if (isNaN(distance) || distance <= 0 || !isFinite(distance) || !el.object3D) return;
-      el.object3D.position.addScaledVector(data.direction, distance);
+       // Lifetime check
+       if (elapsedTime > data.lifetime) {
+         if (el.parentNode) { el.parentNode.removeChild(el); }
+         return; // This return is VALID inside the tick function
+       }
 
-      // Query for targets in tick until found
-      if (!this.targetsFound && this.targets.length > 0) { // Check length before setting flag
-          this.targetsFound = true;
-          // console.log(`[projectile-hitter] Target list confirmed with ${this.targets.length} targets.`);
-      } else if (!this.targetsFound) {
+       // Movement logic
+       const distance = data.speed * (timeDelta / 1000);
+       if (isNaN(distance) || distance <= 0 || !isFinite(distance) || !el.object3D) return; // Also valid here
+       el.object3D.position.addScaledVector(data.direction, distance);
+
+       // Collision Check
+       if (!el.object3D) return; // Also valid here
+       el.object3D.getWorldPosition(this.projectileWorldPos);
+
+        // Check periodically for targets if not found initially, or update list
+       if (!this.targetsFound && this.targets.length > 0) {
+           this.targetsFound = true;
+       } else if (!this.targetsFound) {
            // Optional: Warn if targets *never* found after some time
            if (elapsedTime > 2000 && !this._warned_no_targets) {
-               console.warn(`[projectile-hitter] Still haven't found targets matching "${this.data.targetSelector}". Check class names and timing.`);
+               console.warn(`[projectile-hitter] Still haven't found targets matching "${this.data.targetSelector}".`);
                this._warned_no_targets = true;
            }
-          return; // Exit tick early if no targets found yet
-      }
+           return; // Exit tick early if no targets found yet
+       }
 
-      // Collision Check
-      if (!el.object3D) return;
-      el.object3D.getWorldPosition(this.projectileWorldPos);
+       for (let i = 0; i < this.targets.length; i++) {
+         const target = this.targets[i];
+         if (!target?.object3D) continue;
+         const targetVisible = target.getAttribute('visible');
+         const hasHitReceiver = target.components['hit-receiver'];
 
-      for (let i = 0; i < this.targets.length; i++) {
-        const target = this.targets[i];
-        if (!target?.object3D) continue; // Skip if target invalid
+         if (targetVisible && hasHitReceiver) {
+           target.object3D.getWorldPosition(this.targetWorldPos);
+           const distSq = this.projectileWorldPos.distanceToSquared(this.targetWorldPos);
+           if (distSq < this.collisionRadiusSq) {
+             console.log(`%c[projectile-hitter] HIT DETECTED with ${target.id}!`, "color: green; font-weight: bold;");
+             hasHitReceiver.hit(); // Call hit method
+             if (el.parentNode) { el.parentNode.removeChild(el); } // Remove projectile
+             return; // Exit loop and tick after hit
+           }
+         }
+       }
+     } // <<<< Closing brace for tick function
+   });
+  
 
-        const targetVisible = target.getAttribute('visible'); // Check A-Frame visibility
-        const hasHitReceiver = target.components['hit-receiver'];
 
-        if (targetVisible && hasHitReceiver) {
-          target.object3D.getWorldPosition(this.targetWorldPos);
-          const distSq = this.projectileWorldPos.distanceToSquared(this.targetWorldPos);
-
-          if (distSq < this.collisionRadiusSq) {
-            console.log(`%c[projectile-hitter] HIT DETECTED with ${target.id}! DistSq=${distSq.toFixed(4)}`, "color: green; font-weight: bold;");
-            hasHitReceiver.hit(); // Call the hit method on the component
-            if (el.parentNode) { el.parentNode.removeChild(el); } // Remove projectile
-            return; // Exit loop and tick after hit
-          }
-        }
-      }
-    }
-});
 
 // Hit Receiver Component (Calls score update)
 AFRAME.registerComponent('hit-receiver', {
@@ -159,73 +169,518 @@ AFRAME.registerComponent('hit-receiver', {
         respawnDelay: { type: 'number', default: 10000 } // 10 seconds
     },
     init: function () {
-        this.isVisible = this.el.getAttribute('visible'); // Initial state from element
+        this.isVisible = this.el.getAttribute('visible');
         this.respawnTimer = null;
         this.hit = this.hit.bind(this);
-        console.log(`[hit-receiver] Initialized on ${this.el.id}. Initial visibility: ${this.isVisible}`);
+        this.isEnemy = this.el.classList.contains('enemy');
+        console.log(`[hit-receiver] Initialized on ${this.el.id}. Is Enemy: ${this.isEnemy}`);
     },
     hit: function() {
-        if (!this.isVisible) {
-             console.log(`[hit-receiver] ${this.el.id} already hit. Ignoring.`);
-             return; // Ignore if already invisible/respawning
+        if (!this.isVisible || isGameOver) { return; } // Already hit / being removed
+
+        console.log(`[hit-receiver] ${this.el.id} HIT!`);
+        this.isVisible = false; // Prevent further hits immediately
+        this.el.setAttribute('visible', 'false'); // Make invisible visually
+
+        if (window.incrementScore) { window.incrementScore(); } // Increment score (This part is working)
+
+        // For enemies, decrement count immediately and schedule removal
+        if (this.isEnemy) {
+            console.log(`[hit-receiver] Scheduling removal for enemy ${this.el.id}`);
+
+            // **** ADDED EXPLICIT DECREMENT ****
+            if (window.enemyManager) {
+                window.enemyManager.decrementCount();
+                console.log(`[hit-receiver] Decremented enemy count via hit. Current: ${window.enemyManager.activeEnemies}`);
+            }
+            // **** END ADDED DECREMENT ****
+
+            // Schedule actual removal from scene
+            if (this.el.parentNode) {
+                // Keep the short delay if you want effects later, otherwise remove immediately
+                const removeDelay = 100; // ms
+                setTimeout(() => {
+                   if(this.el.parentNode) {
+                       console.log(`[hit-receiver] Executing removeChild for ${this.el.id}`);
+                       this.el.parentNode.removeChild(this.el);
+                   } else {
+                       console.warn(`[hit-receiver] Parent node gone before removeChild executed for ${this.el.id}`);
+                   }
+                }, removeDelay);
+            } else {
+                 console.warn(`[hit-receiver] Enemy ${this.el.id} had no parent node when hit.`);
+                 // Decrement was already called, so count should still be correct.
+            }
+        } else {
+            // Existing respawn logic for non-enemy elements
+            if (this.respawnTimer) clearTimeout(this.respawnTimer);
+            this.respawnTimer = setTimeout(() => {
+                 this.isVisible = true;
+                 this.el.setAttribute('visible', 'true');
+                 this.respawnTimer = null;
+                 console.log(`[hit-receiver] Respawned non-enemy ${this.el.id}`);
+             }, this.data.respawnDelay);
         }
-
-        console.log(`[hit-receiver] ${this.el.id} HIT! Hiding...`);
-        this.isVisible = false;
-        this.el.setAttribute('visible', 'false'); // Make invisible
-
-        // Call global score function if it exists
-        if (window.incrementScore) {
-            window.incrementScore();
-        } else { console.warn("incrementScore function not found on window."); }
-
-        if (this.respawnTimer) clearTimeout(this.respawnTimer);
-        this.respawnTimer = setTimeout(() => {
-            console.log(`[hit-receiver] Respawning ${this.el.id}.`);
-            this.isVisible = true;
-            this.el.setAttribute('visible', 'true'); // Make visible again
-            this.respawnTimer = null;
-        }, this.data.respawnDelay);
     },
     remove: function() {
-       if (this.respawnTimer) {
-            clearTimeout(this.respawnTimer);
-            console.log(`[hit-receiver] Cleared respawn timer for removed ${this.el.id}.`);
-       }
+        // Cleanup respawn timer if element is removed externally
+        if (this.respawnTimer) { clearTimeout(this.respawnTimer); }
+
+        // We moved the essential enemy count decrement into the hit() method,
+        // so this remove doesn't strictly need to handle it anymore for hits.
+        // The move-towards-target remove still handles decrement if removed some other way.
+        // console.log(`[hit-receiver] Remove lifecycle method called for ${this.el.id}. isVisible was: ${this.isVisible}`);
     }
 });
 
-// Start Orbit In AR Component
-AFRAME.registerComponent('start-orbit-in-ar', {
-    schema: { radius: {type: 'number', default: 0.5}, speed: {type: 'number', default: 1.0} },
-    init: function () {
-      this.isAR = false; this.angle = 0; this.centerPoint = new THREE.Vector3(); this.initialLocalPosition = new THREE.Vector3();
-      this.onEnterVR = this.onEnterVR.bind(this); this.onExitVR = this.onExitVR.bind(this);
-      const captureInitialState = () => { if (this.el.object3D && this.el.parentNode?.object3D) { this.initialLocalPosition.copy(this.el.object3D.position); this.el.object3D.getWorldPosition(this.centerPoint); this.el.sceneEl.addEventListener('enter-vr', this.onEnterVR); this.el.sceneEl.addEventListener('exit-vr', this.onExitVR); if (this.el.sceneEl.is('ar-mode')) { this.isAR = true; } } else { if (this.el.object3D) setTimeout(captureInitialState, 50); else this.el.addEventListener('object3dset', captureInitialState, {once: true}); } };
-      setTimeout(captureInitialState, 100);
+// priesai juda prie boxto
+AFRAME.registerComponent('move-towards-target', {
+    schema: {
+        target: { type: 'selector' },
+        speed: { type: 'number', default: 0.5 }, // Initial speed
+        reachDistance: { type: 'number', default: 0.2 } // How close before stopping/destroying
     },
-    remove: function() { this.el.sceneEl.removeEventListener('enter-vr', this.onEnterVR); this.el.sceneEl.removeEventListener('exit-vr', this.onExitVR); },
-    onEnterVR: function() { if (this.el.sceneEl.is('ar-mode')) { this.isAR = true; if (this.el.object3D) { this.el.object3D.getWorldPosition(this.centerPoint); } } else { this.isAR = false; } },
-    onExitVR: function() { this.isAR = false; if (this.el.object3D && this.initialLocalPosition) { this.el.object3D.position.copy(this.initialLocalPosition); } this.angle = 0; },
-    tick: function (time, timeDelta) { if (!this.isAR || !this.el.object3D || !timeDelta || timeDelta <= 0 || this.centerPoint.lengthSq() === 0) { return; } this.angle += this.data.speed * (timeDelta / 1000); this.angle = this.angle % (Math.PI * 2); const radius = this.data.radius * (this.el.parentEl?.object3D.scale.x || 1); const x = this.centerPoint.x + radius * Math.cos(this.angle); const z = this.centerPoint.z + radius * Math.sin(this.angle); const y = this.centerPoint.y; if (this.el.parentEl?.object3D) { this.el.parentEl.object3D.worldToLocal(this.el.object3D.position.set(x, y, z)); } else { this.el.object3D.position.set(x, y, z); } }
+    init: function () {
+        this.targetPosition = new THREE.Vector3();
+        this.direction = new THREE.Vector3();
+        this.currentPosition = new THREE.Vector3();
+
+        // Add class for easy selection
+        this.el.classList.add('enemy');
+        this.el.setAttribute('visible', true); // Ensure visible on init
+        console.log(`[move-towards] Initialized on ${this.el.id || 'enemy'} targeting ${this.data.target?.id || 'null'}. Speed: ${this.data.speed}`);
+
+        if (!this.data.target) {
+             console.error(`[move-towards] Target not set for ${this.el.id}`);
+        }
+    },
+    update: function(oldData) {
+        // Handle target or speed changes if needed later
+         if (oldData.speed !== this.data.speed) {
+             console.log(`[move-towards] Speed updated for ${this.el.id} to ${this.data.speed}`);
+         }
+         if (oldData.target !== this.data.target && !this.data.target) {
+             console.error(`[move-towards] Target became null for ${this.el.id}`);
+         }
+    },
+    tick: function (time, timeDelta) {
+        const targetEl = this.data.target;
+        const el = this.el;
+
+        if (!targetEl || !targetEl.object3D || !el.object3D || timeDelta <= 0 || !el.getAttribute('visible') || isGameOver) { // Add isGameOver check
+            // If target lost or element invisible, stop processing
+            // console.log(`[move-towards] Tick skip: Target=${!!targetEl}, Visible=${el.getAttribute('visible')}`);
+            return;
+        }
+
+        targetEl.object3D.getWorldPosition(this.targetPosition);
+        el.object3D.getWorldPosition(this.currentPosition);
+
+        const distanceToTargetSq = this.currentPosition.distanceToSquared(this.targetPosition);
+
+        // Check if reached target
+        if (distanceToTargetSq < (this.data.reachDistance * this.data.reachDistance)) {
+            console.log(`%c[move-towards] ${el.id || 'Enemy'} reached target!`, "color: red; font-weight: bold;");
+
+            // **** CALL TOWER HIT ****
+            towerHit();
+            // **** END CALL TOWER HIT ****
+
+            // Remove the enemy element
+            if (el.parentNode) {
+                el.parentNode.removeChild(el);
+                // Decrement count is now handled by the component's remove method
+                // if (window.enemyManager) window.enemyManager.decrementCount(); // Can remove this line
+            }
+            return; // Exit tick
+        }
+        // Calculate direction towards target
+        this.direction.copy(this.targetPosition).sub(this.currentPosition).normalize();
+
+        // Calculate movement distance
+        const moveDistance = this.data.speed * (timeDelta / 1000);
+
+        // Move the element
+        el.object3D.position.addScaledVector(this.direction, moveDistance);
+
+    },
+    remove: function() {
+        // Cleanup if needed
+        console.log(`[move-towards] ${this.el.id || 'Enemy'} removed.`);
+        // Ensure count is decremented if removed externally (e.g., by hit-receiver)
+        if (window.enemyManager && !isGameOver) {
+            window.enemyManager.decrementCount();
+        }
+    }
 });
 
 
 // --- Global Scope Variables & Functions ---
 let score = 0;
-let scoreDisplayEl = null; // Assigned in DOMContentLoaded
+let currentLevel = 1; // Start at level 1
+let scoreDisplayEl = null;
+let levelUpPopupEl = null; // Reference for popup
+let levelNumberEl = null;  // Reference for level number text
+let levelUpTimeout = null; // Timer for hiding popup
+
+// **** ADD GAME STATE VARIABLES ****
+let isGameSetupComplete = false; // Tracks if the initial tower placement is done
+let towerPlaced = false;         // Tracks if the tower has been placed in setup
+let placedTowerEl = null;        // Reference to the placed tower
+// **** END OF GAME STATE VARIABLES ****
+
+const TOWER_MAX_HEALTH = 10;
+let currentTowerHealth = TOWER_MAX_HEALTH;
+let towerHealthIndicatorEl = null; // Reference to UI element
+let gameOverScreenEl = null;       // Reference to Game Over UI
+let finalScoreEl = null;           // Reference to final score display
+let isGameOver = false;            // Game over state flag
+// **** END TOWER HEALTH & GAME OVER STATE ****
+
+
+window.enemyManager = {
+    activeEnemies: 0,
+    maxEnemies: 5,
+    spawnInterval: 2000, // Time between spawn checks (ms)
+    spawnTimerId: null,
+    baseSpeed: 0.5,      // Initial enemy speed
+    speedMultiplier: 1.0 // Multiplier increased by level ups
+};
 
 function updateScoreDisplay() {
+    // Find element only if null (might not be ready on first call)
+    scoreDisplayEl = scoreDisplayEl || document.getElementById('score-display');
     if (scoreDisplayEl) {
         scoreDisplayEl.textContent = `Score: ${score}`;
     }
 }
 
-window.incrementScore = function() {
-    score++;
-    console.log("Score increased to:", score);
-    updateScoreDisplay();
+// Function to show the level up popup
+function showLevelUpPopup(level) {
+    console.log(`%%%%% showLevelUpPopup Function Called for Level: ${level} %%%%%`);
+
+    // Get elements inside function every time
+    const popupEl = document.getElementById('level-up-popup');
+    const levelNumEl = document.getElementById('level-number');
+
+    if (popupEl && levelNumEl) {
+        console.log("Popup elements confirmed found.");
+        levelNumEl.textContent = `Level: ${level}`;
+        console.log(`Set level text to: ${levelNumEl.textContent}`);
+
+        console.log("Popup current display (style):", popupEl.style.display);
+        console.log("Popup current display (computed):", window.getComputedStyle(popupEl).display);
+        popupEl.style.display = 'block'; // Force display
+        // Force Reflow (sometimes helps ensure style applies before timeout)
+        void popupEl.offsetWidth;
+        console.log("Popup display style set to 'block'. New computed style:", window.getComputedStyle(popupEl).display);
+
+        if (levelUpTimeout) clearTimeout(levelUpTimeout);
+
+        console.log("Setting timeout to hide popup in 1000ms.");
+        levelUpTimeout = setTimeout(() => {
+            console.log("Executing timeout to hide popup.");
+            if(popupEl) popupEl.style.display = 'none';
+            levelUpTimeout = null;
+        }, 1000);
+    } else {
+        console.error("Could not find necessary popup elements!", { popupEl, levelNumEl });
+    }
 }
+
+// Function to increase orbit speed
+function increaseEnemySpeed() {
+    console.log("%%%%% increaseEnemySpeed Function Called %%%%%");
+    // Increase the global speed multiplier
+    window.enemyManager.speedMultiplier *= 1.5; // Increase speed by 50% per level
+    console.log(`New enemy speed multiplier: ${window.enemyManager.speedMultiplier.toFixed(2)}`);
+
+    // Update speed of existing enemies
+    const activeEnemies = document.querySelectorAll('.enemy'); // Use '.enemy' class
+    console.log(`Found ${activeEnemies.length} active enemies to update speed.`);
+    activeEnemies.forEach(enemyEl => {
+        if (enemyEl.components['move-towards-target']) {
+            const currentBaseSpeed = window.enemyManager.baseSpeed;
+            const newSpeed = currentBaseSpeed * window.enemyManager.speedMultiplier;
+            enemyEl.setAttribute('move-towards-target', 'speed', newSpeed);
+        } else {
+             console.warn(`Enemy ${enemyEl.id} missing 'move-towards-target' component during speed update.`);
+        }
+    })
+}
+
+// Modified incrementScore to check for level up
+window.incrementScore = function() {
+    const previousLevel = currentLevel;
+    score++;
+    currentLevel = Math.floor(score / 5) + 1; // Calculate new level
+    console.log("Score increased to:", score, "Current Level:", currentLevel);
+    if (currentLevel > previousLevel) {
+        console.log("LEVEL UP! Increasing enemy speed and showing popup...");
+        increaseEnemySpeed(); // **** CORRECTED FUNCTION CALL ****
+        showLevelUpPopup(currentLevel);
+    }
+    updateScoreDisplay();
+};
+
+
+function updateTowerHealthUI() {
+    towerHealthIndicatorEl = towerHealthIndicatorEl || document.getElementById('tower-health-indicator');
+    if (towerHealthIndicatorEl) {
+        towerHealthIndicatorEl.textContent = `Tower Health: ${currentTowerHealth}/${TOWER_MAX_HEALTH}`;
+        towerHealthIndicatorEl.style.display = isGameSetupComplete && !isGameOver ? 'block' : 'none';
+
+        // Optional: Change color based on health
+        const healthPercent = currentTowerHealth / TOWER_MAX_HEALTH;
+        if (healthPercent > 0.6) {
+            towerHealthIndicatorEl.style.backgroundColor = 'rgba(0, 150, 0, 0.7)'; // Greenish
+        } else if (healthPercent > 0.3) {
+            towerHealthIndicatorEl.style.backgroundColor = 'rgba(180, 130, 0, 0.7)'; // Orangeish
+        } else {
+            towerHealthIndicatorEl.style.backgroundColor = 'rgba(150, 0, 0, 0.7)'; // Reddish
+        }
+    }
+}
+
+function towerHit() {
+    if (isGameOver) return; // Don't decrease health if game is already over
+
+    currentTowerHealth--;
+    console.log(`%cTower Hit! Health: ${currentTowerHealth}/${TOWER_MAX_HEALTH}`, "color: orange; font-weight: bold;");
+    updateTowerHealthUI();
+
+    // TODO: Add visual/sound effect for tower hit
+
+    if (currentTowerHealth <= 0) {
+        gameOver();
+    }
+}
+
+function gameOver() {
+    if (isGameOver) return; // Prevent multiple calls
+    console.log("%cGAME OVER!", "color: red; font-size: 1.5em; font-weight: bold;");
+    isGameOver = true;
+
+    // Stop spawning
+    if (window.enemyManager.spawnTimerId) {
+        clearInterval(window.enemyManager.spawnTimerId);
+        window.enemyManager.spawnTimerId = null;
+        console.log("Enemy spawner stopped due to game over.");
+    }
+
+    // Stop existing enemies (optional: could let them finish moving)
+     const enemies = document.querySelectorAll('.enemy');
+     enemies.forEach(enemy => {
+         if (enemy.components['move-towards-target']) {
+             enemy.removeAttribute('move-towards-target'); // Stop movement
+         }
+         // Maybe add a fade out effect later?
+     });
+
+    // Hide game UI elements
+    const controlsWidget = document.getElementById('controls-widget');
+    if (controlsWidget) controlsWidget.style.display = 'none';
+    updateTowerHealthUI(); // Hides health indicator because isGameOver is true
+
+    // Show Game Over screen
+    gameOverScreenEl = gameOverScreenEl || document.getElementById('game-over-screen');
+    finalScoreEl = finalScoreEl || document.getElementById('final-score');
+    if (gameOverScreenEl && finalScoreEl) {
+        finalScoreEl.textContent = `Your Score: ${score}`;
+        gameOverScreenEl.style.display = 'block';
+    }
+}
+
+// **** ADD GAME RESET LOGIC ****
+function resetGame() {
+    console.log("Resetting game...");
+
+    // Reset state variables
+    isGameOver = false;
+    isGameSetupComplete = false;
+    towerPlaced = false;
+    score = 0;
+    currentLevel = 1;
+    currentTowerHealth = TOWER_MAX_HEALTH;
+    window.enemyManager.activeEnemies = 0;
+    window.enemyManager.speedMultiplier = 1.0;
+
+    // Clear spawner if somehow still active
+     if (window.enemyManager.spawnTimerId) {
+        clearInterval(window.enemyManager.spawnTimerId);
+        window.enemyManager.spawnTimerId = null;
+    }
+
+    // Hide Game Over screen
+    if (gameOverScreenEl) gameOverScreenEl.style.display = 'none';
+
+    // Remove placed tower and existing enemies/projectiles
+    if (placedTowerEl && placedTowerEl.parentNode) {
+        placedTowerEl.parentNode.removeChild(placedTowerEl);
+    }
+    placedTowerEl = null;
+
+    const entitiesToRemove = document.querySelectorAll('.enemy, [projectile-hitter]');
+    entitiesToRemove.forEach(el => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    console.log(`Removed ${entitiesToRemove.length} dynamic entities.`);
+
+
+    // Reset UI elements to initial state (like entering AR)
+    updateScoreDisplay(); // Reset score display to 0
+
+    const sceneEl = sceneElGlobal;
+    if (sceneEl && sceneEl.is('ar-mode')) {
+        // Trigger the setup flow again
+        const scanningFeedbackEl = document.getElementById('scanning-feedback');
+        const placeTowerPopupEl = document.getElementById('place-tower-popup');
+        const controlsWidget = document.getElementById('controls-widget');
+        const shootButton = document.getElementById('shootButton');
+        const startGameButton = document.getElementById('startGameButton');
+        const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
+
+        console.log('Restarting setup phase UI.');
+        if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'block'; // Show scanning
+        if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
+        if (controlsWidget) controlsWidget.style.display = 'none';
+        if (shootButton) shootButton.disabled = true;
+        if (startGameButton) startGameButton.disabled = true;
+        if (towerPlacedFeedback) towerPlacedFeedback.style.display = 'none';
+        updateTowerHealthUI(); // Ensure health UI is hidden
+
+        const reticleEl = document.getElementById('placement-reticle');
+        if (reticleEl) reticleEl.setAttribute('visible', false);
+
+        // Maybe re-trigger hit-test search? It should still be active.
+        // sceneEl.emit('ar-hit-test-start'); // Optional: force start event
+    } else {
+        // If not in AR mode, just ensure UI is reasonable for non-AR
+         const controlsWidget = document.getElementById('controls-widget');
+         if(controlsWidget) controlsWidget.style.display = 'block';
+    }
+}
+
+
+
+function spawnEnemy() {
+    if (!isGameSetupComplete || !placedTowerEl || !sceneElGlobal) return; // Only spawn when game running
+
+    const manager = window.enemyManager;
+    if (manager.activeEnemies >= manager.maxEnemies) {
+        // console.log("Max enemies reached, skipping spawn.");
+        return;
+    }
+
+    const sceneEl = sceneElGlobal;
+    const cameraEl = document.getElementById('player-camera');
+    if (!cameraEl || !cameraEl.object3D) return;
+
+    const enemyContainer = document.getElementById('enemies') || sceneEl; // Use container or scene
+
+    // --- Calculate Spawn Position ---
+    const camPos = new THREE.Vector3();
+    const camDir = new THREE.Vector3();
+    const spawnPos = new THREE.Vector3();
+    const towerPos = new THREE.Vector3();
+
+    cameraEl.object3D.getWorldPosition(camPos);
+    cameraEl.object3D.getWorldDirection(camDir); // Direction camera is facing
+    placedTowerEl.object3D.getWorldPosition(towerPos);
+
+    const spawnDistance = 4 + Math.random() * 2; // Spawn 4-6 units away
+    const angleRange = Math.PI / 2.5; // Spawn within ~70 degree cone in front
+    const randomAngle = (Math.random() - 0.5) * angleRange;
+
+    // Calculate direction vector rotated slightly horizontally from camera forward
+    const spawnDir = camDir.clone();
+    const rotationAxis = new THREE.Vector3(0, 1, 0); // Rotate around Y axis
+    spawnDir.applyAxisAngle(rotationAxis, randomAngle);
+
+    // Calculate spawn position
+    spawnPos.copy(camPos).addScaledVector(spawnDir, spawnDistance);
+
+    // Optional: Adjust Y position slightly based on tower/camera height
+    spawnPos.y = camPos.y + (Math.random() - 0.5) * 0.5; // Randomize height slightly
+
+    // Ensure spawn position is further from tower than camera (basic check)
+    const distSqCamToSpawn = camPos.distanceToSquared(spawnPos);
+    const distSqTowerToSpawn = towerPos.distanceToSquared(spawnPos);
+    const distSqCamToTower = camPos.distanceToSquared(towerPos);
+
+    if (distSqTowerToSpawn < distSqCamToTower) {
+        console.warn("Spawn rejected: Too close to tower relative to camera. Retrying next interval.");
+        return; // Skip spawn if it would be behind or too close
+    }
+
+    // --- Create Enemy ---
+    const enemy = document.createElement('a-box');
+    const enemyId = `enemy-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    enemy.setAttribute('id', enemyId);
+    enemy.classList.add('enemy'); // **** ADD CLASS HERE ****
+    enemy.setAttribute('color', `hsl(${Math.random() * 360}, 70%, 60%)`); // Random color
+    enemy.setAttribute('scale', '0.25 0.25 0.25');
+    enemy.setAttribute('position', spawnPos);
+    enemy.setAttribute('shadow', 'cast: true; receive: false;');
+
+    // Attach components (Now hit-receiver will see the class)
+    enemy.setAttribute('hit-receiver', ''); // Use defaults
+    enemy.setAttribute('move-towards-target', {
+        target: `#${placedTowerEl.id}`,
+        speed: manager.baseSpeed * manager.speedMultiplier // Apply current speed
+    });
+
+    enemyContainer.appendChild(enemy);
+    manager.activeEnemies++;
+    console.log(`%cSpawned enemy ${enemyId}. Count: ${manager.activeEnemies}`, "color: cyan;");
+    // The component adds the 'enemy' class automatically
+}
+
+// Add helper for enemy count management to window.enemyManager
+window.enemyManager.decrementCount = function() {
+    window.enemyManager.activeEnemies = Math.max(0, window.enemyManager.activeEnemies - 1);
+    // console.log(`Enemy count decremented. Current: ${window.enemyManager.activeEnemies}`);
+};
+
+
+
+
+window.toggleSphereColor = function({value}) {
+    console.log("Toggle Sphere Color:", value);
+    // Find scene element dynamically
+    const scene = document.querySelector('a-scene');
+    const sphere = scene ? scene.querySelector('#objects a-sphere') : null;
+    if (sphere) {
+        sphere.setAttribute('color', value);
+        const label = document.getElementById('sphere-label');
+        if (label) label.textContent = `A ${value === '#EF2D5E' ? 'red' : 'blue'} sphere`;
+    } else { console.warn("Could not find the sphere element."); }
+}
+window.toggleLabels = function({value}) {
+     const shouldHide = value === 'no';
+     console.log(`Toggle Labels: Value=${value}, Should Hide=${shouldHide}`);
+     // Find overlay dynamically
+     const overlayEl = document.getElementById('dom-overlay');
+     if(overlayEl) {
+          overlayEl.classList.toggle('hide-labels', shouldHide);
+     } else {
+          console.warn("Could not find dom-overlay element to toggle labels.");
+     }
+}
+
+     // Make incrementScore global
+     window.incrementScore = function() {
+        const previousLevel = currentLevel;
+        score++;
+        currentLevel = Math.floor(score / 5) + 1;
+        console.log("Score increased to:", score, "Current Level:", currentLevel, "Previous Level:", previousLevel);
+        if (currentLevel > previousLevel) {
+            console.log("LEVEL UP Condition Met! Calling increaseOrbitSpeed and showLevelUpPopup...");
+            increaseEnemySpeed(); 
+            showLevelUpPopup(currentLevel); // Pass the NEW level
+        }
+        updateScoreDisplay();
+    }
 
 
 // --- Global Scope Setup for Scene Listeners ---
@@ -235,143 +690,370 @@ else {
     // --- Attach Core Event Listeners Directly to Scene ---
     sceneElGlobal.addEventListener('enter-vr', () => {
         console.log('Event: enter-vr');
+        // Reset state on entering AR
+        isGameSetupComplete = false;
+        towerPlaced = false;
+        placedTowerEl = null;
+
         const exitVRButton = document.getElementById('exitVRButton');
-        const reticleEl = document.getElementById('placement-reticle');
         const scanningFeedbackEl = document.getElementById('scanning-feedback');
-        const placementCheckbox = document.getElementById('placementModeCheckbox');
+        const placeTowerPopupEl = document.getElementById('place-tower-popup');
+        const controlsWidget = document.getElementById('controls-widget');
+        const shootButton = document.getElementById('shootButton');
+        const startGameButton = document.getElementById('startGameButton');
+        const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
+
         if (sceneElGlobal.is('ar-mode')) {
-            console.log('AR Mode detected.');
+            console.log('AR Mode detected. Starting setup phase.');
             if (exitVRButton) exitVRButton.style.display = 'inline-block';
-            if (reticleEl) reticleEl.setAttribute('visible', false);
-            if (placementCheckbox && placementCheckbox.checked && scanningFeedbackEl) {
-                scanningFeedbackEl.textContent = "Scanning for surfaces...\nMove phone slowly.";
+            if (scanningFeedbackEl) {
+                scanningFeedbackEl.textContent = "Scanning environment..."; // Update text slightly
                 scanningFeedbackEl.style.display = 'block';
-            } else if (scanningFeedbackEl) {
-                scanningFeedbackEl.style.display = 'none';
             }
+            if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none'; // Ensure hidden
+            if (controlsWidget) controlsWidget.style.display = 'none';      // Hide normal controls
+            if (shootButton) shootButton.disabled = true;                 // Ensure shoot is disabled
+            if (startGameButton) startGameButton.disabled = true;         // Disable start initially
+            if (towerPlacedFeedback) towerPlacedFeedback.style.display = 'none'; // Hide feedback
+
+            // Ensure reticle is hidden initially
+            const reticleEl = document.getElementById('placement-reticle');
+            if (reticleEl) reticleEl.setAttribute('visible', false);
+
+
         } else {
             console.warn('VR Mode or AR Session Failed.');
+             // Hide AR specific UI if entering non-AR mode
             if (exitVRButton) exitVRButton.style.display = 'none';
             if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'none';
+            if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
+            if (controlsWidget) controlsWidget.style.display = 'block'; // Show controls in non-AR
+            if (shootButton) shootButton.disabled = false; // Re-enable if needed outside AR? (Decide later)
+
         }
     });
 
     sceneElGlobal.addEventListener('exit-vr', () => {
         console.log('Event: exit-vr');
+        // Reset state and hide all AR popups
+        isGameSetupComplete = false;
+        towerPlaced = false;
+        placedTowerEl = null;
+        isGameOver = false; // Reset game over flag
+
         const exitVRButton = document.getElementById('exitVRButton');
         const reticleEl = document.getElementById('placement-reticle');
         const scanningFeedbackEl = document.getElementById('scanning-feedback');
+        const placeTowerPopupEl = document.getElementById('place-tower-popup');
+        const controlsWidget = document.getElementById('controls-widget');
+
         if (exitVRButton) exitVRButton.style.display = 'none';
         if (reticleEl) reticleEl.setAttribute('visible', false);
         if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'none';
+        if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
+        if (controlsWidget) controlsWidget.style.display = 'block'; // Show normal controls again
+
+        gameOverScreenEl = gameOverScreenEl || document.getElementById('game-over-screen');
+        towerHealthIndicatorEl = towerHealthIndicatorEl || document.getElementById('tower-health-indicator');
+        if (gameOverScreenEl) gameOverScreenEl.style.display = 'none';
+        if (towerHealthIndicatorEl) towerHealthIndicatorEl.style.display = 'none';
+
+        // Stop orbiting if targets exist
+        if (window.enemyManager.spawnTimerId) {
+            clearInterval(window.enemyManager.spawnTimerId);
+            window.enemyManager.spawnTimerId = null;
+            console.log("Enemy spawner stopped.");
+        }
+        // Remove existing enemies on exit?
+        const enemies = document.querySelectorAll('.enemy');
+         enemies.forEach(enemy => {
+             if(enemy.parentNode) enemy.parentNode.removeChild(enemy);
+         });
+         window.enemyManager.activeEnemies = 0;
+         console.log("Cleared existing enemies.");
+
+
+
     });
 
+    
     sceneElGlobal.addEventListener('ar-hit-test-start', () => {
         console.log('Event: ar-hit-test-start (Searching...)');
         const reticleEl = document.getElementById('placement-reticle');
-        const placementCheckbox = document.getElementById('placementModeCheckbox');
         const scanningFeedbackEl = document.getElementById('scanning-feedback');
-        if (reticleEl) reticleEl.setAttribute('visible', 'false');
-        if (placementCheckbox && placementCheckbox.checked && scanningFeedbackEl) {
-            scanningFeedbackEl.textContent = "Scanning for surfaces...\nMove phone slowly.";
-            scanningFeedbackEl.style.display = 'block';
+        const placeTowerPopupEl = document.getElementById('place-tower-popup');
+
+        if (!isGameSetupComplete) { // Only during setup
+            if (reticleEl) reticleEl.setAttribute('visible', 'false');
+            if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'block';
+            if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
         }
     });
 
     sceneElGlobal.addEventListener('ar-hit-test-achieved', () => {
         console.log('Event: ar-hit-test-achieved (Surface Found!)');
         const reticleEl = document.getElementById('placement-reticle');
-        const placementCheckbox = document.getElementById('placementModeCheckbox');
         const scanningFeedbackEl = document.getElementById('scanning-feedback');
-        if (placementCheckbox && placementCheckbox.checked && reticleEl) {
-            reticleEl.setAttribute('visible', 'true');
+        const placeTowerPopupEl = document.getElementById('place-tower-popup');
+
+        if (!isGameSetupComplete) { // Only during setup
             if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'none';
+            if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'block'; // Show Place Tower popup
+             if (reticleEl && !towerPlaced) { // Show reticle only if tower not placed yet
+                 reticleEl.setAttribute('visible', 'true');
+             } else if (reticleEl) {
+                 reticleEl.setAttribute('visible', 'false'); // Hide if tower already placed
+             }
         } else {
-            if (reticleEl) reticleEl.setAttribute('visible', 'false');
-            if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'none';
+            // Handle hit-test achievement after setup if needed (e.g., for generic cube placement)
+            const placementCheckbox = document.getElementById('placementModeCheckbox');
+             if (placementCheckbox && placementCheckbox.checked && reticleEl) {
+                reticleEl.setAttribute('visible', 'true');
+             }
         }
     });
 
     sceneElGlobal.addEventListener('ar-hit-test-lost', () => {
         console.log('Event: ar-hit-test-lost (Surface Lost)');
         const reticleEl = document.getElementById('placement-reticle');
-        const placementCheckbox = document.getElementById('placementModeCheckbox');
         const scanningFeedbackEl = document.getElementById('scanning-feedback');
-        if (reticleEl) reticleEl.setAttribute('visible', 'false');
-        if (placementCheckbox && placementCheckbox.checked && scanningFeedbackEl) {
-            scanningFeedbackEl.textContent = "Scanning for surfaces...\nMove phone slowly.";
-            scanningFeedbackEl.style.display = 'block';
+        const placeTowerPopupEl = document.getElementById('place-tower-popup');
+
+
+        if (!isGameSetupComplete) { // Only during setup
+            if (reticleEl) reticleEl.setAttribute('visible', 'false');
+            if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'block';
+            if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
+        } else {
+             // Handle hit-test lost after setup if needed
+            if (reticleEl) reticleEl.setAttribute('visible', 'false');
+        }
+    });
+    // AR Placement Listener - Modified for Setup Phase with Repositioning
+
+    sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
+        console.log("Event: ar-hit-test-select FIRED!");
+        const reticleEl = document.getElementById('placement-reticle');
+
+        // --- SETUP PHASE ---
+        if (!isGameSetupComplete && reticleEl && reticleEl.getAttribute('visible')) {
+            const position = reticleEl.getAttribute('position');
+            if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) {
+                 console.error("Placement/Move failed: Invalid position from reticle.", position); return;
+            }
+            console.log(`Reticle position for placement/move: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}`);
+
+            if (!towerPlaced) {
+                // --- First Tap: Create the Tower ---
+                console.log('Setup Phase: Attempting to place TOWER for the first time...');
+
+                // Create the tower (Tall, Dark Blue Box)
+                const tower = document.createElement('a-box');
+                tower.setAttribute('id', 'placed-base-tower');
+                tower.setAttribute('color', '#00008B'); // Dark Blue
+                tower.setAttribute('height', '0.2');
+                tower.setAttribute('width', '0.1');
+                tower.setAttribute('depth', '0.0');
+                tower.setAttribute('position', position); // Set initial position
+                tower.setAttribute('shadow', 'cast: true; receive: false;');
+
+                console.log("Tower attributes set.");
+                sceneElGlobal.appendChild(tower);
+                placedTowerEl = tower; // Store reference
+                towerPlaced = true; // Mark as placed
+                console.log('Tower successfully placed.');
+
+                // Update UI: Enable Start button, show feedback
+                // Reticle remains visible for potential repositioning
+                const startGameButton = document.getElementById('startGameButton');
+                const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
+                if (startGameButton) startGameButton.disabled = false;
+                if (towerPlacedFeedback) {
+                    towerPlacedFeedback.textContent = "Tower Placed! Tap again to move or press Start."; // Update feedback text
+                    towerPlacedFeedback.style.display = 'block';
+                }
+                 // Keep reticle visible after first placement for moving
+                 if(reticleEl) reticleEl.setAttribute('visible', 'true');
+
+            } else if (placedTowerEl) {
+                 // --- Subsequent Taps: Move the Existing Tower ---
+                 console.log('Setup Phase: Moving existing tower...');
+                 placedTowerEl.setAttribute('position', position); // Update position
+                 console.log('Tower position updated.');
+            }
+
+        // --- GAME PHASE ---
+        } else if (isGameSetupComplete) {
+            // Handle standard cube placement (if enabled)
+            const placementCheckbox = document.getElementById('placementModeCheckbox');
+            const isPlacementMode = placementCheckbox && placementCheckbox.checked;
+            const isReticleVisible = reticleEl && reticleEl.getAttribute('visible');
+            console.log(`Game Phase: Placement Mode Checked?: ${isPlacementMode}, Is Reticle Visible?: ${isReticleVisible}`);
+
+            if (isPlacementMode && isReticleVisible) {
+                console.log('Game Phase: Conditions met: Attempting to place NEW cube...');
+                const position = reticleEl.getAttribute('position');
+                 if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Placement failed: Invalid position from reticle.", position); return; }
+                 const newBox = document.createElement('a-box');
+                 newBox.classList.add('interactive');
+                 newBox.setAttribute('position', position);
+                 newBox.setAttribute('scale', '0.2 0.2 0.2');
+                 newBox.setAttribute('color', '#228B22');
+                 newBox.setAttribute('shadow', 'cast: true; receive: false;');
+                 newBox.setAttribute('draggable', '');
+                 sceneElGlobal.appendChild(newBox);
+                 console.log('New game cube successfully appended to the scene.');
+            } else {
+                 console.log(`Game phase placement check failed or not active. Mode Active: ${isPlacementMode}, Reticle Visible: ${isReticleVisible}.`);
+            }
+        } else {
+            console.log("Tap ignored: Setup not complete and reticle not visible, or game phase placement check failed.");
         }
     });
 
-    // AR Placement Listener
-    sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
-        console.log("Event: ar-hit-test-select FIRED!");
-        const placementCheckbox = document.getElementById('placementModeCheckbox');
-        const reticleEl = document.getElementById('placement-reticle');
-        const isPlacementMode = placementCheckbox && placementCheckbox.checked;
-        const isReticleVisible = reticleEl && reticleEl.getAttribute('visible');
-        console.log(`Placement Mode Checked?: ${isPlacementMode}`);
-        console.log(`Is Reticle Visible?: ${isReticleVisible}`);
-        if (isPlacementMode && isReticleVisible) {
-            console.log('Conditions met: Attempting to place NEW cube...');
-            const position = reticleEl.getAttribute('position');
-            if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Placement failed: Invalid position from reticle.", position); return; }
-            console.log(`Reticle position obtained: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}`);
-            const newBox = document.createElement('a-box');
-            if (!newBox) { console.error("Failed to create a-box!"); return; }
-            console.log("a-box element created.");
-            newBox.classList.add('interactive');
-            newBox.setAttribute('position', position);
-            newBox.setAttribute('scale', '0.2 0.2 0.2');
-            newBox.setAttribute('color', '#228B22');
-            newBox.setAttribute('shadow', 'cast: true; receive: false;');
-            newBox.setAttribute('draggable', '');
-            console.log("Attributes set on new box.");
-            sceneElGlobal.appendChild(newBox);
-            console.log('New cube successfully appended to the scene.');
-        } else { console.log(`Placement check failed. Mode Active: ${isPlacementMode}, Reticle Visible: ${isReticleVisible}.`); }
-    });
 } // End of else block for sceneElGlobal check
+
+
+ sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
+        console.log("Event: ar-hit-test-select FIRED!");
+        const reticleEl = document.getElementById('placement-reticle');
+
+        if (!isGameSetupComplete && !towerPlaced && reticleEl && reticleEl.getAttribute('visible')) {
+            // --- SETUP PHASE: Place the Tower ---
+            console.log('Setup Phase: Attempting to place TOWER...');
+            const position = reticleEl.getAttribute('position');
+            if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) {
+                console.error("Tower placement failed: Invalid position from reticle.", position); return;
+            }
+            console.log(`Reticle position obtained: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}`);
+
+             // Remove previous tower if any edge case allowed it
+             if (placedTowerEl && placedTowerEl.parentNode) {
+                 placedTowerEl.parentNode.removeChild(placedTowerEl);
+             }
+
+            // Create the tower (using a box for now, can be changed later)
+            const tower = document.createElement('a-box'); // Or a-cylinder, or a gltf-model
+            tower.setAttribute('id', 'placed-base-tower'); // Give it an ID
+            tower.setAttribute('color', '#8A2BE2'); // BlueViolet color for distinction
+            tower.setAttribute('height', '0.5');
+            tower.setAttribute('width', '0.3');
+            tower.setAttribute('depth', '0.3');
+            tower.setAttribute('position', position);
+            tower.setAttribute('shadow', 'cast: true; receive: false;');
+            // Maybe make it interactive later? For now, just placement.
+            // tower.classList.add('interactive');
+            // tower.setAttribute('draggable', ''); // Maybe not draggable initially
+
+            console.log("Tower attributes set.");
+            sceneElGlobal.appendChild(tower);
+            placedTowerEl = tower; // Store reference
+            towerPlaced = true;
+            console.log('Tower successfully placed.');
+
+            // Update UI: Hide reticle, show feedback, enable Start button
+            reticleEl.setAttribute('visible', 'false');
+            const startGameButton = document.getElementById('startGameButton');
+            const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
+            if (startGameButton) startGameButton.disabled = false;
+            if (towerPlacedFeedback) towerPlacedFeedback.style.display = 'block';
+
+
+        } else if (isGameSetupComplete) {
+            // --- GAME PHASE: Handle standard cube placement (if enabled) ---
+             const placementCheckbox = document.getElementById('placementModeCheckbox');
+             const isPlacementMode = placementCheckbox && placementCheckbox.checked;
+             const isReticleVisible = reticleEl && reticleEl.getAttribute('visible');
+             console.log(`Game Phase: Placement Mode Checked?: ${isPlacementMode}`);
+             console.log(`Game Phase: Is Reticle Visible?: ${isReticleVisible}`);
+
+            if (isPlacementMode && isReticleVisible) {
+                 console.log('Game Phase: Conditions met: Attempting to place NEW cube...');
+                 const position = reticleEl.getAttribute('position');
+                 if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Placement failed: Invalid position from reticle.", position); return; }
+                 const newBox = document.createElement('a-box');
+                 newBox.classList.add('interactive'); // Make interactable
+                 newBox.setAttribute('position', position);
+                 newBox.setAttribute('scale', '0.2 0.2 0.2'); // Smaller than tower
+                 newBox.setAttribute('color', '#228B22'); // Green
+                 newBox.setAttribute('shadow', 'cast: true; receive: false;');
+                 newBox.setAttribute('draggable', ''); // Allow dragging
+                 sceneElGlobal.appendChild(newBox);
+                 console.log('New game cube successfully appended to the scene.');
+            } else {
+                 console.log(`Game phase placement check failed or not active. Mode Active: ${isPlacementMode}, Reticle Visible: ${isReticleVisible}.`);
+            }
+        } else {
+             console.log("Tap ignored: Either setup not complete, tower already placed in setup, or reticle not visible.");
+        }
+    }); // End of else block for sceneElGlobal check
 
 
 // --- Run Setup After DOM Loaded ---
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Content Loaded. Setting up UI listeners and initial state...");
 
+    // Get references (many already exist from original code)
     const sceneEl_dom = document.querySelector('a-scene');
     const overlay = document.getElementById('dom-overlay');
-    const reticleEl_dom = document.getElementById('placement-reticle');
     const exitVRButton = document.getElementById('exitVRButton');
     const placementCheckbox = document.getElementById('placementModeCheckbox');
-    const scanningFeedbackEl = document.getElementById('scanning-feedback');
     const shootButton = document.getElementById('shootButton');
     const cameraEl = document.getElementById('player-camera');
     const cameraMarkerEl = document.getElementById('camera-aim-marker');
-    // Assign scoreDisplayEl from the global scope variable declared above
+    const controlsWidget = document.getElementById('controls-widget'); // Need this
+
+    // **** ADD REFERENCES FOR NEW ELEMENTS ****
+    const placeTowerPopupEl = document.getElementById('place-tower-popup');
+    const startGameButton = document.getElementById('startGameButton');
+    const scanningFeedbackEl = document.getElementById('scanning-feedback'); // Already existed, useful here
+    // **** END NEW REFERENCES ****
+
+  // **** GET REFERENCES FOR NEW UI ****
+    towerHealthIndicatorEl = document.getElementById('tower-health-indicator');
+    gameOverScreenEl = document.getElementById('game-over-screen');
+    finalScoreEl = document.getElementById('final-score');
+    const tryAgainButton = document.getElementById('tryAgainButton');
+
+    // Assign scoreDisplayEl etc. (existing code)
     scoreDisplayEl = document.getElementById('score-display');
+    levelUpPopupEl = document.getElementById('level-up-popup');
+    levelNumberEl = document.getElementById('level-number');
 
     const sceneInstance = sceneElGlobal || sceneEl_dom;
 
-    if (!sceneInstance || !overlay || !exitVRButton || !placementCheckbox || !scanningFeedbackEl || !shootButton || !cameraEl || !cameraMarkerEl || !reticleEl_dom || !scoreDisplayEl ) {
+    // Simplified check - assume most elements are there from HTML
+    if (!sceneInstance || !overlay || !startGameButton || !placeTowerPopupEl || !tryAgainButton || !gameOverScreenEl || !towerHealthIndicatorEl ) {
         console.error("Essential page elements not found within DOMContentLoaded!"); return;
-    } else {
-        console.log("All essential elements confirmed within DOMContentLoaded.");
-    }
+   } else {
+        console.log("Essential elements confirmed within DOMContentLoaded.");
+   }
 
-    // Vectors for shooting
+    // Existing vectors for shooting (no change needed here)
     const shootCameraWorldPos = new THREE.Vector3();
     const shootCameraWorldDir = new THREE.Vector3();
     const targetMarkerWorldPos = new THREE.Vector3();
     const shootDirection = new THREE.Vector3();
     const projectileStartPos = new THREE.Vector3();
 
+    // Existing overlay interaction listener (no change needed)
+    overlay.addEventListener('beforexrselect', function (e) { /* ... */ });
 
-    // --- Overlay Interaction ---
-    overlay.addEventListener('beforexrselect', function (e) {
-        const widget = e.target.closest('.overlay-widget');
-        if (e.target === overlay || (widget && !(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT'))) {
-            e.preventDefault();
+    // Existing checkbox change listener (might become less relevant during setup)
+    placementCheckbox.addEventListener('change', () => {
+        console.log("Placement checkbox changed:", placementCheckbox.checked);
+        // This logic might need refinement depending on how setup/game phases interact
+        if (sceneInstance.is('ar-mode') && isGameSetupComplete) {
+             const reticleEl_dom = document.getElementById('placement-reticle');
+             const isReticleCurrentlyVisible = reticleEl_dom && reticleEl_dom.getAttribute('visible');
+             if (!placementCheckbox.checked) { // Interaction Mode
+                 if(reticleEl_dom) reticleEl_dom.setAttribute('visible', 'false');
+             } else { // Placement Mode
+                 if (isReticleCurrentlyVisible && reticleEl_dom) {
+                     reticleEl_dom.setAttribute('visible', 'true'); // Show if surface found
+                 }
+                 // Note: Doesn't show 'Scanning...' here anymore, relies on hit-test events
+             }
         }
     });
 
@@ -408,6 +1090,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Shoot Button Listener (Targets Camera Marker, Uses projectile-hitter) ---
     shootButton.addEventListener('click', () => {
         console.log("Shoot button clicked.");
+        if (!isGameSetupComplete || isGameOver) { // **** ADD isGameOver CHECK ****
+            console.log(`Shoot ignored: SetupComplete=${isGameSetupComplete}, GameOver=${isGameOver}`);
+            return;
+         }
         if (!sceneInstance.is('ar-mode')) { console.log("Shoot ignored: Not in AR mode."); return; }
         if (!cameraEl || !cameraEl.object3D || !cameraMarkerEl || !cameraMarkerEl.object3D) {
             console.error("Cannot shoot: Camera or Aim Marker not ready!");
@@ -436,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             direction: shootDirection.clone(),
             speed: 10,
             lifetime: 3000,
-            targetSelector: '.orbiting-target'
+            targetSelector: '.enemy' // **** CORRECTED TARGET ****
         });
          console.log("Projectile component attributes set.");
 
@@ -445,10 +1131,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     }); // End of shoot button listener
 
+    startGameButton.addEventListener('click', () => {
+        if (towerPlaced) {
+            console.log("Tower is placed. Starting game!");
+            // Reset state for new game
+            isGameSetupComplete = true;
+            isGameOver = false; // Ensure game over is false
+            currentTowerHealth = TOWER_MAX_HEALTH; // Reset health
+            score = 0; // Reset score
+            currentLevel = 1; // Reset level
+            window.enemyManager.activeEnemies = 0;
+            window.enemyManager.speedMultiplier = 1.0;
+
+            // Update UI
+            updateScoreDisplay(); // Show score 0
+            updateTowerHealthUI(); // Show full health
+
+            // ... (hide setup UI, show game UI, enable shoot button) ...
+            if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
+            const reticleEl = document.getElementById('placement-reticle');
+            if (reticleEl) reticleEl.setAttribute('visible', false);
+            if (controlsWidget) controlsWidget.style.display = 'block';
+            if (shootButton) shootButton.disabled = false;
+
+
+            // Start Enemy Spawner
+            if (window.enemyManager.spawnTimerId) clearInterval(window.enemyManager.spawnTimerId);
+            window.enemyManager.spawnTimerId = setInterval(spawnEnemy, window.enemyManager.spawnInterval);
+            console.log(`Enemy spawner started with interval: ${window.enemyManager.spawnInterval}ms`);
+
+        } else {
+            console.warn("Start button clicked, but tower not placed yet.");
+        }
+    });
+
+     // **** ADD TRY AGAIN BUTTON LISTENER ****
+
+    tryAgainButton.addEventListener('click', resetGame);
 
     // --- Initialize UI ---
     console.log("Initializing UI states...");
-    updateScoreDisplay(); // Set initial score text to 0
+    updateScoreDisplay(); // Set initial score display
     setTimeout(() => {
        if (window.toggleLabels) { window.toggleLabels({ value: document.querySelector('input[name="labelsVisible"]:checked')?.value || 'no' }); }
        if (window.toggleSphereColor) { window.toggleSphereColor({ value: document.querySelector('input[name="sphereColor"]:checked')?.value || '#EF2D5E' }); }
@@ -461,15 +1184,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 0);
 
 
+
     // --- Set willReadFrequently on Canvas ---
     sceneInstance.addEventListener('loaded', () => {
-       console.log("Scene loaded event. Attempting to set willReadFrequently.");
-       const canvas = sceneInstance.canvas;
-       if (canvas) {
-           try { canvas.getContext('2d', { willReadFrequently: true }); console.log("Set 'willReadFrequently' on 2D context."); } catch (e) {
-               try { canvas.getContext('webgl', { antialias: true }); console.log("Got WebGL context instead."); } catch(glError) { console.warn("Could not get canvas context."); }
-           }
-       } else { console.warn("Canvas element not found on scene load."); }
-     });
+        console.log("Scene loaded event. Attempting to set willReadFrequently.");
+        const canvas = sceneInstance.canvas;
+        if (canvas) {
+            try { canvas.getContext('2d', { willReadFrequently: true }); console.log("Set 'willReadFrequently' on 2D context."); } catch (e) {
+                try { canvas.getContext('webgl', { antialias: true }); console.log("Got WebGL context instead."); } catch(glError) { console.warn("Could not get canvas context."); }
+            }
+        } else { console.warn("Canvas element not found on scene load."); }
+      });
 
 }); // End of DOMContentLoaded listener
