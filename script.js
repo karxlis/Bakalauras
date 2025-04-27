@@ -291,11 +291,10 @@ AFRAME.registerComponent('move-towards-target', {
         const targetEl = this.data.target;
         const el = this.el;
 
-        if (!targetEl || !targetEl.object3D || !el.object3D || timeDelta <= 0 || !el.getAttribute('visible') || isGameOver) { // Add isGameOver check
-            // If target lost or element invisible, stop processing
-            // console.log(`[move-towards] Tick skip: Target=${!!targetEl}, Visible=${el.getAttribute('visible')}`);
-            return;
+        if (!targetEl || !targetEl.object3D || !el.object3D || timeDelta <= 0 || !el.getAttribute('visible') || isGameOver || isGamePaused) {
+            return; // Stop if paused, game over, or other issues
         }
+        // **** END PAUSE CHECK ****
 
         targetEl.object3D.getWorldPosition(this.targetPosition);
         el.object3D.getWorldPosition(this.currentPosition);
@@ -353,6 +352,14 @@ let towerPlaced = false;         // Tracks if the tower has been placed in setup
 let placedTowerEl = null;        // Reference to the placed tower
 // **** END OF GAME STATE VARIABLES ****
 
+// **** ADD NEW STATE VARIABLES ****
+let isGamePaused = false;             // General pause flag
+let placingUpgrade = null;          // Tracks which upgrade is being placed ('shooter', null, etc.)
+let upgradeAvailable_Score10 = true; // Flag to ensure upgrade popup shows only once per threshold
+// **** END NEW STATE VARIABLES ****
+let placedUpgradeEl = null;
+
+
 const TOWER_MAX_HEALTH = 10;
 let currentTowerHealth = TOWER_MAX_HEALTH;
 let towerHealthIndicatorEl = null; // Reference to UI element
@@ -361,6 +368,12 @@ let finalScoreEl = null;           // Reference to final score display
 let isGameOver = false;            // Game over state flag
 // **** END TOWER HEALTH & GAME OVER STATE ****
 
+let upgradesPopupEl = null;
+let upgradeShooterButtonEl = null;
+// **** ADD CONFIRM BUTTON REF ****
+let confirmPlacementAreaEl = null;
+let confirmPlacementButtonEl = null;
+// **** END CONFIRM BUTTON REF ****
 
 window.enemyManager = {
     activeEnemies: 0,
@@ -522,6 +535,60 @@ function gameOver() {
     }
 }
 
+function showUpgradePopup() {
+    if (isGameOver || !isGameSetupComplete || placingUpgrade) return;
+
+    console.log("Showing Upgrade Popup...");
+    isGamePaused = true; // PAUSE THE GAME
+
+    // Stop spawner
+    if (window.enemyManager.spawnTimerId) {
+        clearInterval(window.enemyManager.spawnTimerId);
+        window.enemyManager.spawnTimerId = null;
+        console.log("Enemy spawner paused for upgrade.");
+    }
+
+    // Hide main controls, show upgrade popup
+    const controlsWidget = document.getElementById('controls-widget');
+    if (controlsWidget) controlsWidget.style.display = 'none';
+
+    upgradesPopupEl = upgradesPopupEl || document.getElementById('upgrades-popup');
+    if (upgradesPopupEl) upgradesPopupEl.style.display = 'block';
+
+    // Hide reticle initially
+     const reticleEl = document.getElementById('placement-reticle');
+     if (reticleEl) reticleEl.setAttribute('visible', 'false');
+}
+
+// **** PASTE resumeGame HERE ****
+function resumeGame() {
+    if (isGameOver) return;
+
+    console.log("Resuming game...");
+    isGamePaused = false; // UNPAUSE
+    placingUpgrade = null; // Clear placing state
+
+    // Hide upgrade popup and potentially placement instructions
+    upgradesPopupEl = upgradesPopupEl || document.getElementById('upgrades-popup'); // Ensure ref exists
+    if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
+
+     const reticleEl = document.getElementById('placement-reticle');
+     if (reticleEl) reticleEl.setAttribute('visible', 'false');
+
+     const controlsWidget = document.getElementById('controls-widget');
+     if (controlsWidget) controlsWidget.style.display = 'block';
+
+
+    // Restart spawner ONLY if game is running
+    if (isGameSetupComplete && !isGameOver && !window.enemyManager.spawnTimerId) {
+         window.enemyManager.spawnTimerId = setInterval(spawnEnemy, window.enemyManager.spawnInterval);
+         console.log("Enemy spawner resumed.");
+    } else if (window.enemyManager.spawnTimerId){
+         console.log("Spawner already running?");
+    }
+}
+
+
 // **** ADD GAME RESET LOGIC ****
 function resetGame() {
     console.log("Resetting game...");
@@ -535,6 +602,9 @@ function resetGame() {
     currentTowerHealth = TOWER_MAX_HEALTH;
     window.enemyManager.activeEnemies = 0;
     window.enemyManager.speedMultiplier = 1.0;
+    isGamePaused = false;
+    placingUpgrade = null;
+    upgradeAvailable_Score10 = true;
 
     // Clear spawner if somehow still active
      if (window.enemyManager.spawnTimerId) {
@@ -551,13 +621,15 @@ function resetGame() {
     }
     placedTowerEl = null;
 
-    const entitiesToRemove = document.querySelectorAll('.enemy, [projectile-hitter]');
+    const entitiesToRemove = document.querySelectorAll('.enemy, [projectile-hitter], [id^="shooter-upgrade-"]'); // Also remove shooter upgrades
     entitiesToRemove.forEach(el => {
         if (el.parentNode) el.parentNode.removeChild(el);
     });
     console.log(`Removed ${entitiesToRemove.length} dynamic entities.`);
 
-
+    
+    // **** NEW: Resume Game Function ****
+    
     // Reset UI elements to initial state (like entering AR)
     updateScoreDisplay(); // Reset score display to 0
 
@@ -757,45 +829,34 @@ window.toggleLabels = function({value}) {
 
      // Make incrementScore global
      window.incrementScore = function() {
-        if (isGameOver) return; // Don't increment score if game over
+        if (isGameOver) return;
     
         const previousLevel = currentLevel;
         score++;
         currentLevel = Math.floor(score / 5) + 1;
         console.log("Score increased to:", score, "Current Level:", currentLevel);
     
-        let levelUpOccurred = false;
+        // --- Level Up Logic ---
         if (currentLevel > previousLevel) {
-            levelUpOccurred = true;
             console.log("LEVEL UP! Increasing enemy speed and showing popup...");
             increaseEnemySpeed();
             showLevelUpPopup(currentLevel);
         }
     
-        // --- Max Enemy Scaling Logic ---
-        const MAX_POSSIBLE_ENEMIES = 15;
-        let updatedMaxEnemies = window.enemyManager.maxEnemies; // Start with current max
-    
-        if (currentLevel >= 15 && window.enemyManager.maxEnemies < MAX_POSSIBLE_ENEMIES) {
-            let baseMax = 5; // The starting max before level 15 scaling
-            if (currentLevel >= 15) {
-                baseMax = 7; // Set to 7 at level 15
-                // Calculate how many increments of +2 should have happened after level 15
-                const levelIncrementsPast15 = Math.floor((currentLevel - 15) / 5); // How many blocks of 5 levels
-                const additionalEnemies = levelIncrementsPast15 * 2;
-                updatedMaxEnemies = Math.min(MAX_POSSIBLE_ENEMIES, baseMax + additionalEnemies);
-            }
-    
-            if (updatedMaxEnemies > window.enemyManager.maxEnemies) {
-                 console.log(`%cIncreasing Max Enemies to ${updatedMaxEnemies} at Level ${currentLevel}`, "color: yellow; font-weight: bold;");
-                 window.enemyManager.maxEnemies = updatedMaxEnemies;
-                 // Optional: Trigger a notification or effect?
-            }
+        // --- Upgrade Trigger Logic ---
+        const SCORE_THRESHOLD_UPGRADE1 = 10;
+        if (score === SCORE_THRESHOLD_UPGRADE1 && upgradeAvailable_Score10) {
+             console.log(`Score reached ${SCORE_THRESHOLD_UPGRADE1}! Triggering upgrade popup.`);
+             upgradeAvailable_Score10 = false; // Prevent re-triggering
+             showUpgradePopup();
         }
-        // --- End Max Enemy Scaling ---
+        // Add more upgrade triggers later (e.g., score 25, 50...)
+        // else if (score === SCORE_THRESHOLD_UPGRADE2 && upgradeAvailable_Score25) { ... }
     
+        // --- Max Enemy Scaling Logic ---
+        // ... (existing scaling logic based on score) ...
     
-        updateScoreDisplay(); // Update score display regardless
+        updateScoreDisplay(); // Update score display
     };
 
 
@@ -1030,79 +1091,121 @@ else {
 } // End of else block for sceneElGlobal check
 
 
- sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
+    // AR Placement Listener - Handles Tower, Upgrade, and Generic Cube placement
+    sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
         console.log("Event: ar-hit-test-select FIRED!");
         const reticleEl = document.getElementById('placement-reticle');
+        const scanningFeedbackEl = document.getElementById('scanning-feedback'); // Needed for upgrade placement instructions
 
-        if (!isGameSetupComplete && !towerPlaced && reticleEl && reticleEl.getAttribute('visible')) {
-            // --- SETUP PHASE: Place the Tower ---
-            console.log('Setup Phase: Attempting to place TOWER...');
+        // --- UPGRADE PLACEMENT ---
+        if (placingUpgrade === 'shooter' && reticleEl && reticleEl.getAttribute('visible')) {
+            const position = reticleEl.getAttribute('position');
+            if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { /* Error handling */ return;}
+
+            if (!placedUpgradeEl) { // First tap
+                console.log("Placing shooter upgrade visually...");
+                const shooterBox = document.createElement('a-box');
+                // ... (set shooterBox attributes and position) ...
+                shooterBox.setAttribute('id', `shooter-upgrade-${Date.now()}`);
+                shooterBox.setAttribute('color', '#FF6347');
+                shooterBox.setAttribute('scale', '0.15 0.15 0.15');
+                shooterBox.setAttribute('height', '0.4');
+                shooterBox.setAttribute('position', position);
+                shooterBox.setAttribute('shadow', 'cast: true; receive: false;');
+
+                const sceneInstance = sceneElGlobal || document.querySelector('a-scene');
+                sceneInstance.appendChild(shooterBox);
+                placedUpgradeEl = shooterBox;
+
+                // **** Get fresh button reference before enabling ****
+                const currentConfirmButton = document.getElementById('confirmPlacementButton');
+                if (currentConfirmButton) {
+                    currentConfirmButton.disabled = false;
+                    console.log("Confirm button enabled.");
+                } else {
+                   console.error("Confirm button not found when trying to enable!");
+                }
+
+                // Update instructions
+                const feedbackEl = document.getElementById('scanning-feedback');
+                if(feedbackEl){ feedbackEl.textContent = "Tap to move, or Confirm Placement"; }
+
+            } else { // Subsequent taps
+                 console.log('Moving shooter upgrade visual...');
+                 placedUpgradeEl.setAttribute('position', position);
+                 console.log('Shooter upgrade position updated.');
+            }
+
+        // --- TOWER PLACEMENT / MOVE (Setup Phase) ---
+        } else if (!isGameSetupComplete && reticleEl && reticleEl.getAttribute('visible')) {
             const position = reticleEl.getAttribute('position');
             if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) {
-                console.error("Tower placement failed: Invalid position from reticle.", position); return;
+                 console.error("Placement/Move failed: Invalid position from reticle.", position); return;
             }
-            console.log(`Reticle position obtained: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}`);
+            console.log(`Reticle position for placement/move: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}`);
 
-             // Remove previous tower if any edge case allowed it
-             if (placedTowerEl && placedTowerEl.parentNode) {
-                 placedTowerEl.parentNode.removeChild(placedTowerEl);
-             }
+            if (!towerPlaced) {
+                // --- First Tap: Create the Tower ---
+                console.log('Setup Phase: Attempting to place TOWER for the first time...');
+                const tower = document.createElement('a-box');
+                tower.setAttribute('id', 'placed-base-tower');
+                tower.setAttribute('color', '#00008B'); // Dark Blue
+                tower.setAttribute('height', '1.0');    // Ensure height is 1.0
+                tower.setAttribute('width', '0.3');
+                tower.setAttribute('depth', '0.3');
+                tower.setAttribute('position', position);
+                tower.setAttribute('shadow', 'cast: true; receive: false;');
 
-            // Create the tower (using a box for now, can be changed later)
-            const tower = document.createElement('a-box'); // Or a-cylinder, or a gltf-model
-            tower.setAttribute('id', 'placed-base-tower'); // Give it an ID
-            tower.setAttribute('color', '#8A2BE2'); // BlueViolet color for distinction
-            tower.setAttribute('height', '0.5');
-            tower.setAttribute('width', '0.3');
-            tower.setAttribute('depth', '0.3');
-            tower.setAttribute('position', position);
-            tower.setAttribute('shadow', 'cast: true; receive: false;');
-            // Maybe make it interactive later? For now, just placement.
-            // tower.classList.add('interactive');
-            // tower.setAttribute('draggable', ''); // Maybe not draggable initially
+                console.log("Tower attributes set.");
+                sceneElGlobal.appendChild(tower);
+                placedTowerEl = tower;
+                towerPlaced = true;
+                console.log('Tower successfully placed.');
 
-            console.log("Tower attributes set.");
-            sceneElGlobal.appendChild(tower);
-            placedTowerEl = tower; // Store reference
-            towerPlaced = true;
-            console.log('Tower successfully placed.');
+                // Update UI
+                const startGameButton = document.getElementById('startGameButton');
+                const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
+                if (startGameButton) startGameButton.disabled = false;
+                if (towerPlacedFeedback) {
+                    towerPlacedFeedback.textContent = "Tower Placed! Tap again to move or press Start.";
+                    towerPlacedFeedback.style.display = 'block';
+                }
+                if(reticleEl) reticleEl.setAttribute('visible', 'true'); // Keep reticle visible
 
-            // Update UI: Hide reticle, show feedback, enable Start button
-            reticleEl.setAttribute('visible', 'false');
-            const startGameButton = document.getElementById('startGameButton');
-            const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
-            if (startGameButton) startGameButton.disabled = false;
-            if (towerPlacedFeedback) towerPlacedFeedback.style.display = 'block';
+            } else if (placedTowerEl) {
+                 // --- Subsequent Taps: Move the Existing Tower ---
+                 console.log('Setup Phase: Moving existing tower...');
+                 placedTowerEl.setAttribute('position', position);
+                 console.log('Tower position updated.');
+            }
 
-
-        } else if (isGameSetupComplete) {
-            // --- GAME PHASE: Handle standard cube placement (if enabled) ---
+        // --- GENERIC CUBE PLACEMENT (Game Phase, if enabled) ---
+        } else if (isGameSetupComplete && !isGamePaused) { // Add !isGamePaused check
              const placementCheckbox = document.getElementById('placementModeCheckbox');
              const isPlacementMode = placementCheckbox && placementCheckbox.checked;
              const isReticleVisible = reticleEl && reticleEl.getAttribute('visible');
-             console.log(`Game Phase: Placement Mode Checked?: ${isPlacementMode}`);
-             console.log(`Game Phase: Is Reticle Visible?: ${isReticleVisible}`);
+             // console.log(`Game Phase: Placement Mode Checked?: ${isPlacementMode}, Is Reticle Visible?: ${isReticleVisible}`); // Less verbose log
 
-            if (isPlacementMode && isReticleVisible) {
-                 console.log('Game Phase: Conditions met: Attempting to place NEW cube...');
-                 const position = reticleEl.getAttribute('position');
+             if (isPlacementMode && isReticleVisible) {
+                console.log('Game Phase: Placing generic cube...');
+                const position = reticleEl.getAttribute('position');
                  if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Placement failed: Invalid position from reticle.", position); return; }
                  const newBox = document.createElement('a-box');
-                 newBox.classList.add('interactive'); // Make interactable
+                 newBox.classList.add('interactive');
                  newBox.setAttribute('position', position);
-                 newBox.setAttribute('scale', '0.2 0.2 0.2'); // Smaller than tower
-                 newBox.setAttribute('color', '#228B22'); // Green
+                 newBox.setAttribute('scale', '0.2 0.2 0.2');
+                 newBox.setAttribute('color', '#228B22');
                  newBox.setAttribute('shadow', 'cast: true; receive: false;');
-                 newBox.setAttribute('draggable', ''); // Allow dragging
+                 newBox.setAttribute('draggable', ''); // Ensure draggable is from aframe-extras
                  sceneElGlobal.appendChild(newBox);
-                 console.log('New game cube successfully appended to the scene.');
+                 console.log('New game cube successfully appended.');
             } else {
-                 console.log(`Game phase placement check failed or not active. Mode Active: ${isPlacementMode}, Reticle Visible: ${isReticleVisible}.`);
+                 // console.log(`Game phase placement check failed or not active. Mode Active: ${isPlacementMode}, Reticle Visible: ${isReticleVisible}.`); // Can uncomment if needed
             }
         } else {
-             console.log("Tap ignored: Either setup not complete, tower already placed in setup, or reticle not visible.");
+            console.log("Tap ignored: Conditions not met (Setup, Upgrade Placement, Game Placement).");
         }
-    }); // End of else block for sceneElGlobal check
+    }); // End ar-hit-test-select listener
 
 
 // --- Run Setup After DOM Loaded ---
@@ -1122,7 +1225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // **** ADD REFERENCES FOR NEW ELEMENTS ****
     const placeTowerPopupEl = document.getElementById('place-tower-popup');
     const startGameButton = document.getElementById('startGameButton');
-    const scanningFeedbackEl = document.getElementById('scanning-feedback'); // Already existed, useful here
+    const scanningFeedbackEl = document.getElementById('scanning-feedback'); // Already if (!sceneInstance || !overlay || !startGameButton || !placeTowerPopupEl || !tryAgainButton || !gameOverScreenEl || !towerHealthIndicatorEl || !upgradesPopup, useful here
     // **** END NEW REFERENCES ****
 
   // **** GET REFERENCES FOR NEW UI ****
@@ -1136,10 +1239,13 @@ document.addEventListener('DOMContentLoaded', () => {
     levelUpPopupEl = document.getElementById('level-up-popup');
     levelNumberEl = document.getElementById('level-number');
 
+    upgradesPopupEl = document.getElementById('upgrades-popup');
+    upgradeShooterButtonEl = document.getElementById('upgradeShooterButton');
+
     const sceneInstance = sceneElGlobal || sceneEl_dom;
 
     // Simplified check - assume most elements are there from HTML
-    if (!sceneInstance || !overlay || !startGameButton || !placeTowerPopupEl || !tryAgainButton || !gameOverScreenEl || !towerHealthIndicatorEl ) {
+    if (!sceneInstance || !overlay || !startGameButton || !placeTowerPopupEl || !tryAgainButton || !gameOverScreenEl || !towerHealthIndicatorEl || !upgradesPopupEl || !upgradeShooterButtonEl) { // Added upgrade UI checks
         console.error("Essential page elements not found within DOMContentLoaded!"); return;
    } else {
         console.log("Essential elements confirmed within DOMContentLoaded.");
@@ -1171,6 +1277,8 @@ document.addEventListener('DOMContentLoaded', () => {
                  // Note: Doesn't show 'Scanning...' here anymore, relies on hit-test events
              }
         }
+
+        
     });
 
     // --- UI Functions ---
@@ -1284,6 +1392,44 @@ document.addEventListener('DOMContentLoaded', () => {
      // **** ADD TRY AGAIN BUTTON LISTENER ****
 
     tryAgainButton.addEventListener('click', resetGame);
+ // **** ADD UPGRADE BUTTON LISTENER ****
+ upgradeShooterButtonEl.addEventListener('click', () => {
+    console.log("Upgrade Shooter button clicked.");
+    if (!isGamePaused || placingUpgrade) return;
+
+    if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
+    placingUpgrade = 'shooter';
+
+    const reticleEl = document.getElementById('placement-reticle');
+    const feedbackEl = document.getElementById('scanning-feedback');
+
+    
+    confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area');
+    confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
+
+    if (reticleEl) reticleEl.setAttribute('visible', true);
+    if (feedbackEl) {
+        feedbackEl.textContent = "Tap surface to place Shooter Upgrade";
+        feedbackEl.style.display = 'block';
+    }
+
+    if (confirmPlacementAreaEl) {
+        console.log("Attempting to show confirm placement area..."); // Log before
+        confirmPlacementAreaEl.style.display = 'block';
+        // **** ADD THIS LOG ****
+        console.log("Computed display style for #confirm-placement-area:", window.getComputedStyle(confirmPlacementAreaEl).display);
+        // **** END ADDED LOG ****
+    } else {
+        console.error("Confirm placement area element NOT found!");
+    }
+
+    if (confirmPlacementButtonEl) {
+         confirmPlacementButtonEl.disabled = true;
+    } else {
+         console.error("Confirm placement button element NOT found!");
+    }
+
+});
 
     // --- Initialize UI ---
     console.log("Initializing UI states...");
@@ -1311,5 +1457,42 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else { console.warn("Canvas element not found on scene load."); }
       });
+
+      confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
+      confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area'); // Get ref for hiding area
+  
+      confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton'); // Keep initial ref for adding listener
+      if (confirmPlacementButtonEl) { // Check if button exists before adding listener
+          confirmPlacementButtonEl.addEventListener('click', () => {
+              console.log("Confirm Placement button clicked.");
+  
+              // Get fresh references INSIDE the listener
+              const currentConfirmArea = document.getElementById('confirm-placement-area');
+              const feedbackEl = document.getElementById('scanning-feedback');
+  
+              // Check if we were actually placing the shooter and the visual exists
+              if (placingUpgrade === 'shooter' && placedUpgradeEl) {
+                  console.log(`Finalizing placement for ${placedUpgradeEl.id}`);
+  
+                  // Reset state and UI before resuming
+                  placingUpgrade = null;
+                  placedUpgradeEl = null; // Clear the temporary reference
+  
+                  if (currentConfirmArea) currentConfirmArea.style.display = 'none'; // Hide button area
+                  if (feedbackEl) feedbackEl.style.display = 'none'; // Hide instructions
+  
+                  // Resume the game
+                  resumeGame();
+  
+              } else {
+                   console.warn("Confirm button clicked inappropriately.");
+                   // Optional: Resume game anyway?
+                   // if (isGamePaused) { resumeGame(); }
+              }
+          });
+      } else {
+           console.error("Confirm Placement Button element could not be found to attach listener!");
+      }
+    
 
 }); // End of DOMContentLoaded listener
