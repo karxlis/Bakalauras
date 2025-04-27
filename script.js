@@ -166,70 +166,94 @@ AFRAME.registerComponent('projectile-hitter', {
 // Hit Receiver Component (Calls score update)
 AFRAME.registerComponent('hit-receiver', {
     schema: {
-        respawnDelay: { type: 'number', default: 10000 } // 10 seconds
+        respawnDelay: { type: 'number', default: 10000 },
+        // **** ADD HEALTH SCHEMA ****
+        maxHealth: { type: 'int', default: 1 },
+        initialHealth: { type: 'int', default: 1 } // Use this to set starting HP
+        // **** END HEALTH SCHEMA ****
     },
     init: function () {
         this.isVisible = this.el.getAttribute('visible');
         this.respawnTimer = null;
         this.hit = this.hit.bind(this);
         this.isEnemy = this.el.classList.contains('enemy');
-        console.log(`[hit-receiver] Initialized on ${this.el.id}. Is Enemy: ${this.isEnemy}`);
+        // **** INITIALIZE CURRENT HEALTH ****
+        this.currentHealth = this.data.initialHealth;
+        this.healthTextEl = this.el.querySelector('.enemy-health-text'); // Find health text child
+        // **** END INITIALIZE CURRENT HEALTH ****
+        console.log(`[hit-receiver] Initialized on ${this.el.id}. Is Enemy: ${this.isEnemy}. MaxHealth: ${this.data.maxHealth}, CurrentHealth: ${this.currentHealth}`);
+        this.updateHealthText(); // Initial update
     },
     hit: function() {
-        if (!this.isVisible || isGameOver) { return; } // Already hit / being removed
+        if (!this.isVisible || isGameOver) { return; } // Already hit or game over
 
         console.log(`[hit-receiver] ${this.el.id} HIT!`);
-        this.isVisible = false; // Prevent further hits immediately
-        this.el.setAttribute('visible', 'false'); // Make invisible visually
 
-        if (window.incrementScore) { window.incrementScore(); } // Increment score (This part is working)
-
-        // For enemies, decrement count immediately and schedule removal
+        // --- Handle Health Decrement ---
         if (this.isEnemy) {
-            console.log(`[hit-receiver] Scheduling removal for enemy ${this.el.id}`);
+            this.currentHealth--;
+            console.log(`[hit-receiver] Enemy health: ${this.currentHealth}/${this.data.maxHealth}`);
+            this.updateHealthText(); // Update visual indicator
 
-            // **** ADDED EXPLICIT DECREMENT ****
-            if (window.enemyManager) {
-                window.enemyManager.decrementCount();
-                console.log(`[hit-receiver] Decremented enemy count via hit. Current: ${window.enemyManager.activeEnemies}`);
-            }
-            // **** END ADDED DECREMENT ****
+            if (this.currentHealth <= 0) {
+                // --- Enemy Destroyed ---
+                console.log(`[hit-receiver] Enemy ${this.el.id} destroyed!`);
+                this.isVisible = false; // Prevent further actions
+                this.el.setAttribute('visible', 'false'); // Hide visually (optional before removal)
 
-            // Schedule actual removal from scene
-            if (this.el.parentNode) {
-                // Keep the short delay if you want effects later, otherwise remove immediately
-                const removeDelay = 100; // ms
-                setTimeout(() => {
-                   if(this.el.parentNode) {
-                       console.log(`[hit-receiver] Executing removeChild for ${this.el.id}`);
-                       this.el.parentNode.removeChild(this.el);
-                   } else {
-                       console.warn(`[hit-receiver] Parent node gone before removeChild executed for ${this.el.id}`);
-                   }
-                }, removeDelay);
+                if (window.incrementScore) { window.incrementScore(); } // Increment score ONLY on destroy
+
+                if (window.enemyManager) {
+                    window.enemyManager.decrementCount();
+                    console.log(`[hit-receiver] Decremented enemy count via destroy. Current: ${window.enemyManager.activeEnemies}`);
+                }
+                if (this.el.parentNode) {
+                    const removeDelay = 50; // Can be shorter now
+                    setTimeout(() => {
+                       if(this.el.parentNode) this.el.parentNode.removeChild(this.el);
+                    }, removeDelay);
+                }
             } else {
-                 console.warn(`[hit-receiver] Enemy ${this.el.id} had no parent node when hit.`);
-                 // Decrement was already called, so count should still be correct.
+                // --- Enemy Damaged but not destroyed ---
+                // Optional: Add a visual hit effect (e.g., flash color)
+                const originalColor = this.el.getAttribute('material')?.color || '#FFFFFF';
+                this.el.setAttribute('material', 'color', '#FFFFFF'); // Flash white
+                setTimeout(() => { this.el.setAttribute('material', 'color', originalColor); }, 100);
             }
         } else {
-            // Existing respawn logic for non-enemy elements
-            if (this.respawnTimer) clearTimeout(this.respawnTimer);
+            // --- Non-Enemy Hit Logic (Respawn) ---
+            this.isVisible = false;
+            this.el.setAttribute('visible', 'false');
+            if (window.incrementScore) { window.incrementScore(); } // Score for non-enemy hits?
+             if (this.respawnTimer) clearTimeout(this.respawnTimer);
             this.respawnTimer = setTimeout(() => {
                  this.isVisible = true;
                  this.el.setAttribute('visible', 'true');
                  this.respawnTimer = null;
-                 console.log(`[hit-receiver] Respawned non-enemy ${this.el.id}`);
              }, this.data.respawnDelay);
         }
     },
+    // **** ADD HEALTH TEXT UPDATE FUNCTION ****
+    updateHealthText: function() {
+        if (this.healthTextEl && this.isEnemy && this.data.maxHealth > 1) {
+            // **** CHANGE THIS LINE ****
+            // Original: this.healthTextEl.setAttribute('value', `${this.currentHealth}/${this.data.maxHealth}`);
+            this.healthTextEl.setAttribute('value', `HP: ${this.currentHealth}`); // New Format
+             // **** END CHANGE ****
+            this.healthTextEl.setAttribute('visible', this.currentHealth > 0); // Also hide if health is 0
+        } else if (this.healthTextEl) {
+             this.healthTextEl.setAttribute('visible', false);
+        }
+    },
+    // **** END HEALTH TEXT UPDATE FUNCTION ****
     remove: function() {
-        // Cleanup respawn timer if element is removed externally
         if (this.respawnTimer) { clearTimeout(this.respawnTimer); }
-
-        // We moved the essential enemy count decrement into the hit() method,
-        // so this remove doesn't strictly need to handle it anymore for hits.
-        // The move-towards-target remove still handles decrement if removed some other way.
-        // console.log(`[hit-receiver] Remove lifecycle method called for ${this.el.id}. isVisible was: ${this.isVisible}`);
+        // Decrement count if removed externally AND health was > 0
+        if (this.isEnemy && window.enemyManager && this.currentHealth > 0 && !isGameOver) {
+             // Only decrement if it wasn't already destroyed by a hit
+            window.enemyManager.decrementCount();
+            console.warn(`[hit-receiver] Decremented count via REMOVE for ${this.el.id} which had health > 0.`);
+        }
     }
 });
 
@@ -344,7 +368,14 @@ window.enemyManager = {
     spawnInterval: 2000, // Time between spawn checks (ms)
     spawnTimerId: null,
     baseSpeed: 0.5,      // Initial enemy speed
-    speedMultiplier: 1.0 // Multiplier increased by level ups
+    speedMultiplier: 1.0, // Multiplier increased by level ups
+
+    // Define decrementCount directly inside the object
+    decrementCount: function() {
+        this.activeEnemies = Math.max(0, this.activeEnemies - 1);
+        // Using 'this' refers to the enemyManager object itself
+        // console.log(`Enemy count decremented. Current: ${this.activeEnemies}`);
+    }
 };
 
 function updateScoreDisplay() {
@@ -564,85 +595,141 @@ function resetGame() {
 
 
 function spawnEnemy() {
-    if (!isGameSetupComplete || !placedTowerEl || !sceneElGlobal) return; // Only spawn when game running
-
+    // --- Initial Checks ---
+    if (!isGameSetupComplete || !placedTowerEl?.object3D || !sceneElGlobal) return;
     const manager = window.enemyManager;
-    if (manager.activeEnemies >= manager.maxEnemies) {
-        // console.log("Max enemies reached, skipping spawn.");
-        return;
-    }
+    if (manager.activeEnemies >= manager.maxEnemies) { return; }
 
     const sceneEl = sceneElGlobal;
     const cameraEl = document.getElementById('player-camera');
-    if (!cameraEl || !cameraEl.object3D) return;
+    if (!cameraEl?.object3D) return;
 
-    const enemyContainer = document.getElementById('enemies') || sceneEl; // Use container or scene
+    const enemyContainer = document.getElementById('enemies') || sceneEl;
 
-    // --- Calculate Spawn Position ---
+    // --- Target Vectors ---
     const camPos = new THREE.Vector3();
-    const camDir = new THREE.Vector3();
-    const spawnPos = new THREE.Vector3();
+    const camDir = new THREE.Vector3(); // Camera's forward direction (world)
     const towerPos = new THREE.Vector3();
+    const towerToCamDir = new THREE.Vector3(); // Direction from Tower to Camera
+    const spawnOffsetDir = new THREE.Vector3(); // Final direction offset from Tower
+    const spawnPos = new THREE.Vector3(); // Final spawn position
+    const camToSpawnDir = new THREE.Vector3(); // For final validation
 
     cameraEl.object3D.getWorldPosition(camPos);
-    cameraEl.object3D.getWorldDirection(camDir); // Direction camera is facing
+    cameraEl.object3D.getWorldDirection(camDir);
     placedTowerEl.object3D.getWorldPosition(towerPos);
 
-    const spawnDistance = 4 + Math.random() * 2; // Spawn 4-6 units away
-    const angleRange = Math.PI / 2.5; // Spawn within ~70 degree cone in front
+    // --- Calculate Spawn Position (Tower Relative) ---
+    // 1. Base Direction: From Tower towards Camera
+    towerToCamDir.copy(camPos).sub(towerPos);
+    if (towerToCamDir.lengthSq() < 0.001) { towerToCamDir.copy(camDir); } else { towerToCamDir.normalize(); }
+
+    // 2. Angular Offset relative to Tower->Camera line
+    const angleRange = Math.PI / 3.5; // ~50 degrees wide arc
     const randomAngle = (Math.random() - 0.5) * angleRange;
+    const rotationAxis = new THREE.Vector3(0, 1, 0);
+    spawnOffsetDir.copy(towerToCamDir).applyAxisAngle(rotationAxis, randomAngle);
 
-    // Calculate direction vector rotated slightly horizontally from camera forward
-    const spawnDir = camDir.clone();
-    const rotationAxis = new THREE.Vector3(0, 1, 0); // Rotate around Y axis
-    spawnDir.applyAxisAngle(rotationAxis, randomAngle);
+    // 3. Spawn Distance
+    const spawnDistance = 10 + Math.random() * 5; // 10-15 units away FROM TOWER
 
-    // Calculate spawn position
-    spawnPos.copy(camPos).addScaledVector(spawnDir, spawnDistance);
+    // 4. Calculate Final Spawn Position
+    spawnPos.copy(towerPos).addScaledVector(spawnOffsetDir, spawnDistance);
 
-    // Optional: Adjust Y position slightly based on tower/camera height
-    spawnPos.y = camPos.y + (Math.random() - 0.5) * 0.5; // Randomize height slightly
-
-    // Ensure spawn position is further from tower than camera (basic check)
-    const distSqCamToSpawn = camPos.distanceToSquared(spawnPos);
-    const distSqTowerToSpawn = towerPos.distanceToSquared(spawnPos);
-    const distSqCamToTower = camPos.distanceToSquared(towerPos);
-
-    if (distSqTowerToSpawn < distSqCamToTower) {
-        console.warn("Spawn rejected: Too close to tower relative to camera. Retrying next interval.");
-        return; // Skip spawn if it would be behind or too close
+    // --- Validation Checks ---
+    // A. Check if Spawn is on the same side of the Tower as the Camera
+    const dotTowerDirs = towerToCamDir.dot(spawnOffsetDir);
+    if (dotTowerDirs < 0.3) {
+        console.warn(`Spawn rejected (TowerRel): Spawn direction too far from camera direction relative to tower (dotTowerDirs: ${dotTowerDirs.toFixed(2)}). Retrying.`);
+        return;
+    }
+    // B. Check Minimum distance from Camera
+    const minCamDistSq = 4 * 4;
+    if (spawnPos.distanceToSquared(camPos) < minCamDistSq) {
+         console.warn("Spawn rejected (TowerRel): Too close to the camera. Retrying.");
+         return;
+    }
+    // C. Minimum distance from Tower
+    const minDistTowerSq = 6 * 6;
+    if (spawnPos.distanceToSquared(towerPos) < minDistTowerSq) {
+       console.warn(`Spawn rejected (TowerRel): Calculated position ended up too close to tower (DistSq: ${spawnPos.distanceToSquared(towerPos).toFixed(2)}). Retrying.`);
+       return;
+    }
+    // D. Check if spawnPos is still broadly in front of the CURRENT camera view
+    camToSpawnDir.copy(spawnPos).sub(camPos).normalize();
+    const dotCamView = camDir.dot(camToSpawnDir);
+    if (dotCamView < 0.1) {
+        console.warn(`Spawn rejected (TowerRel): Position outside broad camera view (dotCamView: ${dotCamView.toFixed(2)}). Retrying.`);
+        return;
     }
 
-    // --- Create Enemy ---
-    const enemy = document.createElement('a-box');
-    const enemyId = `enemy-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    // Clamp Y position
+    spawnPos.y = THREE.MathUtils.clamp(towerPos.y + 0.5 + (Math.random() - 0.5) * 1.5, 0.2, 3.0);
+
+    // --- Create Enemy (If validation passed) ---
+    console.log(`Spawn validation passed (TowerRel). Spawning at: ${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)}, ${spawnPos.z.toFixed(1)}`);
+
+    // --- Determine Enemy Type and Properties --- // <<<< ONLY ONE DECLARATION BLOCK NOW
+    let enemyType = 'basic';
+    let enemyHealth = 1;
+    let enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
+    let enemyScale = '0.25 0.25 0.25';
+    let enemyShape = 'box';
+
+    const SCORE_THRESHOLD_TOUGH = 10; // Score needed to start seeing tough enemies (equiv. start of Level 10)
+    if (score >= SCORE_THRESHOLD_TOUGH) {
+        // Start at 15% chance at score 45, increase by ~1.4% per score point (7% per 5 score), cap at 60%
+        // Calculate "levels past 10 equivalent" based on score: (score - 45) / 5
+        const toughChance = Math.min(0.60, 0.30 + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * 0.07);
+        console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`);
+        if (Math.random() < toughChance) {
+            enemyType = 'tough';
+            enemyHealth = 3;
+            enemyColor = '#8B0000'; // Dark Red for tough
+            enemyScale = '0.35 0.35 0.35'; // Slightly larger
+            enemyShape = 'sphere'; // Tough enemies are spheres
+        }
+    }
+    // --- NO DUPLICATE DECLARATIONS HERE ---
+
+    // --- Create Enemy Element ---
+    const enemy = document.createElement(`a-${enemyShape}`); // Use dynamic shape
+    const enemyId = `enemy-${enemyType}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
     enemy.setAttribute('id', enemyId);
-    enemy.classList.add('enemy'); // **** ADD CLASS HERE ****
-    enemy.setAttribute('color', `hsl(${Math.random() * 360}, 70%, 60%)`); // Random color
-    enemy.setAttribute('scale', '0.25 0.25 0.25');
+    enemy.classList.add('enemy');
+    enemy.setAttribute('color', enemyColor);
+    enemy.setAttribute('scale', enemyScale);
     enemy.setAttribute('position', spawnPos);
     enemy.setAttribute('shadow', 'cast: true; receive: false;');
 
-    // Attach components (Now hit-receiver will see the class)
-    enemy.setAttribute('hit-receiver', ''); // Use defaults
-    enemy.setAttribute('move-towards-target', {
-        target: `#${placedTowerEl.id}`,
-        speed: manager.baseSpeed * manager.speedMultiplier // Apply current speed
-    });
+    // --- Create Health Indicator (if needed) ---
+    if (enemyHealth > 1) {
+        const healthText = document.createElement('a-text');
+        healthText.classList.add('enemy-health-text');
+        // **** CHANGE THIS LINE ****
+        // Original: healthText.setAttribute('value', `${enemyHealth}/${enemyHealth}`);
+        healthText.setAttribute('value', `HP: ${enemyHealth}`); // New Format
+        // **** END CHANGE ****
+        healthText.setAttribute('position', '0 0.5 0'); // Position above enemy base
+        healthText.setAttribute('scale', '1.5 1.5 1.5'); // Adjust scale
+        healthText.setAttribute('align', 'center');
+        healthText.setAttribute('color', '#FFFFFF');
+        healthText.setAttribute('side', 'double');
+        healthText.setAttribute('billboard', ''); // Faces camera
+        enemy.appendChild(healthText);
+    }
 
+    // --- Attach Components ---
+    enemy.setAttribute('hit-receiver', { maxHealth: enemyHealth, initialHealth: enemyHealth });
+    enemy.setAttribute('move-towards-target', { target: `#${placedTowerEl.id}`, speed: manager.baseSpeed * manager.speedMultiplier });
+
+    // --- Add to Scene ---
     enemyContainer.appendChild(enemy);
     manager.activeEnemies++;
-    console.log(`%cSpawned enemy ${enemyId}. Count: ${manager.activeEnemies}`, "color: cyan;");
-    // The component adds the 'enemy' class automatically
-}
+    console.log(`%cSpawned ${enemyType} enemy ${enemyId} (Health: ${enemyHealth}). Count: ${manager.activeEnemies}`, "color: cyan;");
 
-// Add helper for enemy count management to window.enemyManager
-window.enemyManager.decrementCount = function() {
-    window.enemyManager.activeEnemies = Math.max(0, window.enemyManager.activeEnemies - 1);
-    // console.log(`Enemy count decremented. Current: ${window.enemyManager.activeEnemies}`);
-};
-
-
+} // End of spawnEnemy
+   
 
 
 window.toggleSphereColor = function({value}) {
@@ -670,17 +757,46 @@ window.toggleLabels = function({value}) {
 
      // Make incrementScore global
      window.incrementScore = function() {
+        if (isGameOver) return; // Don't increment score if game over
+    
         const previousLevel = currentLevel;
         score++;
         currentLevel = Math.floor(score / 5) + 1;
-        console.log("Score increased to:", score, "Current Level:", currentLevel, "Previous Level:", previousLevel);
+        console.log("Score increased to:", score, "Current Level:", currentLevel);
+    
+        let levelUpOccurred = false;
         if (currentLevel > previousLevel) {
-            console.log("LEVEL UP Condition Met! Calling increaseOrbitSpeed and showLevelUpPopup...");
-            increaseEnemySpeed(); 
-            showLevelUpPopup(currentLevel); // Pass the NEW level
+            levelUpOccurred = true;
+            console.log("LEVEL UP! Increasing enemy speed and showing popup...");
+            increaseEnemySpeed();
+            showLevelUpPopup(currentLevel);
         }
-        updateScoreDisplay();
-    }
+    
+        // --- Max Enemy Scaling Logic ---
+        const MAX_POSSIBLE_ENEMIES = 15;
+        let updatedMaxEnemies = window.enemyManager.maxEnemies; // Start with current max
+    
+        if (currentLevel >= 15 && window.enemyManager.maxEnemies < MAX_POSSIBLE_ENEMIES) {
+            let baseMax = 5; // The starting max before level 15 scaling
+            if (currentLevel >= 15) {
+                baseMax = 7; // Set to 7 at level 15
+                // Calculate how many increments of +2 should have happened after level 15
+                const levelIncrementsPast15 = Math.floor((currentLevel - 15) / 5); // How many blocks of 5 levels
+                const additionalEnemies = levelIncrementsPast15 * 2;
+                updatedMaxEnemies = Math.min(MAX_POSSIBLE_ENEMIES, baseMax + additionalEnemies);
+            }
+    
+            if (updatedMaxEnemies > window.enemyManager.maxEnemies) {
+                 console.log(`%cIncreasing Max Enemies to ${updatedMaxEnemies} at Level ${currentLevel}`, "color: yellow; font-weight: bold;");
+                 window.enemyManager.maxEnemies = updatedMaxEnemies;
+                 // Optional: Trigger a notification or effect?
+            }
+        }
+        // --- End Max Enemy Scaling ---
+    
+    
+        updateScoreDisplay(); // Update score display regardless
+    };
 
 
 // --- Global Scope Setup for Scene Listeners ---

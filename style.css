@@ -185,3 +185,44 @@ body {
 #game-over-screen button:hover {
     background-color: #AAAAAA;
 }
+
+#upgrades-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 50, 100, 0.9); /* Same as place tower popup? */
+  border: 2px solid white;
+  border-radius: 1em;
+  z-index: 15; /* Below Game Over, above others? */
+  padding: 1.5em;
+  text-align: center;
+  display: none; /* Start hidden */
+  min-width: 200px; /* Ensure minimum width */
+}
+
+#upgrades-popup h2 {
+  margin-top: 0;
+  margin-bottom: 0.5em;
+  color: #FFD700; /* Gold color for title */
+}
+
+.upgrade-section {
+    margin-top: 1em;
+}
+
+.upgrade-button {
+    padding: 0.8em 1.5em;
+    font-size: 1.1em;
+    cursor: pointer;
+    background-color: #4CAF50; /* Green background */
+    border: none;
+    border-radius: 0.3em;
+    color: white;
+    margin: 0.5em;
+    min-width: 120px;
+}
+
+.upgrade-button:hover {
+    background-color: #45a049;
+}

@@ -106,9 +106,17 @@
       <div style="font-size: 0.8em; margin: 0.5em 0;">Tap the blue marker on a surface.</div>
       <button id="startGameButton" disabled>Start Game</button>
       <div id="tower-placed-feedback" style="font-size: 0.8em; margin-top: 0.5em; color: lightgreen; display: none;">Tower Placed!</div>
-      
   </div>
 
+  <div id="upgrades-popup" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 1.5em; min-width: 200px;">
+    <h2>Upgrades Available!</h2>
+    <p style="font-size: 0.9em; margin-bottom: 1em;">Select an upgrade to place:</p>
+    <div class="upgrade-section">
+        <button id="upgradeShooterButton" class="upgrade-button">Shooter</button>
+        </div>
+     <p style="font-size: 0.8em; margin-top: 1.5em;">(Game is paused)</p>
+    </div>
+  
   <div id="game-over-screen" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 2em;">
     <h2>Game Over!</h2>
     <p id="final-score">Your Score: 0</p>
