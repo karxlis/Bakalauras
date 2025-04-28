@@ -335,9 +335,132 @@ AFRAME.registerComponent('move-towards-target', {
             window.enemyManager.decrementCount();
         }
     }
+
+
+    
 });
 
+// **** NEW: Auto Shooter Component ****
+AFRAME.registerComponent('auto-shooter', {
+    schema: {
+        shootDelay: { type: 'number', default: 5000 }, // Configurable delay (ms)
+        targetSelector: { type: 'string', default: '.enemy' },
+        projectileSpeed: { type: 'number', default: 8.0 },
+        projectileLifetime: { type: 'number', default: 4000.0 },
+        projectileRadius: { type: 'number', default: 0.08 },
+        projectileColor: { type: 'string', default: '#FF8C00' } // Dark Orange
+    },
 
+    init: function () {
+        console.log(`AUTO-SHOOTER INIT: Initializing on ${this.el.id}`); // <-- ADD LOG
+        this.lastShotTime = 0;
+        this.targets = [];
+        this.shooterWorldPos = new THREE.Vector3();
+        this.targetWorldPos = new THREE.Vector3();
+        this.shootDirection = new THREE.Vector3();
+        this.projectileStartPos = new THREE.Vector3();
+        console.log(`[auto-shooter] Initialized on ${this.el.id}. Shoot Delay: ${this.data.shootDelay}ms`);
+        
+    },
+
+    tick: function (time, timeDelta) {
+        // --- Basic Checks ---
+        //onsole.log(`AUTO-SHOOTER TICK: Running at time ${time.toFixed(0)}`); // <-- ADD LOG (Uncomment temporarily, can be very noisy)
+        // --- Basic Checks ---
+        if (isGameOver || isGamePaused || !isGameSetupComplete || !this.el.object3D?.visible) {
+            // console.log(`AUTO-SHOOTER TICK: Paused/Stopped`); // Optional debug
+            return;
+        }
+
+        // --- Rate Limiting ---
+        if (time < this.lastShotTime + this.data.shootDelay) {
+            // console.log(`AUTO-SHOOTER TICK: Waiting for delay`); // Optional debug
+            return;
+        }
+
+        // --- Find Targets (Periodically Refresh List) ---
+        const potentialTargets = this.el.sceneEl.querySelectorAll(this.data.targetSelector); // e.g., ".enemy"
+
+        if (potentialTargets.length === 0) {
+             // console.log(`AUTO-SHOOTER TICK: Found 0 potential targets matching "${this.data.targetSelector}"`); // Optional debug
+            return; // No potential targets at all
+        }
+
+        // --- Find Closest Target ---
+        let closestTarget = null;
+        let minDistanceSq = Infinity;
+        this.el.object3D.getWorldPosition(this.shooterWorldPos);
+        let visibleTargetCount = 0; // Counter for logging
+
+        for (const targetEl of potentialTargets) {
+            // Check if the target element and its 3D object exist AND if its object3D is actually visible
+            if (!targetEl?.object3D || !targetEl.object3D.visible) {
+                continue; // Skip this target if not valid or not visible in the 3D scene
+            }
+
+            // If it passed the visibility check, count it and check distance
+            visibleTargetCount++;
+            targetEl.object3D.getWorldPosition(this.targetWorldPos);
+            const distanceSq = this.shooterWorldPos.distanceToSquared(this.targetWorldPos);
+
+            if (distanceSq < minDistanceSq) {
+                minDistanceSq = distanceSq;
+                closestTarget = targetEl;
+            }
+        }
+
+
+                // Log how many targets were actually visible after filtering
+        if (visibleTargetCount > 0) {
+             console.log(`AUTO-SHOOTER TICK: Found ${visibleTargetCount} visible targets after filtering.`); // <-- NEW LOG
+        } else if (potentialTargets.length > 0) {
+             console.log(`AUTO-SHOOTER TICK: Found ${potentialTargets.length} potential targets, but 0 were visible via object3D.visible.`); // <-- NEW LOG
+             return; // No visible targets found
+        }
+
+
+        // --- Shoot if a Target Was Found ---
+ // --- Shoot if a Closest Visible Target Was Found ---
+ if (closestTarget) {
+    console.log(`AUTO-SHOOTER TICK: Closest visible target is ${closestTarget.id}. Firing!`); // <-- UPDATED LOG
+
+    // Calculate direction
+    closestTarget.object3D.getWorldPosition(this.targetWorldPos);
+    this.shootDirection.copy(this.targetWorldPos).sub(this.shooterWorldPos).normalize();
+
+    // Create projectile
+    const projectile = document.createElement('a-sphere');
+    projectile.setAttribute('radius', this.data.projectileRadius);
+    projectile.setAttribute('color', this.data.projectileColor);
+    projectile.setAttribute('material', 'shader: flat;');
+
+    // Calculate start position
+    const startOffset = 0.2;
+    this.projectileStartPos.copy(this.shooterWorldPos).addScaledVector(this.shootDirection, startOffset);
+    projectile.setAttribute('position', this.projectileStartPos);
+
+    // Attach the projectile-hitter component
+    projectile.setAttribute('projectile-hitter', {
+        direction: this.shootDirection.clone(),
+        speed: this.data.projectileSpeed,
+        lifetime: this.data.projectileLifetime,
+        targetSelector: this.data.targetSelector
+    });
+
+    // Add to scene and update time
+    this.el.sceneEl.appendChild(projectile);
+    this.lastShotTime = time;
+} else if (visibleTargetCount > 0) {
+     // This case shouldn't happen if visibleTargetCount > 0, but good for debugging
+     console.log(`AUTO-SHOOTER TICK: Found ${visibleTargetCount} visible targets, but failed to select closest.`);
+}
+}, // End tick function
+
+    remove: function() {
+         console.log(`[auto-shooter] Removed from ${this.el.id}`);
+    }
+});
+// **** END NEW COMPONENT ****
 // --- Global Scope Variables & Functions ---
 let score = 0;
 let currentLevel = 1; // Start at level 1
@@ -357,12 +480,13 @@ let isGamePaused = false;             // General pause flag
 let placingUpgrade = null;          // Tracks which upgrade is being placed ('shooter', null, etc.)
 let upgradeAvailable_Score10 = true; // Flag to ensure upgrade popup shows only once per threshold
 // **** END NEW STATE VARIABLES ****
-let placedUpgradeEl = null;
+let placedUpgradeEl = null;// Holds the temporary visual during placement
+let activeShooterUpgrades = []; // **** NEW: Keep track of active shooters ****
 
-
-const TOWER_MAX_HEALTH = 10;
-let currentTowerHealth = TOWER_MAX_HEALTH;
-let towerHealthIndicatorEl = null; // Reference to UI element
+const TOWER_MAX_HEALTH = 10; // Base max health
+let currentMaxTowerHealth = TOWER_MAX_HEALTH; // **** NEW: Track current max health ****
+let currentTowerHealth = TOWER_MAX_HEALTH; // Initialize current health
+let towerHealthIndicatorEl = null;
 let gameOverScreenEl = null;       // Reference to Game Over UI
 let finalScoreEl = null;           // Reference to final score display
 let isGameOver = false;            // Game over state flag
@@ -370,9 +494,13 @@ let isGameOver = false;            // Game over state flag
 
 let upgradesPopupEl = null;
 let upgradeShooterButtonEl = null;
+let upgradeHealthButtonEl = null; // **** NEW: Reference for health button ****
 // **** ADD CONFIRM BUTTON REF ****
 let confirmPlacementAreaEl = null;
 let confirmPlacementButtonEl = null;
+let upgradeAvailable_Score20 = true; // **** NEW: Flag for score 20 trigger ****
+let upgradeShooterTaken = false;   // **** NEW: Track if shooter upgrade taken ****
+let upgradeHealthTaken = false;    // **** NEW: Track if health upgrade taken ****
 // **** END CONFIRM BUTTON REF ****
 
 window.enemyManager = {
@@ -471,11 +599,11 @@ window.incrementScore = function() {
 function updateTowerHealthUI() {
     towerHealthIndicatorEl = towerHealthIndicatorEl || document.getElementById('tower-health-indicator');
     if (towerHealthIndicatorEl) {
-        towerHealthIndicatorEl.textContent = `Tower Health: ${currentTowerHealth}/${TOWER_MAX_HEALTH}`;
+        towerHealthIndicatorEl.textContent = `Tower Health: ${currentTowerHealth}/${currentMaxTowerHealth}`;
         towerHealthIndicatorEl.style.display = isGameSetupComplete && !isGameOver ? 'block' : 'none';
 
         // Optional: Change color based on health
-        const healthPercent = currentTowerHealth / TOWER_MAX_HEALTH;
+        const healthPercent = currentMaxTowerHealth > 0 ? (currentTowerHealth / currentMaxTowerHealth) : 0;
         if (healthPercent > 0.6) {
             towerHealthIndicatorEl.style.backgroundColor = 'rgba(0, 150, 0, 0.7)'; // Greenish
         } else if (healthPercent > 0.3) {
@@ -536,7 +664,10 @@ function gameOver() {
 }
 
 function showUpgradePopup() {
-    if (isGameOver || !isGameSetupComplete || placingUpgrade) return;
+    if (isGameOver || !isGameSetupComplete || placingUpgrade || (upgradeShooterTaken && upgradeHealthTaken)) {
+        // Don't show if game over, not set up, placing another upgrade, or both upgrades already taken
+        return;
+    }
 
     console.log("Showing Upgrade Popup...");
     isGamePaused = true; // PAUSE THE GAME
@@ -552,7 +683,34 @@ function showUpgradePopup() {
     const controlsWidget = document.getElementById('controls-widget');
     if (controlsWidget) controlsWidget.style.display = 'none';
 
+    // Get references to buttons INSIDE the function to ensure they are fresh
     upgradesPopupEl = upgradesPopupEl || document.getElementById('upgrades-popup');
+    upgradeShooterButtonEl = upgradeShooterButtonEl || document.getElementById('upgradeShooterButton');
+    upgradeHealthButtonEl = upgradeHealthButtonEl || document.getElementById('upgradeHealthButton');
+
+    // **** Dynamically show/hide buttons based on taken status ****
+    if (upgradeShooterButtonEl) {
+        upgradeShooterButtonEl.style.display = upgradeShooterTaken ? 'none' : 'inline-block'; // Show if not taken
+    }
+    if (upgradeHealthButtonEl) {
+        upgradeHealthButtonEl.addEventListener('click', () => {
+            console.log("Upgrade Health button clicked.");
+            if (!isGamePaused || placingUpgrade || upgradeHealthTaken) return; // Added check if already taken
+
+            console.log("Applying Health Upgrade.");
+            currentMaxTowerHealth = 20;
+            currentTowerHealth = currentMaxTowerHealth;
+            upgradeHealthTaken = true; // **** NEW: Mark health upgrade as taken ****
+
+            updateTowerHealthUI();
+
+            if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
+            resumeGame();
+        });
+    }
+    // **** END button visibility logic ****
+
+    // Show the popup itself
     if (upgradesPopupEl) upgradesPopupEl.style.display = 'block';
 
     // Hide reticle initially
@@ -599,12 +757,16 @@ function resetGame() {
     towerPlaced = false;
     score = 0;
     currentLevel = 1;
+    currentMaxTowerHealth = TOWER_MAX_HEALTH;
     currentTowerHealth = TOWER_MAX_HEALTH;
     window.enemyManager.activeEnemies = 0;
     window.enemyManager.speedMultiplier = 1.0;
     isGamePaused = false;
     placingUpgrade = null;
     upgradeAvailable_Score10 = true;
+    upgradeAvailable_Score20 = true;
+    upgradeShooterTaken = false;
+    upgradeHealthTaken = false;
 
     // Clear spawner if somehow still active
      if (window.enemyManager.spawnTimerId) {
@@ -628,11 +790,19 @@ function resetGame() {
     console.log(`Removed ${entitiesToRemove.length} dynamic entities.`);
 
     
+    activeShooterUpgrades.forEach(shooter => {
+        if (shooter.parentNode) {
+            shooter.parentNode.removeChild(shooter);
+        }
+    });
+    activeShooterUpgrades = [];
+    console.log("Removed active shooter upgrades during reset.");
+
     // **** NEW: Resume Game Function ****
     
     // Reset UI elements to initial state (like entering AR)
     updateScoreDisplay(); // Reset score display to 0
-
+    updateTowerHealthUI();
     const sceneEl = sceneElGlobal;
     if (sceneEl && sceneEl.is('ar-mode')) {
         // Trigger the setup flow again
@@ -641,6 +811,7 @@ function resetGame() {
         const controlsWidget = document.getElementById('controls-widget');
         const shootButton = document.getElementById('shootButton');
         const startGameButton = document.getElementById('startGameButton');
+        console.log("Start Game Button Element:", startGameButton); 
         const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
 
         console.log('Restarting setup phase UI.');
@@ -778,6 +949,7 @@ function spawnEnemy() {
     const enemyId = `enemy-${enemyType}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
     enemy.setAttribute('id', enemyId); enemy.classList.add('enemy'); enemy.setAttribute('color', enemyColor);
     enemy.setAttribute('scale', enemyScale); enemy.setAttribute('position', spawnPos); enemy.setAttribute('shadow', 'cast: true; receive: false;');
+    enemy.setAttribute('visible', 'true');
 
     // Create Health Indicator
     if (enemyHealth > 1) { /* ... Add health text child ... */
@@ -834,23 +1006,34 @@ window.toggleLabels = function({value}) {
         if (currentLevel > previousLevel) {
             console.log("LEVEL UP! Increasing enemy speed and showing popup...");
             increaseEnemySpeed();
-            showLevelUpPopup(currentLevel);
+            showLevelUpPopup(currentLevel); // Shows the small "Level X" notification
         }
     
         // --- Upgrade Trigger Logic ---
         const SCORE_THRESHOLD_UPGRADE1 = 10;
+        const SCORE_THRESHOLD_UPGRADE2 = 20; // **** NEW: Score 20 threshold ****
         if (score === SCORE_THRESHOLD_UPGRADE1 && upgradeAvailable_Score10) {
-             console.log(`Score reached ${SCORE_THRESHOLD_UPGRADE1}! Triggering upgrade popup.`);
-             upgradeAvailable_Score10 = false; // Prevent re-triggering
-             showUpgradePopup();
-        }
-        // Add more upgrade triggers later (e.g., score 25, 50...)
-        // else if (score === SCORE_THRESHOLD_UPGRADE2 && upgradeAvailable_Score25) { ... }
-    
-        // --- Max Enemy Scaling Logic ---
-        // ... (existing scaling logic based on score) ...
-    
-        updateScoreDisplay(); // Update score display
+            console.log(`Score reached ${SCORE_THRESHOLD_UPGRADE1}! Triggering upgrade popup.`);
+            upgradeAvailable_Score10 = false; // Prevent re-triggering for score 10
+            showUpgradePopup(); // Shows the choice popup
+       }
+
+       // **** NEW: Check Score 20 Trigger ****
+       else if (score === SCORE_THRESHOLD_UPGRADE2 && upgradeAvailable_Score20) {
+            // Only show if at least one upgrade is still available
+            if (!upgradeShooterTaken || !upgradeHealthTaken) {
+               console.log(`Score reached ${SCORE_THRESHOLD_UPGRADE2}! Triggering upgrade popup.`);
+               upgradeAvailable_Score20 = false; // Prevent re-triggering for score 20
+               showUpgradePopup(); // Shows the choice popup (will only show available buttons)
+            } else {
+                console.log(`Score reached ${SCORE_THRESHOLD_UPGRADE2}, but both upgrades already taken.`);
+            }
+       }
+       // **** END Score 20 Trigger Check ****
+   
+       // Add more upgrade triggers later if needed
+   
+       updateScoreDisplay(); // Update score display
     };
 
 
@@ -1096,35 +1279,30 @@ else {
             const position = reticleEl.getAttribute('position');
             if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { /* Error handling */ return;}
 
-            if (!placedUpgradeEl) { // First tap
+            if (!placedUpgradeEl) { // First tap: Create visual representation ONLY
                 console.log("Placing shooter upgrade visually...");
                 const shooterBox = document.createElement('a-box');
-                // ... (set shooterBox attributes and position) ...
-                shooterBox.setAttribute('id', `shooter-upgrade-${Date.now()}`);
-                shooterBox.setAttribute('color', '#FF6347');
+                const visualId = `shooter-upgrade-visual-${Date.now()}`;
+                shooterBox.setAttribute('id', visualId);
+                shooterBox.setAttribute('color', '#FF6347'); // Tomato color
                 shooterBox.setAttribute('scale', '0.15 0.15 0.15');
                 shooterBox.setAttribute('height', '0.4');
                 shooterBox.setAttribute('position', position);
                 shooterBox.setAttribute('shadow', 'cast: true; receive: false;');
+                // NO auto-shooter component here
 
-                const sceneInstance = sceneElGlobal || document.querySelector('a-scene');
-                sceneInstance.appendChild(shooterBox);
-                placedUpgradeEl = shooterBox;
+                sceneElGlobal.appendChild(shooterBox);
+                placedUpgradeEl = shooterBox; // Store reference to the VISUAL element
 
-                // **** Get fresh button reference before enabling ****
+                // Enable confirm button
                 const currentConfirmButton = document.getElementById('confirmPlacementButton');
-                if (currentConfirmButton) {
-                    currentConfirmButton.disabled = false;
-                    console.log("Confirm button enabled.");
-                } else {
-                   console.error("Confirm button not found when trying to enable!");
-                }
+                if (currentConfirmButton) currentConfirmButton.disabled = false;
 
                 // Update instructions
                 const feedbackEl = document.getElementById('scanning-feedback');
                 if(feedbackEl){ feedbackEl.textContent = "Tap to move, or Confirm Placement"; }
 
-            } else { // Subsequent taps
+            } else { // Subsequent taps: Move the visual
                  console.log('Moving shooter upgrade visual...');
                  placedUpgradeEl.setAttribute('position', position);
                  console.log('Shooter upgrade position updated.');
@@ -1216,6 +1394,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const cameraMarkerEl = document.getElementById('camera-aim-marker');
     const controlsWidget = document.getElementById('controls-widget'); // Need this
 
+
+    
     // **** ADD REFERENCES FOR NEW ELEMENTS ****
     const placeTowerPopupEl = document.getElementById('place-tower-popup');
     const startGameButton = document.getElementById('startGameButton');
@@ -1227,7 +1407,8 @@ document.addEventListener('DOMContentLoaded', () => {
     gameOverScreenEl = document.getElementById('game-over-screen');
     finalScoreEl = document.getElementById('final-score');
     const tryAgainButton = document.getElementById('tryAgainButton');
-
+    scoreDisplayEl = document.getElementById('score-display');
+    levelUpPopupEl = document.getElementById('level-up-popup');
     // Assign scoreDisplayEl etc. (existing code)
     scoreDisplayEl = document.getElementById('score-display');
     levelUpPopupEl = document.getElementById('level-up-popup');
@@ -1235,8 +1416,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     upgradesPopupEl = document.getElementById('upgrades-popup');
     upgradeShooterButtonEl = document.getElementById('upgradeShooterButton');
+    upgradeHealthButtonEl = document.getElementById('upgradeHealthButton'); // **** NEW: Get health button ref ****
+    confirmPlacementAreaEl = document.getElementById('confirm-placement-area');
+    confirmPlacementButtonEl = document.getElementById('confirmPlacementButton');
+    towerHealthIndicatorEl = document.getElementById('tower-health-indicator');
+    gameOverScreenEl = document.getElementById('game-over-screen');
+    finalScoreEl = document.getElementById('final-score');
 
     const sceneInstance = sceneElGlobal || sceneEl_dom;
+
+    if (!upgradeHealthButtonEl) {
+        console.error("Essential page element not found: #upgradeHealthButton");
+        // return; // Optional: stop execution if critical elements missing
+    }
 
     // Simplified check - assume most elements are there from HTML
     if (!sceneInstance || !overlay || !startGameButton || !placeTowerPopupEl || !tryAgainButton || !gameOverScreenEl || !towerHealthIndicatorEl || !upgradesPopupEl || !upgradeShooterButtonEl) { // Added upgrade UI checks
@@ -1355,6 +1547,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Reset state for new game
             isGameSetupComplete = true;
             isGameOver = false; // Ensure game over is false
+            currentMaxTowerHealth = TOWER_MAX_HEALTH;
             currentTowerHealth = TOWER_MAX_HEALTH; // Reset health
             score = 0; // Reset score
             currentLevel = 1; // Reset level
@@ -1363,7 +1556,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update UI
             updateScoreDisplay(); // Show score 0
-            updateTowerHealthUI(); // Show full health
+            updateTowerHealthUI();  // Show full health
 
             // ... (hide setup UI, show game UI, enable shoot button) ...
             if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
@@ -1393,13 +1586,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
     placingUpgrade = 'shooter';
+    placedUpgradeEl = null;
 
     const reticleEl = document.getElementById('placement-reticle');
     const feedbackEl = document.getElementById('scanning-feedback');
 
     
     confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area');
-    confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
+        confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
 
     if (reticleEl) reticleEl.setAttribute('visible', true);
     if (feedbackEl) {
@@ -1411,7 +1605,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Attempting to show confirm placement area..."); // Log before
         confirmPlacementAreaEl.style.display = 'block';
         // **** ADD THIS LOG ****
-        console.log("Computed display style for #confirm-placement-area:", window.getComputedStyle(confirmPlacementAreaEl).display);
+        //console.log("Computed display style for #confirm-placement-area:", window.getComputedStyle(confirmPlacementAreaEl).display);
         // **** END ADDED LOG ****
     } else {
         console.error("Confirm placement area element NOT found!");
@@ -1421,13 +1615,32 @@ document.addEventListener('DOMContentLoaded', () => {
          confirmPlacementButtonEl.disabled = true;
     } else {
          console.error("Confirm placement button element NOT found!");
-    }
+    } 
 
 });
 
+if (upgradeHealthButtonEl) { // Check if button exists before adding listener
+    upgradeHealthButtonEl.addEventListener('click', () => {
+        console.log("Upgrade Health button clicked.");
+        if (!isGamePaused || placingUpgrade) return; // Should only trigger when popup is visible
+
+        console.log("Applying Health Upgrade.");
+        currentMaxTowerHealth = 20; // Set new max health
+        currentTowerHealth = currentMaxTowerHealth; // Heal to full new max health
+
+        updateTowerHealthUI(); // Update the UI immediately
+
+        // Hide popup and resume game (no placement needed for this upgrade)
+        if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
+        resumeGame();
+    });
+}
+
     // --- Initialize UI ---
     console.log("Initializing UI states...");
-    updateScoreDisplay(); // Set initial score display
+    updateScoreDisplay();
+    updateTowerHealthUI(); 
+
     setTimeout(() => {
        if (window.toggleLabels) { window.toggleLabels({ value: document.querySelector('input[name="labelsVisible"]:checked')?.value || 'no' }); }
        if (window.toggleSphereColor) { window.toggleSphereColor({ value: document.querySelector('input[name="sphereColor"]:checked')?.value || '#EF2D5E' }); }
@@ -1456,34 +1669,52 @@ document.addEventListener('DOMContentLoaded', () => {
       confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area'); // Get ref for hiding area
   
       confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton'); // Keep initial ref for adding listener
-      if (confirmPlacementButtonEl) { // Check if button exists before adding listener
-          confirmPlacementButtonEl.addEventListener('click', () => {
-              console.log("Confirm Placement button clicked.");
-  
-              // Get fresh references INSIDE the listener
-              const currentConfirmArea = document.getElementById('confirm-placement-area');
-              const feedbackEl = document.getElementById('scanning-feedback');
-  
-              // Check if we were actually placing the shooter and the visual exists
-              if (placingUpgrade === 'shooter' && placedUpgradeEl) {
-                  console.log(`Finalizing placement for ${placedUpgradeEl.id}`);
-  
-                  // Reset state and UI before resuming
-                  placingUpgrade = null;
-                  placedUpgradeEl = null; // Clear the temporary reference
-  
-                  if (currentConfirmArea) currentConfirmArea.style.display = 'none'; // Hide button area
-                  if (feedbackEl) feedbackEl.style.display = 'none'; // Hide instructions
-  
-                  // Resume the game
-                  resumeGame();
-  
-              } else {
-                   console.warn("Confirm button clicked inappropriately.");
-                   // Optional: Resume game anyway?
-                   // if (isGamePaused) { resumeGame(); }
-              }
-          });
+      if (confirmPlacementButtonEl) {
+        // **** REPLACE existing listener with this ****
+        confirmPlacementButtonEl.addEventListener('click', () => {
+            console.log("Confirm Placement button clicked.");
+
+            
+
+            const currentConfirmArea = document.getElementById('confirm-placement-area');
+            const feedbackEl = document.getElementById('scanning-feedback');
+
+            // Check if we were placing the shooter AND the visual element exists
+            if (placingUpgrade === 'shooter' && placedUpgradeEl) {
+                console.log(`CONFIRM: Attaching auto-shooter to ${placedUpgradeEl.id}`); // <-- ADD LOG
+                placedUpgradeEl.setAttribute('auto-shooter', { shootDelay: 2500 });
+                console.log(`CONFIRM: Component attached. Check inspector.`); // <-- ADD LOG
+                activeShooterUpgrades.push(placedUpgradeEl);
+                upgradeShooterTaken = true; // **** NEW: Mark shooter upgrade as taken ****
+                 // **** NEW: Add to active list for reset ****
+
+                // Reset state and UI
+                placingUpgrade = null;
+                placedUpgradeEl = null; // Clear the temporary reference
+
+                if (currentConfirmArea) currentConfirmArea.style.display = 'none';
+                if (feedbackEl) feedbackEl.style.display = 'none';
+
+                // Hide reticle after placement
+                const reticleEl = document.getElementById('placement-reticle');
+                 if (reticleEl) reticleEl.setAttribute('visible', false);
+
+                // Resume the game
+                resumeGame();
+
+            } else {
+                 console.warn("Confirm button clicked inappropriately.");
+                 // Cleanup if needed and resume
+                 if (placingUpgrade === 'shooter') {
+                     placingUpgrade = null;
+                     if (currentConfirmArea) currentConfirmArea.style.display = 'none';
+                     if (feedbackEl) feedbackEl.style.display = 'none';
+                     const reticleEl = document.getElementById('placement-reticle');
+                     if (reticleEl) reticleEl.setAttribute('visible', false);
+                     resumeGame();
+                 }
+            }
+        });
       } else {
            console.error("Confirm Placement Button element could not be found to attach listener!");
       }
