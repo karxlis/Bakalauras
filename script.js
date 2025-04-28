@@ -668,7 +668,7 @@ function resetGame() {
 
 function spawnEnemy() {
     // --- Initial Checks ---
-    if (!isGameSetupComplete || !placedTowerEl?.object3D || !sceneElGlobal) return;
+    if (!isGameSetupComplete || !placedTowerEl?.object3D || !sceneElGlobal || isGamePaused) return;
     const manager = window.enemyManager;
     if (manager.activeEnemies >= manager.maxEnemies) { return; }
 
@@ -680,125 +680,119 @@ function spawnEnemy() {
 
     // --- Target Vectors ---
     const camPos = new THREE.Vector3();
-    const camDir = new THREE.Vector3(); // Camera's forward direction (world)
+    const camDir = new THREE.Vector3(); // Camera's world forward direction
     const towerPos = new THREE.Vector3();
-    const towerToCamDir = new THREE.Vector3(); // Direction from Tower to Camera
+    const towerToCamDir = new THREE.Vector3(); // Direction FROM Tower TO Camera
+    const spawnBaseDir = new THREE.Vector3(); // Direction FROM Tower AWAY from Camera
     const spawnOffsetDir = new THREE.Vector3(); // Final direction offset from Tower
     const spawnPos = new THREE.Vector3(); // Final spawn position
-    const camToSpawnDir = new THREE.Vector3(); // For final validation
+    const camToSpawnDir = new THREE.Vector3(); // For view validation
 
+    // Get world positions/directions
     cameraEl.object3D.getWorldPosition(camPos);
     cameraEl.object3D.getWorldDirection(camDir);
     placedTowerEl.object3D.getWorldPosition(towerPos);
 
-    // --- Calculate Spawn Position (Tower Relative) ---
-    // 1. Base Direction: From Tower towards Camera
-    towerToCamDir.copy(camPos).sub(towerPos);
-    if (towerToCamDir.lengthSq() < 0.001) { towerToCamDir.copy(camDir); } else { towerToCamDir.normalize(); }
+    // --- Calculate Spawn Position ---
 
-    // 2. Angular Offset relative to Tower->Camera line
-    const angleRange = Math.PI / 3.5; // ~50 degrees wide arc
+    // 1. Base Direction: FROM Tower AWAY from Camera
+    towerToCamDir.copy(camPos).sub(towerPos); // Vector T->C
+    if (towerToCamDir.lengthSq() < 0.1) { // If camera is very close to tower
+        spawnBaseDir.copy(camDir).negate(); // Use opposite of camera direction
+        console.warn("Camera close to tower, using inverted camera forward for spawn base direction.");
+    } else {
+        spawnBaseDir.copy(towerToCamDir).normalize().negate(); // Normalize T->C then negate it
+    }
+    // Ensure base direction is roughly horizontal
+    spawnBaseDir.y = 0;
+    spawnBaseDir.normalize();
+
+    // 2. Angular Offset relative to the Tower AWAY from Camera line
+    const angleRange = Math.PI / 3.0; // Keep arc ~60 degrees wide relative to the base direction
     const randomAngle = (Math.random() - 0.5) * angleRange;
-    const rotationAxis = new THREE.Vector3(0, 1, 0);
-    spawnOffsetDir.copy(towerToCamDir).applyAxisAngle(rotationAxis, randomAngle);
+    const rotationAxis = new THREE.Vector3(0, 1, 0); // World Y axis
 
-    // 3. Spawn Distance
-    const spawnDistance = 10 + Math.random() * 5; // 10-15 units away FROM TOWER
+    // Apply random rotation to the base spawn direction
+    spawnOffsetDir.copy(spawnBaseDir).applyAxisAngle(rotationAxis, randomAngle);
 
-    // 4. Calculate Final Spawn Position
+    // 3. Spawn Distance (Keep it far from Tower)
+    const spawnDistance = 12 + Math.random() * 6; // Spawn 12-18 units away FROM TOWER
+
+    // 4. Calculate Final Spawn Position (Offset from Tower along the calculated direction)
     spawnPos.copy(towerPos).addScaledVector(spawnOffsetDir, spawnDistance);
 
     // --- Validation Checks ---
-    // A. Check if Spawn is on the same side of the Tower as the Camera
-    const dotTowerDirs = towerToCamDir.dot(spawnOffsetDir);
-    if (dotTowerDirs < 0.3) {
-        console.warn(`Spawn rejected (TowerRel): Spawn direction too far from camera direction relative to tower (dotTowerDirs: ${dotTowerDirs.toFixed(2)}). Retrying.`);
-        return;
-    }
-    // B. Check Minimum distance from Camera
-    const minCamDistSq = 4 * 4;
-    if (spawnPos.distanceToSquared(camPos) < minCamDistSq) {
-         console.warn("Spawn rejected (TowerRel): Too close to the camera. Retrying.");
-         return;
-    }
-    // C. Minimum distance from Tower
-    const minDistTowerSq = 6 * 6;
-    if (spawnPos.distanceToSquared(towerPos) < minDistTowerSq) {
-       console.warn(`Spawn rejected (TowerRel): Calculated position ended up too close to tower (DistSq: ${spawnPos.distanceToSquared(towerPos).toFixed(2)}). Retrying.`);
-       return;
-    }
-    // D. Check if spawnPos is still broadly in front of the CURRENT camera view
-    camToSpawnDir.copy(spawnPos).sub(camPos).normalize();
-    const dotCamView = camDir.dot(camToSpawnDir);
-    if (dotCamView < 0.1) {
-        console.warn(`Spawn rejected (TowerRel): Position outside broad camera view (dotCamView: ${dotCamView.toFixed(2)}). Retrying.`);
+
+    // A. Check if Spawn point is roughly behind the tower relative to the camera
+    //    Dot product of T->C vector and T->Spawn vector should be NEGATIVE
+    towerToCamDir.copy(camPos).sub(towerPos).normalize(); // Recalculate T->C normalized
+    const towerToSpawnDir = new THREE.Vector3().copy(spawnPos).sub(towerPos).normalize();
+    const dotSideCheck = towerToCamDir.dot(towerToSpawnDir);
+    if (dotSideCheck > -0.2) { // Allow some tolerance, but must be mostly negative (acos(-0.2) ~ 101 deg)
+        console.warn(`Spawn rejected: Not clearly behind tower relative to cam (dotSideCheck: ${dotSideCheck.toFixed(2)}). Retrying.`);
         return;
     }
 
-    // Clamp Y position
+    // B. Check Minimum distance from Camera
+    const minCamDistSq = 5 * 5; // Min 5 units away from camera
+    if (spawnPos.distanceToSquared(camPos) < minCamDistSq) {
+         console.warn("Spawn rejected: Too close to the camera. Retrying.");
+         return;
+    }
+
+    // C. Minimum distance from Tower
+    const minDistTowerSq = 6 * 6; // Min 10 units away from tower center
+    if (spawnPos.distanceToSquared(towerPos) < minDistTowerSq) {
+       console.warn(`Spawn rejected: Calculated position too close to tower (DistSq: ${spawnPos.distanceToSquared(towerPos).toFixed(2)}). Retrying.`);
+       return;
+    }
+
+    // D. Check if still broadly in front of CURRENT camera view (prevents spawning directly behind player if they turned around)
+    camToSpawnDir.copy(spawnPos).sub(camPos).normalize();
+    const dotCamView = camDir.dot(camToSpawnDir);
+    if (dotCamView > 0) { // Stricter: Must be within 90 degrees of camera forward
+        console.warn(`Spawn rejected: Position outside forward camera view (dotCamView: ${dotCamView.toFixed(2)}). Retrying.`);
+        return;
+    }
+
+    // Clamp Y position (relative to tower height maybe?)
     spawnPos.y = THREE.MathUtils.clamp(towerPos.y + 0.5 + (Math.random() - 0.5) * 1.5, 0.2, 3.0);
 
     // --- Create Enemy (If validation passed) ---
-    console.log(`Spawn validation passed (TowerRel). Spawning at: ${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)}, ${spawnPos.z.toFixed(1)}`);
+    console.log(`Spawn validation passed. Spawning at: ${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)}, ${spawnPos.z.toFixed(1)}`);
 
-    // --- Determine Enemy Type and Properties --- // <<<< ONLY ONE DECLARATION BLOCK NOW
-    let enemyType = 'basic';
-    let enemyHealth = 1;
-    let enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
-    let enemyScale = '0.25 0.25 0.25';
-    let enemyShape = 'box';
-
-    const SCORE_THRESHOLD_TOUGH = 10; // Score needed to start seeing tough enemies (equiv. start of Level 10)
+    // --- Determine Enemy Type (Score threshold 10) ---
+    let enemyType = 'basic'; let enemyHealth = 1; let enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
+    let enemyScale = '0.25 0.25 0.25'; let enemyShape = 'box';
+    const SCORE_THRESHOLD_TOUGH = 10; // Use score 10 trigger
     if (score >= SCORE_THRESHOLD_TOUGH) {
-        // Start at 15% chance at score 45, increase by ~1.4% per score point (7% per 5 score), cap at 60%
-        // Calculate "levels past 10 equivalent" based on score: (score - 45) / 5
-        const toughChance = Math.min(0.60, 0.30 + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * 0.07);
-        console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`);
+        const toughChance = Math.min(0.60, 0.35 + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * 0.07);
+        // console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`); // Optional log
         if (Math.random() < toughChance) {
-            enemyType = 'tough';
-            enemyHealth = 3;
-            enemyColor = '#8B0000'; // Dark Red for tough
-            enemyScale = '0.35 0.35 0.35'; // Slightly larger
-            enemyShape = 'sphere'; // Tough enemies are spheres
+            enemyType = 'tough'; enemyHealth = 3; enemyColor = '#8B0000'; enemyScale = '0.35 0.35 0.35'; enemyShape = 'sphere';
         }
     }
-    // --- NO DUPLICATE DECLARATIONS HERE ---
 
     // --- Create Enemy Element ---
-    const enemy = document.createElement(`a-${enemyShape}`); // Use dynamic shape
+    const enemy = document.createElement(`a-${enemyShape}`);
     const enemyId = `enemy-${enemyType}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-    enemy.setAttribute('id', enemyId);
-    enemy.classList.add('enemy');
-    enemy.setAttribute('color', enemyColor);
-    enemy.setAttribute('scale', enemyScale);
-    enemy.setAttribute('position', spawnPos);
-    enemy.setAttribute('shadow', 'cast: true; receive: false;');
+    enemy.setAttribute('id', enemyId); enemy.classList.add('enemy'); enemy.setAttribute('color', enemyColor);
+    enemy.setAttribute('scale', enemyScale); enemy.setAttribute('position', spawnPos); enemy.setAttribute('shadow', 'cast: true; receive: false;');
 
-    // --- Create Health Indicator (if needed) ---
-    if (enemyHealth > 1) {
-        const healthText = document.createElement('a-text');
-        healthText.classList.add('enemy-health-text');
-        // **** CHANGE THIS LINE ****
-        // Original: healthText.setAttribute('value', `${enemyHealth}/${enemyHealth}`);
-        healthText.setAttribute('value', `HP: ${enemyHealth}`); // New Format
-        // **** END CHANGE ****
-        healthText.setAttribute('position', '0 0.5 0'); // Position above enemy base
-        healthText.setAttribute('scale', '1.5 1.5 1.5'); // Adjust scale
-        healthText.setAttribute('align', 'center');
-        healthText.setAttribute('color', '#FFFFFF');
-        healthText.setAttribute('side', 'double');
-        healthText.setAttribute('billboard', ''); // Faces camera
-        enemy.appendChild(healthText);
+    // Create Health Indicator
+    if (enemyHealth > 1) { /* ... Add health text child ... */
+        const healthText = document.createElement('a-text'); healthText.classList.add('enemy-health-text'); healthText.setAttribute('value', `HP: ${enemyHealth}`);
+        healthText.setAttribute('position', '0 0.5 0'); healthText.setAttribute('scale', '1.5 1.5 1.5'); healthText.setAttribute('align', 'center');
+        healthText.setAttribute('color', '#FFFFFF'); healthText.setAttribute('side', 'double'); healthText.setAttribute('billboard', ''); enemy.appendChild(healthText);
     }
 
-    // --- Attach Components ---
+    // Attach Components
     enemy.setAttribute('hit-receiver', { maxHealth: enemyHealth, initialHealth: enemyHealth });
     enemy.setAttribute('move-towards-target', { target: `#${placedTowerEl.id}`, speed: manager.baseSpeed * manager.speedMultiplier });
 
-    // --- Add to Scene ---
-    enemyContainer.appendChild(enemy);
-    manager.activeEnemies++;
-    console.log(`%cSpawned ${enemyType} enemy ${enemyId} (Health: ${enemyHealth}). Count: ${manager.activeEnemies}`, "color: cyan;");
+    // Add to Scene
+    enemyContainer.appendChild(enemy); manager.activeEnemies++;
+    console.log(`%cSpawned ${enemyType} ${enemyId} (HP:${enemyHealth}). Count:${manager.activeEnemies}`, "color: cyan;");
 
 } // End of spawnEnemy
    
