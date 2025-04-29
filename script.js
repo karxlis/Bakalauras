@@ -500,7 +500,9 @@ let confirmPlacementAreaEl = null;
 let confirmPlacementButtonEl = null;
 let upgradeAvailable_Score20 = true; // **** NEW: Flag for score 20 trigger ****
 let upgradeShooterTaken = false;   // **** NEW: Track if shooter upgrade taken ****
-let upgradeHealthTaken = false;    // **** NEW: Track if health upgrade taken ****
+let upgradeHealthTaken = false; 
+let lastSelectTime = 0;
+const SELECT_DEBOUNCE_MS = 100;    // **** NEW: Track if health upgrade taken ****
 // **** END CONFIRM BUTTON REF ****
 
 window.enemyManager = {
@@ -1185,200 +1187,138 @@ else {
     });
     // AR Placement Listener - Modified for Setup Phase with Repositioning
 
-    sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
-        console.log("Event: ar-hit-test-select FIRED!");
-        const reticleEl = document.getElementById('placement-reticle');
+// AR Placement Listener - Handles Tower, Upgrade, and Generic Cube placement
+sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
+    // --- Debounce Check ---
+    const now = performance.now();
+    if (now - lastSelectTime < SELECT_DEBOUNCE_MS) {
+        console.log("DEBUG: Debouncing rapid select event.");
+        return; // Ignore rapid successive calls
+    }
+    lastSelectTime = now; // Record time of this execution
+    console.log("Event: ar-hit-test-select FIRED! (Processed)");
+    // --- End Debounce Check ---
 
-        // --- SETUP PHASE ---
-        if (!isGameSetupComplete && reticleEl && reticleEl.getAttribute('visible')) {
-            const position = reticleEl.getAttribute('position');
-            if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) {
-                 console.error("Placement/Move failed: Invalid position from reticle.", position); return;
-            }
-            console.log(`Reticle position for placement/move: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}`);
+    const reticleEl = document.getElementById('placement-reticle');
+    const scanningFeedbackEl = document.getElementById('scanning-feedback'); // Needed for multiple phases
 
-            if (!towerPlaced) {
-                // --- First Tap: Create the Tower ---
-                console.log('Setup Phase: Attempting to place TOWER for the first time...');
+    // --- UPGRADE PLACEMENT ---
+    if (placingUpgrade === 'shooter' && reticleEl && reticleEl.getAttribute('visible')) {
+        const position = reticleEl.getAttribute('position');
+        if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Upgrade Placement failed: Invalid position.", position); return;}
 
-                // Create the tower (Tall, Dark Blue Box)
-                const tower = document.createElement('a-box');
-                tower.setAttribute('id', 'placed-base-tower');
-                tower.setAttribute('color', '#00008B'); // Dark Blue
-                tower.setAttribute('height', '0.2');
-                tower.setAttribute('width', '0.1');
-                tower.setAttribute('depth', '0.0');
-                tower.setAttribute('position', position); // Set initial position
-                tower.setAttribute('shadow', 'cast: true; receive: false;');
+        if (!placedUpgradeEl) { // First tap for upgrade: Create visual
+            console.log("Placing shooter upgrade visually...");
+            const shooterBox = document.createElement('a-box');
+            const visualId = `shooter-upgrade-visual-${Date.now()}`;
+            shooterBox.setAttribute('id', visualId);
+            shooterBox.setAttribute('color', '#FF6347'); // Tomato color
+            shooterBox.setAttribute('scale', '0.15 0.15 0.15');
+            shooterBox.setAttribute('height', '0.4');
+            shooterBox.setAttribute('position', position);
+            shooterBox.setAttribute('shadow', 'cast: true; receive: false;');
 
-                console.log("Tower attributes set.");
-                sceneElGlobal.appendChild(tower);
-                placedTowerEl = tower; // Store reference
-                towerPlaced = true; // Mark as placed
-                console.log('Tower successfully placed.');
+            sceneElGlobal.appendChild(shooterBox);
+            placedUpgradeEl = shooterBox; // Store reference to the VISUAL element
 
-                // Update UI: Enable Start button, show feedback
-                // Reticle remains visible for potential repositioning
-                const startGameButton = document.getElementById('startGameButton');
-                const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
-                if (startGameButton) startGameButton.disabled = false;
-                if (towerPlacedFeedback) {
-                    towerPlacedFeedback.textContent = "Tower Placed! Tap again to move or press Start."; // Update feedback text
-                    towerPlacedFeedback.style.display = 'block';
-                }
-                 // Keep reticle visible after first placement for moving
-                 if(reticleEl) reticleEl.setAttribute('visible', 'true');
+            // Enable confirm button
+            const currentConfirmButton = document.getElementById('confirmPlacementButton');
+            if (currentConfirmButton) currentConfirmButton.disabled = false;
 
-            } else if (placedTowerEl) {
-                 // --- Subsequent Taps: Move the Existing Tower ---
-                 console.log('Setup Phase: Moving existing tower...');
-                 placedTowerEl.setAttribute('position', position); // Update position
-                 console.log('Tower position updated.');
-            }
+            // Update instructions
+            if(scanningFeedbackEl){ scanningFeedbackEl.textContent = "Tap to move, or Confirm Placement"; }
 
-        // --- GAME PHASE ---
-        } else if (isGameSetupComplete) {
-            // Handle standard cube placement (if enabled)
-            const placementCheckbox = document.getElementById('placementModeCheckbox');
-            const isPlacementMode = placementCheckbox && placementCheckbox.checked;
-            const isReticleVisible = reticleEl && reticleEl.getAttribute('visible');
-            console.log(`Game Phase: Placement Mode Checked?: ${isPlacementMode}, Is Reticle Visible?: ${isReticleVisible}`);
-
-            if (isPlacementMode && isReticleVisible) {
-                console.log('Game Phase: Conditions met: Attempting to place NEW cube...');
-                const position = reticleEl.getAttribute('position');
-                 if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Placement failed: Invalid position from reticle.", position); return; }
-                 const newBox = document.createElement('a-box');
-                 newBox.classList.add('interactive');
-                 newBox.setAttribute('position', position);
-                 newBox.setAttribute('scale', '0.2 0.2 0.2');
-                 newBox.setAttribute('color', '#228B22');
-                 newBox.setAttribute('shadow', 'cast: true; receive: false;');
-                 newBox.setAttribute('draggable', '');
-                 sceneElGlobal.appendChild(newBox);
-                 console.log('New game cube successfully appended to the scene.');
-            } else {
-                 console.log(`Game phase placement check failed or not active. Mode Active: ${isPlacementMode}, Reticle Visible: ${isReticleVisible}.`);
-            }
-        } else {
-            console.log("Tap ignored: Setup not complete and reticle not visible, or game phase placement check failed.");
+        } else { // Subsequent taps for upgrade: Move the visual
+             console.log('Moving shooter upgrade visual...');
+             placedUpgradeEl.setAttribute('position', position);
         }
-    });
 
-} // End of else block for sceneElGlobal check
-
-
-    // AR Placement Listener - Handles Tower, Upgrade, and Generic Cube placement
-    sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
-        console.log("Event: ar-hit-test-select FIRED!");
-        const reticleEl = document.getElementById('placement-reticle');
-        const scanningFeedbackEl = document.getElementById('scanning-feedback'); // Needed for upgrade placement instructions
-
-        // --- UPGRADE PLACEMENT ---
-        if (placingUpgrade === 'shooter' && reticleEl && reticleEl.getAttribute('visible')) {
-            const position = reticleEl.getAttribute('position');
-            if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { /* Error handling */ return;}
-
-            if (!placedUpgradeEl) { // First tap: Create visual representation ONLY
-                console.log("Placing shooter upgrade visually...");
-                const shooterBox = document.createElement('a-box');
-                const visualId = `shooter-upgrade-visual-${Date.now()}`;
-                shooterBox.setAttribute('id', visualId);
-                shooterBox.setAttribute('color', '#FF6347'); // Tomato color
-                shooterBox.setAttribute('scale', '0.15 0.15 0.15');
-                shooterBox.setAttribute('height', '0.4');
-                shooterBox.setAttribute('position', position);
-                shooterBox.setAttribute('shadow', 'cast: true; receive: false;');
-                // NO auto-shooter component here
-
-                sceneElGlobal.appendChild(shooterBox);
-                placedUpgradeEl = shooterBox; // Store reference to the VISUAL element
-
-                // Enable confirm button
-                const currentConfirmButton = document.getElementById('confirmPlacementButton');
-                if (currentConfirmButton) currentConfirmButton.disabled = false;
-
-                // Update instructions
-                const feedbackEl = document.getElementById('scanning-feedback');
-                if(feedbackEl){ feedbackEl.textContent = "Tap to move, or Confirm Placement"; }
-
-            } else { // Subsequent taps: Move the visual
-                 console.log('Moving shooter upgrade visual...');
-                 placedUpgradeEl.setAttribute('position', position);
-                 console.log('Shooter upgrade position updated.');
-            }
-
-        // --- TOWER PLACEMENT / MOVE (Setup Phase) ---
-        } else if (!isGameSetupComplete && reticleEl && reticleEl.getAttribute('visible')) {
-            const position = reticleEl.getAttribute('position');
-            if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) {
-                 console.error("Placement/Move failed: Invalid position from reticle.", position); return;
-            }
-            console.log(`Reticle position for placement/move: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}`);
-
-            if (!towerPlaced) {
-                // --- First Tap: Create the Tower ---
-                console.log('Setup Phase: Attempting to place TOWER for the first time...');
-                const tower = document.createElement('a-box');
-                tower.setAttribute('id', 'placed-base-tower');
-                tower.setAttribute('color', '#00008B'); // Dark Blue
-                tower.setAttribute('height', '1.0');    // Ensure height is 1.0
-                tower.setAttribute('width', '0.3');
-                tower.setAttribute('depth', '0.3');
-                tower.setAttribute('position', position);
-                tower.setAttribute('shadow', 'cast: true; receive: false;');
-
-                console.log("Tower attributes set.");
-                sceneElGlobal.appendChild(tower);
-                placedTowerEl = tower;
-                towerPlaced = true;
-                console.log('Tower successfully placed.');
-
-                // Update UI
-                const startGameButton = document.getElementById('startGameButton');
-                const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
-                if (startGameButton) startGameButton.disabled = false;
-                if (towerPlacedFeedback) {
-                    towerPlacedFeedback.textContent = "Tower Placed! Tap again to move or press Start.";
-                    towerPlacedFeedback.style.display = 'block';
-                }
-                if(reticleEl) reticleEl.setAttribute('visible', 'true'); // Keep reticle visible
-
-            } else if (placedTowerEl) {
-                 // --- Subsequent Taps: Move the Existing Tower ---
-                 console.log('Setup Phase: Moving existing tower...');
-                 placedTowerEl.setAttribute('position', position);
-                 console.log('Tower position updated.');
-            }
-
-        // --- GENERIC CUBE PLACEMENT (Game Phase, if enabled) ---
-        } else if (isGameSetupComplete && !isGamePaused) { // Add !isGamePaused check
-             const placementCheckbox = document.getElementById('placementModeCheckbox');
-             const isPlacementMode = placementCheckbox && placementCheckbox.checked;
-             const isReticleVisible = reticleEl && reticleEl.getAttribute('visible');
-             // console.log(`Game Phase: Placement Mode Checked?: ${isPlacementMode}, Is Reticle Visible?: ${isReticleVisible}`); // Less verbose log
-
-             if (isPlacementMode && isReticleVisible) {
-                console.log('Game Phase: Placing generic cube...');
-                const position = reticleEl.getAttribute('position');
-                 if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Placement failed: Invalid position from reticle.", position); return; }
-                 const newBox = document.createElement('a-box');
-                 newBox.classList.add('interactive');
-                 newBox.setAttribute('position', position);
-                 newBox.setAttribute('scale', '0.2 0.2 0.2');
-                 newBox.setAttribute('color', '#228B22');
-                 newBox.setAttribute('shadow', 'cast: true; receive: false;');
-                 newBox.setAttribute('draggable', ''); // Ensure draggable is from aframe-extras
-                 sceneElGlobal.appendChild(newBox);
-                 console.log('New game cube successfully appended.');
-            } else {
-                 // console.log(`Game phase placement check failed or not active. Mode Active: ${isPlacementMode}, Reticle Visible: ${isReticleVisible}.`); // Can uncomment if needed
-            }
-        } else {
-            console.log("Tap ignored: Conditions not met (Setup, Upgrade Placement, Game Placement).");
+    // --- TOWER PLACEMENT / MOVE (Setup Phase) ---
+    } else if (!isGameSetupComplete && reticleEl && reticleEl.getAttribute('visible')) {
+        const position = reticleEl.getAttribute('position');
+        if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) {
+             console.error("Placement/Move failed: Invalid position from reticle.", position); return;
         }
-    }); // End ar-hit-test-select listener
+        console.log(`Reticle position for Tower placement/move: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}`);
 
+        if (!towerPlaced) {
+            // --- First Tap: Create the Tower ---
+            console.log('Setup Phase: Attempting to place TOWER for the first time...');
+            const tower = document.createElement('a-box');
+            tower.setAttribute('id', 'placed-base-tower');
+            tower.setAttribute('color', '#00008B'); // Dark Blue
+            // **** USE SMALLER DIMENSIONS ****
+            tower.setAttribute('height', '0.5'); // Smaller Height
+            tower.setAttribute('width', '0.2');  // Smaller Width/Depth
+            tower.setAttribute('depth', '0.2');
+            // **** END SMALLER DIMENSIONS ****
+            tower.setAttribute('position', position); // Set initial position
+            tower.setAttribute('shadow', 'cast: true; receive: false;');
+
+            console.log("Tower attributes set.");
+            sceneElGlobal.appendChild(tower);
+            placedTowerEl = tower; // Store reference
+            towerPlaced = true; // Mark as placed
+            console.log('Tower successfully placed.');
+
+            // Update UI: Enable Start button, show feedback
+            const startGameButton = document.getElementById('startGameButton');
+            const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
+            // **** Enable Start Game Button ****
+            if (startGameButton) {
+                 console.log("Attempting to enable Start Game button...");
+                 startGameButton.disabled = false;
+                 console.log("Start Game button enabled (disabled=false).");
+            } else {
+                 console.error("Start Game Button not found when trying to enable!");
+            }
+            // **** End Enable Start Game Button ****
+            if (towerPlacedFeedback) {
+                towerPlacedFeedback.textContent = "Tower Placed! Tap again to move or press Start."; // Update feedback text
+                towerPlacedFeedback.style.display = 'block';
+            }
+             // Keep reticle visible after first placement for moving
+             if(reticleEl) reticleEl.setAttribute('visible', 'true');
+
+        } else if (placedTowerEl) {
+             // --- Subsequent Taps: Move the Existing Tower ---
+             console.log('Setup Phase: Moving existing tower...');
+             placedTowerEl.setAttribute('position', position); // Update position
+             console.log('Tower position updated.');
+        }
+
+    // --- GENERIC CUBE PLACEMENT (Game Phase, if enabled and not paused) ---
+    } else if (isGameSetupComplete && !isGamePaused) {
+        const placementCheckbox = document.getElementById('placementModeCheckbox');
+        const isPlacementMode = placementCheckbox && placementCheckbox.checked;
+        // Reticle visibility for generic placement is handled by the checkbox listener now usually.
+        // Check if reticle is ACTUALLY visible (might be if surface lost/found rapidly)
+        const isReticleVisible = reticleEl && reticleEl.getAttribute('visible');
+
+        // console.log(`Game Phase: Placement Mode Checked?: ${isPlacementMode}, Is Reticle Visible?: ${isReticleVisible}`);
+
+        if (isPlacementMode && isReticleVisible) {
+            console.log('Game Phase: Placing generic cube...');
+            const position = reticleEl.getAttribute('position');
+             if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Generic Cube Placement failed: Invalid position from reticle.", position); return; }
+             const newBox = document.createElement('a-box');
+             newBox.classList.add('interactive'); // Make sure class is added if needed
+             newBox.setAttribute('position', position);
+             newBox.setAttribute('scale', '0.2 0.2 0.2');
+             newBox.setAttribute('color', '#228B22'); // Forest Green
+             newBox.setAttribute('shadow', 'cast: true; receive: false;');
+             // newBox.setAttribute('draggable', ''); // If using aframe-extras draggable
+
+             sceneElGlobal.appendChild(newBox);
+             console.log('New generic cube successfully appended.');
+        } else {
+             // console.log(`Game phase placement check failed or not active. Mode Active: ${isPlacementMode}, Reticle Visible: ${isReticleVisible}.`);
+        }
+    } else {
+        console.log("Tap ignored: Conditions not met (Setup, Upgrade Placement, Game Phase checks failed).");
+    }
+}); // End COMBINED ar-hit-test-select listener
+}
 
 // --- Run Setup After DOM Loaded ---
 document.addEventListener('DOMContentLoaded', () => {
