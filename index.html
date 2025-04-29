@@ -6,19 +6,14 @@
     <meta name="description" content="Place cubes via hit-test or shoot projectiles towards camera marker.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- A-Frame Core -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <!-- A-Frame Extras (for draggable, etc.) -->
     <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
 
-    <!-- Link to external CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Link to external JavaScript - 'defer' ensures it runs after HTML parsing -->
     <script src="script.js" defer></script>
   </head>
   <body>
-    <!-- Scene Setup: Attributes here, logic in JS -->
     <a-scene
       id="myScene"
       reflection="directionalLight:a-light[type=directional]"
@@ -31,7 +26,6 @@
       vr-mode-ui="enterARButton: #myEnterARButton"
       background="color: #ECECEC;"
     >
-      <!-- Assets -->
       <a-assets>
         <a-mixin id="cursor_animations"
           animation__mouseenter="property: scale; to: 1.2 1.2 1.2; startEvents: mouseenter; dur: 200"
@@ -40,106 +34,83 @@
         </a-mixin>
       </a-assets>
 
-      <!-- Lighting -->
       <a-light type="directional" light="castShadow:true;" position="1 1 1" intensity="0.5" shadow-camera-automatic=".interactive"></a-light>
       <a-light type="ambient" intensity="0.6"></a-light>
 
-      <!-- Camera with Aiming Marker -->
-<!-- Camera with Aiming Marker -->
-<a-camera id="player-camera" position="0 0.4 0" wasd-controls="enabled: false;">
-  <a-entity id="camera-aim-marker" position="0 -0.1 -1.5">
-       <a-ring color="white" radius-inner="0.01" radius-outer="0.02"></a-ring>
-  </a-entity>
-</a-camera>
+      <a-camera id="player-camera" position="0 0.4 0" wasd-controls="enabled: false;">
+        <a-entity id="camera-aim-marker" position="0 -0.1 -1.5">
+             <a-ring color="white" radius-inner="0.01" radius-outer="0.02"></a-ring>
+        </a-entity>
+      </a-camera>
 
-<!-- Initial Objects -->
-<a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1" visible="true">
-  <!-- Original Objects -->
+      <a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1" visible="true">
+        <a-entity id="enemies"></a-entity>
+      </a-entity>
 
-  <a-entity id="enemies"></a-entity>
-
-</a-entity>
-
-<!-- Shadow Plane -->
-<a-plane follow-shadow="#objects" material="shader:shadow; transparent: true; opacity: 0.4;" shadow="cast:false; receive:true" rotation="-90 0 0" width="30" height="30"></a-plane>
-<!-- Sky -->
-<a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
-
-<!-- Placement Reticle -->
-<a-entity id="placement-reticle" visible="false">
-   <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
-</a-entity>
-
-<!-- **** ADD SINGLE STATIC PYRAMID **** -->
-
-
-</a-scene> <!-- End of A-Frame Scene -->
-
-      <!-- Shadow Plane -->
       <a-plane follow-shadow="#objects" material="shader:shadow; transparent: true; opacity: 0.4;" shadow="cast:false; receive:true" rotation="-90 0 0" width="30" height="30"></a-plane>
-      <!-- Sky -->
+
       <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
 
-      <!-- Placement Reticle -->
       <a-entity id="placement-reticle" visible="false">
          <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
       </a-entity>
 
-    </a-scene> <!-- End of A-Frame Scene -->
-
-    <!-- DOM Overlay -->
-    <section id="dom-overlay" class="hide-labels">
+      </a-scene> <section id="dom-overlay" class="hide-labels">
       <div id="tower-health-indicator" class="overlay-widget" style="top: 1em; left: 1em; display: none;">
         Tower Health: 10/10
-    </div>
+      </div>
        <div id="scanning-feedback">Scanning for surfaces...<br>Move phone slowly.</div>
        <div id="level-up-popup">
         <div class="level-up-text">Level Up!</div>
         <div id="level-number">Level: 1</div>
-    </div>
-    <div id="place-tower-popup" style="display: none;">
-      <div>Place Your Tower!</div>
-      <div style="font-size: 0.8em; margin: 0.5em 0;">Tap the blue marker on a surface.</div>
-      <button id="startGameButton" disabled>Start Game</button>
-      <div id="tower-placed-feedback" style="font-size: 0.8em; margin-top: 0.5em; color: lightgreen; display: none;">Tower Placed!</div>
-  </div>
+      </div>
+      <div id="place-tower-popup" style="display: none;">
+        <div>Place Your Tower!</div>
+        <div style="font-size: 0.8em; margin: 0.5em 0;">Tap the blue marker on a surface.</div>
+        <button id="startGameButton" disabled>Start Game</button>
+        <div id="tower-placed-feedback" style="font-size: 0.8em; margin-top: 0.5em; color: lightgreen; display: none;">Tower Placed!</div>
+      </div>
 
-  <div id="upgrades-popup" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 1.5em; min-width: 200px;">
-    <h2>Upgrades Available!</h2>
-    <p style="font-size: 0.9em; margin-bottom: 1em;">Select an upgrade to place:</p>
-    <div class="upgrade-section">
-        <button id="upgradeShooterButton" class="upgrade-button">Shooter</button>
-        <button id="upgradeHealthButton" class="upgrade-button">Increase Tower Health (to 20)</button>
+      <div id="upgrades-popup" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 1.5em; min-width: 250px;">
+        <h2>Level Up! Choose Upgrade:</h2>
+        <div class="upgrade-grid"> <button id="upgradeBtnHealth" class="upgrade-button">
+            Tower Health <span class="upgrade-desc">(+3 Max HP)</span>
+          </button>
+          <button id="upgradeBtnShooter" class="upgrade-button">
+            Add Shooter <span class="upgrade-desc">(Place Turret)</span>
+          </button>
+          <button id="upgradeBtnSpeed" class="upgrade-button">
+            Shooting Speed <span class="upgrade-desc">(Future)</span>
+          </button>
+          <button id="upgradeBtnSlow" class="upgrade-button">
+            Slowing Effect <span class="upgrade-desc">(Future)</span>
+          </button>
+          <button id="upgradeBtnShooterUpgrade" class="upgrade-button">
+            Turret Synergy <span class="upgrade-desc">(Future)</span>
+          </button>
         </div>
-     <p style="font-size: 0.8em; margin-top: 1.5em;">(Game is paused)</p>
-    </div>
+        <button id="closeUpgradePopupButton" style="margin-top: 1.5em; padding: 0.5em 1em;">Close</button>
+      </div>
+      <div id="confirm-placement-area" style="position: absolute; top: 1em; left: 50%; transform: translateX(-50%); z-index: 11; display: none;">
+        <button id="confirmPlacementButton">Confirm Placement</button>
+      </div>
 
-    <div id="confirm-placement-area" style="position: absolute; top: 1em; left: 50%; transform: translateX(-50%); z-index: 11; display: none;">
-      <button id="confirmPlacementButton">Confirm Placement</button>
-  </div>
-  
-  <div id="game-over-screen" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 2em;">
-    <h2>Game Over!</h2>
-    <p id="final-score">Your Score: 0</p>
-    <button id="tryAgainButton">Try Again</button>
-</div>
+      <div id="game-over-screen" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 2em;">
+        <h2>Game Over!</h2>
+        <p id="final-score">Your Score: 0</p>
+        <button id="tryAgainButton">Try Again</button>
+      </div>
 
-       <div id="controls-widget" style="inset:auto auto 1em 1em;" class="overlay-widget">
-        <h1 style="margin: 0 0 0.5em 0;">My 3D Life</h1>
-        <div id="score-display" style="margin-bottom: 1em; font-size: 1.1em; font-weight: bold;">Score: 0</div>
-        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Sphere Color</legend> <input onclick="toggleSphereColor(this)" type="radio" id="red" name="sphereColor" value="#EF2D5E" checked><label for="red"> Red</label> <input onclick="toggleSphereColor(this)" type="radio" id="blue" name="sphereColor" value="#4CC3D9"><label for="blue"> Blue</label></fieldset>
-        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Show Labels</legend> <input onclick="toggleLabels(this)" type="radio" id="no" name="labelsVisible" value="no" checked><label for="no"> Hide</label> <input onclick="toggleLabels(this)" type="radio" id="yes" name="labelsVisible" value="yes"><label for="yes"> Show</label></fieldset>
-        <fieldset style="border:none; padding: 0; margin-bottom: 0.5em;"><legend>Interaction Mode</legend> <input type="checkbox" id="placementModeCheckbox"><label for="placementModeCheckbox">Enable Cube Placement</label> <div style="font-size: 0.8em; margin-top: 0.3em;">(Tap screen to place at blue marker)</div></fieldset>
+      <div id="controls-widget" style="inset:auto auto 1em 1em;" class="overlay-widget">
+        <h1 style="margin: 0 0 0.5em 0;">AR Tower Defense</h1> <div id="score-display" style="margin-bottom: 1em; font-size: 1.1em; font-weight: bold;">Score: 0</div>
         <fieldset style="border:none; padding: 0;">
             <button id="myEnterARButton" onclick="document.querySelector('a-scene').enterAR()">Enter AR</button>
             <button id="exitVRButton" onclick="AFRAME.scenes[0].exitVR()" style="display: none;">Exit Immersive</button>
-            <button id="shootButton">Shoot</button>
-         </fieldset>
+        <button id="shootButton">Shoot</button>
+            <button id="manualUpgradesButton" style="margin-left: 1em;">Upgrades</button>
+            </fieldset>
       </div>
-      <div id="sphere-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A red sphere</div>
-      <div id="box-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A blue box</div>
-      <div id="cylinder-label" class="xr-select-through overlay-widget" style="pointer-events: none;">A yellow cylinder</div>
-    </section> <!-- End of DOM Overlay -->
+      </section>
 
   </body>
 </html>

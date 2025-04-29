@@ -226,3 +226,42 @@ body {
 .upgrade-button:hover {
     background-color: #45a049;
 }
+
+/* Add styles for disabled/unavailable upgrade buttons */
+.upgrade-button.disabled-upgrade {
+  background-color: #6c757d; /* Grey background */
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none; /* Prevent clicks */
+}
+
+/* Optional: Style the new manual upgrades button */
+#manualUpgradesButton {
+  padding: 0.6em 1em; /* Adjust size as needed */
+  background-color: #007bff; /* Blue */
+  color: white;
+  border: none;
+  border-radius: 0.3em;
+  cursor: pointer;
+}
+
+#manualUpgradesButton:hover {
+  background-color: #0056b3;
+}
+
+/* Style for upgrade descriptions within buttons */
+.upgrade-desc {
+  display: block; /* Put description on new line */
+  font-size: 0.8em;
+  margin-top: 0.3em;
+  opacity: 0.8; /* Make description slightly less prominent */
+}
+
+/* Layout for upgrade buttons */
+.upgrade-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive grid */
+    gap: 10px; /* Space between buttons */
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
