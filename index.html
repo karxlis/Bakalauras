@@ -9,9 +9,20 @@
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
 
-    <link rel="stylesheet" href="style.css">
-
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="script.js" defer></script>
+    <style>
+        /* Add basic body styles here if needed, or configure Tailwind */
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        /* Prevent interaction with A-Frame canvas behind overlay */
+        #dom-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        #dom-overlay > * { pointer-events: auto; } /* Allow interaction with overlay elements */
+        /* Hide elements based on script toggle */
+        .hide-labels .xr-select-through { display: none !important; }
+         /* Reticle / Marker styling (keep as is, unrelated to Tailwind overlay) */
+         #placement-reticle { pointer-events: none; }
+         #camera-aim-marker > * { pointer-events: none; }
+    </style>
   </head>
   <body>
     <a-scene
@@ -19,7 +30,7 @@
       reflection="directionalLight:a-light[type=directional]"
       ar-hit-test="target: #placement-reticle; type: footprint;"
       renderer="physicallyCorrectLights:true;colorManagement:true;exposure:1;toneMapping:ACESFilmic;"
-      webxr="overlayElement:#dom-overlay; optionalFeatures: hit-test, dom-overlay;"
+      webxr="overlayElement:#dom-overlay; optionalFeatures: hit-test, dom-overlay, anchors;"
       cursor__mouse="rayOrigin: mouse;"
       cursor__xr="rayOrigin: controller;"
       raycaster="objects: .interactive;"
@@ -55,62 +66,73 @@
          <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
       </a-entity>
 
-      </a-scene> <section id="dom-overlay" class="hide-labels">
-      <div id="tower-health-indicator" class="overlay-widget" style="top: 1em; left: 1em; display: none;">
-        Tower Health: 10/10
-      </div>
-       <div id="scanning-feedback">Scanning for surfaces...<br>Move phone slowly.</div>
-       <div id="level-up-popup">
-        <div class="level-up-text">Level Up!</div>
-        <div id="level-number">Level: 1</div>
-      </div>
-      <div id="place-tower-popup" style="display: none;">
-        <div>Place Your Tower!</div>
-        <div style="font-size: 0.8em; margin: 0.5em 0;">Tap the blue marker on a surface.</div>
-        <button id="startGameButton" disabled>Start Game</button>
-        <div id="tower-placed-feedback" style="font-size: 0.8em; margin-top: 0.5em; color: lightgreen; display: none;">Tower Placed!</div>
-      </div>
+      </a-scene>
 
-      <div id="upgrades-popup" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 1.5em; min-width: 250px;">
-        <h2>Level Up! Choose Upgrade:</h2>
-        <div class="upgrade-grid"> <button id="upgradeBtnHealth" class="upgrade-button">
-            Tower Health <span class="upgrade-desc">(+3 Max HP)</span>
-          </button>
-          <button id="upgradeBtnShooter" class="upgrade-button">
-            Add Shooter <span class="upgrade-desc">(Place Turret)</span>
-          </button>
-          <button id="upgradeBtnSpeed" class="upgrade-button">
-            Shooting Speed <span class="upgrade-desc">(Future)</span>
-          </button>
-          <button id="upgradeBtnSlow" class="upgrade-button">
-            Slowing Effect <span class="upgrade-desc">(Future)</span>
-          </button>
-          <button id="upgradeBtnShooterUpgrade" class="upgrade-button">
-            Turret Synergy <span class="upgrade-desc">(Future)</span>
-          </button>
-        </div>
-        <button id="closeUpgradePopupButton" style="margin-top: 1.5em; padding: 0.5em 1em;">Close</button>
-      </div>
-      <div id="confirm-placement-area" style="position: absolute; top: 1em; left: 50%; transform: translateX(-50%); z-index: 11; display: none;">
-        <button id="confirmPlacementButton">Confirm Placement</button>
-      </div>
+       <section id="dom-overlay" class="hide-labels text-white text-sm select-none">
 
-      <div id="game-over-screen" class="overlay-widget" style="top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; padding: 2em;">
-        <h2>Game Over!</h2>
-        <p id="final-score">Your Score: 0</p>
-        <button id="tryAgainButton">Try Again</button>
-      </div>
+            <div id="tower-health-indicator" class="absolute top-4 left-4 bg-black bg-opacity-60 rounded-lg p-4 font-bold hidden">
+              Tower Health: 10/10
+            </div>
 
-      <div id="controls-widget" style="inset:auto auto 1em 1em;" class="overlay-widget">
-        <h1 style="margin: 0 0 0.5em 0;">AR Tower Defense</h1> <div id="score-display" style="margin-bottom: 1em; font-size: 1.1em; font-weight: bold;">Score: 0</div>
-        <fieldset style="border:none; padding: 0;">
-            <button id="myEnterARButton" onclick="document.querySelector('a-scene').enterAR()">Enter AR</button>
-            <button id="exitVRButton" onclick="AFRAME.scenes[0].exitVR()" style="display: none;">Exit Immersive</button>
-        <button id="shootButton">Shoot</button>
-            <button id="manualUpgradesButton" style="margin-left: 1em;">Upgrades</button>
-            </fieldset>
-      </div>
-      </section>
+            <div id="scanning-feedback" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white py-2 px-4 rounded-lg text-center whitespace-pre pointer-events-none hidden">Scanning for surfaces...<br>Move phone slowly.</div>
 
-  </body>
+            <div id="level-up-popup" class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-600 bg-opacity-85 text-white p-5 px-7 rounded-2xl border-2 border-white text-center z-10 pointer-events-none hidden text-xl shadow-lg">
+              <div class="level-up-text font-bold text-2xl mb-1">Level Up!</div>
+              <div id="level-number" class="text-lg">Level: 1</div>
+            </div>
+
+            <div id="place-tower-popup" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-900 bg-opacity-85 text-white p-4 px-6 rounded-lg border-2 border-white text-center z-10 text-lg shadow-md hidden">
+              <div class="font-bold text-xl">Place Your Tower!</div>
+              <div class="text-base my-2">Tap the blue marker on a surface.</div>
+              <button id="startGameButton" disabled class="bg-gray-400 text-black font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed">Start Game</button>
+              <div id="tower-placed-feedback" class="text-sm mt-2 text-green-400 hidden">Tower Placed!</div>
+            </div>
+
+            <div id="upgrades-popup" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-900 bg-opacity-90 border-2 border-white rounded-lg z-20 p-6 text-center hidden min-w-[250px]">
+              <h2 class="mt-0 mb-2 text-yellow-400 text-xl font-bold">Level Up! Choose Upgrade:</h2>
+              <div class="upgrade-grid grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 my-4">
+                <button id="upgradeBtnHealth" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
+                  Tower Health <span class="upgrade-desc block text-xs mt-1 opacity-80">(+3 Max HP)</span>
+                </button>
+                <button id="upgradeBtnShooter" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
+                  Add Shooter <span class="upgrade-desc block text-xs mt-1 opacity-80">(Place Turret)</span>
+                </button>
+                <button id="upgradeBtnSpeed" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
+                  Shooting Speed <span class="upgrade-desc block text-xs mt-1 opacity-80">(Future)</span>
+                </button>
+                <button id="upgradeBtnSlow" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
+                  Slowing Effect <span class="upgrade-desc block text-xs mt-1 opacity-80">(Future)</span>
+                </button>
+                <button id="upgradeBtnShooterUpgrade" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
+                  Turret Synergy <span class="upgrade-desc block text-xs mt-1 opacity-80">(Future)</span>
+                </button>
+              </div>
+              <button id="closeUpgradePopupButton" class="mt-6 py-2 px-4 bg-gray-300 hover:bg-gray-400 text-black rounded">Close</button>
+            </div>
+
+            <div id="confirm-placement-area" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 hidden">
+              <button id="confirmPlacementButton" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed">Confirm Placement</button>
+            </div>
+
+            <div id="game-over-screen" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-red-900 bg-opacity-90 border-2 border-white rounded-lg z-30 p-8 text-center hidden">
+              <h2 class="mt-0 text-red-300 text-2xl font-bold">Game Over!</h2>
+              <p id="final-score" class="text-lg my-6">Your Score: 0</p>
+              <button id="tryAgainButton" class="py-3 px-6 text-lg bg-gray-300 hover:bg-gray-400 text-black rounded cursor-pointer">Try Again</button>
+            </div>
+
+            <div id="controls-widget" class="absolute bottom-4 left-4 bg-black bg-opacity-60 rounded-lg p-4">
+              <h1 class="m-0 mb-2 text-xl font-bold">AR Tower Defense</h1>
+              <div id="score-display" class="mb-4 text-lg font-bold">Score: 0</div>
+              <fieldset class="border-none p-0">
+                <button
+                id="myEnterARButton"
+                onclick="console.log('Enter AR Button Clicked!'); document.querySelector('a-scene').enterAR()"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded mr-2">
+                Enter AR
+            </button>                  <button id="exitVRButton" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded hidden">Exit Immersive</button>
+                  <button id="shootButton" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-3 rounded mr-4 disabled:opacity-50 disabled:cursor-not-allowed">Shoot</button>
+                  <button id="manualUpgradesButton" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 rounded">Upgrades</button>
+               </fieldset>
+            </div>
+      </section> </body>
 </html>

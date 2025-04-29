@@ -368,7 +368,7 @@ AFRAME.registerComponent('move-towards-target', {
 // **** NEW: Auto Shooter Component ****
 AFRAME.registerComponent('auto-shooter', {
     schema: {
-        shootDelay: { type: 'number', default: 5000 }, // Configurable delay (ms)
+        shootDelay: { type: 'number', default: 1000 }, // Configurable delay (ms)
         targetSelector: { type: 'string', default: '.enemy' },
         projectileSpeed: { type: 'number', default: 8.0 },
         projectileLifetime: { type: 'number', default: 4000.0 },
@@ -653,7 +653,7 @@ window.showLevelUpPopup = function(level) { // Attached to window
 window.increaseEnemySpeed = function() { // Attached to window
     console.log("%%%%% increaseEnemySpeed Function Called %%%%%");
     // Increase the global speed multiplier
-    window.enemyManager.speedMultiplier *= 1.1; // Increase speed by 10% per level
+    window.enemyManager.speedMultiplier *= 1.3; // Increase speed by 10% per level
     console.log(`New enemy speed multiplier: ${window.enemyManager.speedMultiplier.toFixed(2)}`);
 
     // Update speed of existing enemies
@@ -970,122 +970,174 @@ window.spawnEnemy = function() { // Attached to window
 
     const enemyContainer = document.getElementById('enemies') || sceneEl;
 
-    // --- Target Vectors ---
+    // --- Target & Spawn Calculation Vectors ---
+    // (Vectors remain the same: camPos, camDir, towerPos, towerToCamDir, etc.)
     const camPos = new THREE.Vector3();
-    const camDir = new THREE.Vector3(); // Camera's world forward direction
+    const camDir = new THREE.Vector3();
     const towerPos = new THREE.Vector3();
-    const towerToCamDir = new THREE.Vector3(); // Direction FROM Tower TO Camera
-    const spawnBaseDir = new THREE.Vector3(); // Direction FROM Tower AWAY from Camera
-    const spawnOffsetDir = new THREE.Vector3(); // Final direction offset from Tower
-    const spawnPos = new THREE.Vector3(); // Final spawn position
-    const camToSpawnDir = new THREE.Vector3(); // For view validation
+    const towerToCamDir = new THREE.Vector3();
+    const spawnBaseDir = new THREE.Vector3();
+    const spawnOffsetDir = new THREE.Vector3();
+    const spawnPos = new THREE.Vector3();
+    const camToSpawnDir = new THREE.Vector3();
 
     // Get world positions/directions
     cameraEl.object3D.getWorldPosition(camPos);
     cameraEl.object3D.getWorldDirection(camDir);
     placedTowerEl.object3D.getWorldPosition(towerPos);
 
-    // --- Calculate Spawn Position ---
-
-    // 1. Base Direction: FROM Tower AWAY from Camera
-    towerToCamDir.copy(camPos).sub(towerPos); // Vector T->C
-    if (towerToCamDir.lengthSq() < 0.1) { // If camera is very close to tower
-        spawnBaseDir.copy(camDir).negate(); // Use opposite of camera direction
+    // --- Calculate Spawn Position (Logic remains the same) ---
+    // 1. Base Direction
+    towerToCamDir.copy(camPos).sub(towerPos);
+    if (towerToCamDir.lengthSq() < 0.1) {
+        spawnBaseDir.copy(camDir).negate();
         console.warn("Camera close to tower, using inverted camera forward for spawn base direction.");
     } else {
-        spawnBaseDir.copy(towerToCamDir).normalize().negate(); // Normalize T->C then negate it
+        spawnBaseDir.copy(towerToCamDir).normalize().negate();
     }
-    // Ensure base direction is roughly horizontal
     spawnBaseDir.y = 0;
     spawnBaseDir.normalize();
-
-    // 2. Angular Offset relative to the Tower AWAY from Camera line
-    const angleRange = Math.PI / 3.0; // Keep arc ~60 degrees wide relative to the base direction
+    // 2. Angular Offset
+    const angleRange = Math.PI / 3.0;
     const randomAngle = (Math.random() - 0.5) * angleRange;
-    const rotationAxis = new THREE.Vector3(0, 1, 0); // World Y axis
-
-    // Apply random rotation to the base spawn direction
+    const rotationAxis = new THREE.Vector3(0, 1, 0);
     spawnOffsetDir.copy(spawnBaseDir).applyAxisAngle(rotationAxis, randomAngle);
-
-    // 3. Spawn Distance (Keep it far from Tower)
-    const spawnDistance = 12 + Math.random() * 6; // Spawn 12-18 units away FROM TOWER
-
-    // 4. Calculate Final Spawn Position (Offset from Tower along the calculated direction)
+    // 3. Spawn Distance
+    const spawnDistance = 12 + Math.random() * 6;
+    // 4. Calculate Final Spawn Position
     spawnPos.copy(towerPos).addScaledVector(spawnOffsetDir, spawnDistance);
 
-    // --- Validation Checks ---
-
-    // A. Check if Spawn point is roughly behind the tower relative to the camera
-    //    Dot product of T->C vector and T->Spawn vector should be NEGATIVE
-    towerToCamDir.copy(camPos).sub(towerPos).normalize(); // Recalculate T->C normalized
+    // --- Validation Checks (Logic remains the same) ---
+    // A. Behind tower check
+    towerToCamDir.copy(camPos).sub(towerPos).normalize();
     const towerToSpawnDir = new THREE.Vector3().copy(spawnPos).sub(towerPos).normalize();
     const dotSideCheck = towerToCamDir.dot(towerToSpawnDir);
-    if (dotSideCheck > -0.2) { // Allow some tolerance, but must be mostly negative (acos(-0.2) ~ 101 deg)
-        console.warn(`Spawn rejected: Not clearly behind tower relative to cam (dotSideCheck: ${dotSideCheck.toFixed(2)}). Retrying.`);
+    if (dotSideCheck > -0.2) {
+        // console.warn(`Spawn rejected: Not clearly behind tower relative to cam (dotSideCheck: ${dotSideCheck.toFixed(2)}). Retrying.`); // Less verbose logging
+        // Consider trying again instead of just returning
+        setTimeout(window.spawnEnemy, 50); // Retry slightly later
         return;
     }
-
-    // B. Check Minimum distance from Camera
-    const minCamDistSq = 5 * 5; // Min 5 units away from camera
+    // B. Min distance from Camera
+    const minCamDistSq = 5 * 5;
     if (spawnPos.distanceToSquared(camPos) < minCamDistSq) {
-         console.warn("Spawn rejected: Too close to the camera. Retrying.");
-         return;
+        // console.warn("Spawn rejected: Too close to the camera. Retrying.");
+        setTimeout(window.spawnEnemy, 50); // Retry slightly later
+        return;
     }
-
-    // C. Minimum distance from Tower
-    const minDistTowerSq = 6 * 6; // Min 10 units away from tower center
+    // C. Min distance from Tower
+    const minDistTowerSq = 6 * 6;
     if (spawnPos.distanceToSquared(towerPos) < minDistTowerSq) {
-       console.warn(`Spawn rejected: Calculated position too close to tower (DistSq: ${spawnPos.distanceToSquared(towerPos).toFixed(2)}). Retrying.`);
+        // console.warn(`Spawn rejected: Calculated position too close to tower (DistSq: ${spawnPos.distanceToSquared(towerPos).toFixed(2)}). Retrying.`);
+       setTimeout(window.spawnEnemy, 50); // Retry slightly later
        return;
     }
-
-    // D. Check if still broadly in front of CURRENT camera view (prevents spawning directly behind player if they turned around)
+    // D. Check camera view
     camToSpawnDir.copy(spawnPos).sub(camPos).normalize();
     const dotCamView = camDir.dot(camToSpawnDir);
-    if (dotCamView > 0) { // Stricter: Must be within 90 degrees of camera forward
-        console.warn(`Spawn rejected: Position outside forward camera view (dotCamView: ${dotCamView.toFixed(2)}). Retrying.`);
+     // Allow spawning slightly behind the direct view to make it harder
+    if (dotCamView > 0.3) { // More lenient check (acos(0.3) ~ 72 degrees)
+        // console.warn(`Spawn rejected: Position outside forward camera view cone (dotCamView: ${dotCamView.toFixed(2)}). Retrying.`);
+        setTimeout(window.spawnEnemy, 50); // Retry slightly later
         return;
     }
 
-    // Clamp Y position (relative to tower height maybe?)
+    // Clamp Y position
     spawnPos.y = THREE.MathUtils.clamp(towerPos.y + 0.5 + (Math.random() - 0.5) * 1.5, 0.2, 3.0);
 
     // --- Create Enemy (If validation passed) ---
-    console.log(`Spawn validation passed. Spawning at: ${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)}, ${spawnPos.z.toFixed(1)}`);
+    console.log(`Spawn validation passed. Spawning check at: ${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)}, ${spawnPos.z.toFixed(1)}`);
 
-    // --- Determine Enemy Type (Score threshold 10) ---
-    let enemyType = 'basic'; let enemyHealth = 1; let enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`;
-    let enemyScale = '0.25 0.25 0.25'; let enemyShape = 'box';
-    const SCORE_THRESHOLD_TOUGH = 10; // Use score 10 trigger
-    if (score >= SCORE_THRESHOLD_TOUGH) {
-        const toughChance = Math.min(0.60, 0.35 + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * 0.07);
-        // console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`); // Optional log
-        if (Math.random() < toughChance) {
-            enemyType = 'tough'; enemyHealth = 3; enemyColor = '#8B0000'; enemyScale = '0.35 0.35 0.35'; enemyShape = 'sphere';
+    // --- *** Determine Enemy Type based on Score *** ---
+    let enemyType = 'basic';
+    let enemyHealth = 1;
+    let enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`; // Default basic color
+    let enemyScale = '0.25 0.25 0.25';
+    let enemyShape = 'box'; // Default basic shape
+
+    const SCORE_THRESHOLD_TOUGHEST = 30;
+    const SCORE_THRESHOLD_TOUGH = 10;
+    const randomRoll = Math.random(); // Roll once for chance checks
+
+    // 1. Check for Toughest Enemy
+    if (score >= SCORE_THRESHOLD_TOUGHEST) {
+        const baseChanceToughest = 0.2; // 50% at score 30
+        const scoreAboveThreshold = score - SCORE_THRESHOLD_TOUGHEST;
+        const additionalChance = Math.floor(scoreAboveThreshold / 5) * 0.05; // +5% for every 5 points above 30
+        const toughestSpawnChance = Math.min(1.0, baseChanceToughest + additionalChance); // Cap at 100%
+
+        console.log(`Score ${score}, Toughest Chance: ${(toughestSpawnChance * 100).toFixed(0)}%`); // Log chance
+
+        if (randomRoll < toughestSpawnChance) {
+            enemyType = 'toughest';
+            enemyHealth = 7; // Give it more health
+            enemyColor = '#FFA500'; // Neon Orange
+            enemyScale = '0.45 0.45 0.45'; // Make it larger
+            enemyShape = 'dodecahedron'; // Make it a distinct shape
+            console.log('%c--> Spawning TOUGHEST Enemy!', 'color: #FFA500; font-weight: bold;');
         }
     }
 
+    // 2. Check for Tough Enemy (only if Toughest didn't spawn)
+    if (enemyType === 'basic' && score >= SCORE_THRESHOLD_TOUGH) {
+        // Note: This chance calculation might overlap with toughest. Adjust if needed.
+        // Original tough chance calculation:
+        const toughChance = Math.min(0.60, 0.35 + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * 0.07);
+        console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`); // Log chance
+
+        // Roll again? Or use a different part of the original roll? Let's use a separate check for simplicity.
+        if (Math.random() < toughChance) { // Separate roll for tough if toughest didn't spawn
+            enemyType = 'tough';
+            enemyHealth = 3;
+            enemyColor = '#8B0000'; // Dark Red
+            enemyScale = '0.35 0.35 0.35';
+            enemyShape = 'sphere';
+            console.log('%c--> Spawning TOUGH Enemy!', 'color: #DC143C; font-weight: bold;');
+        }
+    }
+
+    // 3. Basic Enemy (Default if others didn't spawn)
+    if (enemyType === 'basic') {
+         console.log('--> Spawning BASIC Enemy.');
+         // Basic attributes are already set by default
+    }
+
     // --- Create Enemy Element ---
-    const enemy = document.createElement(`a-${enemyShape}`);
+    const enemy = document.createElement(`a-${enemyShape}`); // Use determined shape
     const enemyId = `enemy-${enemyType}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-    enemy.setAttribute('id', enemyId); enemy.classList.add('enemy'); enemy.setAttribute('color', enemyColor);
-    enemy.setAttribute('scale', enemyScale); enemy.setAttribute('position', spawnPos); enemy.setAttribute('shadow', 'cast: true; receive: false;');
+    enemy.setAttribute('id', enemyId);
+    enemy.classList.add('enemy');
+    enemy.setAttribute('color', enemyColor); // Use determined color
+    enemy.setAttribute('scale', enemyScale); // Use determined scale
+    enemy.setAttribute('position', spawnPos);
+    enemy.setAttribute('shadow', 'cast: true; receive: false;');
     enemy.setAttribute('visible', 'true');
 
-    // Create Health Indicator
-    if (enemyHealth > 1) { /* ... Add health text child ... */
-        const healthText = document.createElement('a-text'); healthText.classList.add('enemy-health-text'); healthText.setAttribute('value', `HP: ${enemyHealth}`);
-        healthText.setAttribute('position', '0 0.5 0'); healthText.setAttribute('scale', '1.5 1.5 1.5'); healthText.setAttribute('align', 'center');
-        healthText.setAttribute('color', '#FFFFFF'); healthText.setAttribute('side', 'double'); healthText.setAttribute('billboard', ''); enemy.appendChild(healthText);
+    // Create Health Indicator if needed
+    if (enemyHealth > 1) {
+        const healthText = document.createElement('a-text');
+        healthText.classList.add('enemy-health-text');
+        healthText.setAttribute('value', `HP: ${enemyHealth}`);
+        healthText.setAttribute('position', '0 0.6 0'); // Adjust Y offset based on scale if needed
+        healthText.setAttribute('scale', '2 2 2');      // Adjust scale relative to parent
+        healthText.setAttribute('align', 'center');
+        healthText.setAttribute('color', '#FFFFFF');
+        healthText.setAttribute('side', 'double');
+        healthText.setAttribute('billboard', ''); // Make it face the camera
+        enemy.appendChild(healthText);
     }
 
     // Attach Components
     enemy.setAttribute('hit-receiver', { maxHealth: enemyHealth, initialHealth: enemyHealth });
-    enemy.setAttribute('move-towards-target', { target: `#${placedTowerEl.id}`, speed: manager.baseSpeed * manager.speedMultiplier });
+    enemy.setAttribute('move-towards-target', {
+        target: `#${placedTowerEl.id}`,
+        speed: manager.baseSpeed * manager.speedMultiplier // Use current speed multiplier
+    });
 
     // Add to Scene
-    enemyContainer.appendChild(enemy); manager.activeEnemies++;
-    console.log(`%cSpawned ${enemyType} ${enemyId} (HP:${enemyHealth}). Count:${manager.activeEnemies}`, "color: cyan;");
+    enemyContainer.appendChild(enemy);
+    manager.activeEnemies++;
+    console.log(`%cSpawn Successful: ${enemyType} ${enemyId} (HP:${enemyHealth}). Active Count:${manager.activeEnemies}`, "color: cyan;");
 
 }; // End of spawnEnemy
 
@@ -1679,10 +1731,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (upgradeBtnShooterUpgradeEl) {
         upgradeBtnShooterUpgradeEl.addEventListener('click', () => {
-            console.log("Placeholder: Turret Synergy selected.");
-            if(isGamePaused) window.resumeGame(); else if (upgradesPopupEl) upgradesPopupEl.style.display = 'none'; // Use window.
+            console.log("Upgrade: Turret Synergy (Speed) selected.");
+
+            if (isGamePaused) { // Only apply if game was paused by level-up
+                console.log("Applying Shooting Speed Upgrade to existing turrets...");
+                let turretsUpgraded = 0;
+
+                // Loop through already placed shooter upgrades
+                activeShooterUpgrades.forEach(shooterEl => {
+                    if (shooterEl && shooterEl.components['auto-shooter']) {
+                        try {
+                            const currentData = shooterEl.components['auto-shooter'].data;
+                            const currentDelay = currentData.shootDelay;
+
+                            // Increase speed by 50% => New delay = Current delay / 1.5
+                            // (or Current Delay * (2/3))
+                            let newDelay = Math.max(100, currentDelay * (2 / 3)); // Ensure minimum delay of 100ms
+
+                            // Update the component's shootDelay
+                            shooterEl.setAttribute('auto-shooter', 'shootDelay', newDelay);
+
+                            console.log(`  - Upgraded turret ${shooterEl.id}: Delay ${currentDelay.toFixed(0)}ms -> ${newDelay.toFixed(0)}ms`);
+                            turretsUpgraded++;
+                        } catch (error) {
+                            console.error(`Error upgrading turret ${shooterEl.id}:`, error);
+                        }
+                    }
+                });
+
+                if (turretsUpgraded > 0) {
+                    console.log(`Shooting speed increased for ${turretsUpgraded} turret(s).`);
+                    // Update the button description to reflect it's taken (or modify for stacking later)
+                    const descSpan = upgradeBtnShooterUpgradeEl.querySelector('.upgrade-desc');
+                    if (descSpan) descSpan.textContent = "(Speed Increased!)";
+                     // Temporarily disable button? Or allow stacking? For now, just update text.
+                     // upgradeBtnShooterUpgradeEl.disabled = true;
+                     // upgradeBtnShooterUpgradeEl.classList.add('disabled-upgrade');
+                } else {
+                    console.log("No active turrets found to upgrade speed.");
+                }
+
+                window.resumeGame(); // Resume game after applying
+
+            } else {
+                console.log("Turret Synergy upgrade clicked, but game not paused (manual view?). No action.");
+                // Optionally close the manually opened popup
+                if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
+            }
         });
     } else { console.error("Cannot add listener: upgradeBtnShooterUpgradeEl is null!"); }
+
+    // (Other upgrade button listeners below, like manual/close/confirm)
 
     if (manualUpgradesButtonEl) {
         manualUpgradesButtonEl.addEventListener('click', () => {
@@ -1711,7 +1810,7 @@ document.addEventListener('DOMContentLoaded', () => {
              const feedbackEl = document.getElementById('scanning-feedback');
              if (placedUpgradeEl && (placingUpgrade === 'shooter1' || placingUpgrade === 'shooter2')) {
                  console.log(`Finalizing placement for ${placingUpgrade}...`);
-                 placedUpgradeEl.setAttribute('auto-shooter', { shootDelay: 5000 });
+                 placedUpgradeEl.setAttribute('auto-shooter', { shootDelay: 1000 });
                  activeShooterUpgrades.push(placedUpgradeEl);
                  if (placingUpgrade === 'shooter1') { upgradeShooter1Placed = true; console.log("Shooter 1 marked as placed."); }
                  else if (placingUpgrade === 'shooter2') { upgradeShooter2Placed = true; console.log("Shooter 2 marked as placed."); }
