@@ -2,8 +2,8 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>AR Placement & Shooting Combined v2 • A-Frame</title>
-    <meta name="description" content="Place cubes via hit-test or shoot projectiles towards camera marker.">
+    <title>AR</title> 
+    <meta name="description" content="test">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -12,16 +12,18 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="script.js" defer></script>
     <style>
-        /* Add basic body styles here if needed, or configure Tailwind */
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
-        /* Prevent interaction with A-Frame canvas behind overlay */
+        /* Basic body styles - Tailwind uses Preflight for resets */
+        body { margin: 0; overflow: hidden; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+        /* Overlay interaction rules */
         #dom-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
-        #dom-overlay > * { pointer-events: auto; } /* Allow interaction with overlay elements */
-        /* Hide elements based on script toggle */
-        .hide-labels .xr-select-through { display: none !important; }
-         /* Reticle / Marker styling (keep as is, unrelated to Tailwind overlay) */
+        #dom-overlay > * { pointer-events: auto; }
+        /* Reticle / Marker styling (unrelated to overlay) */
          #placement-reticle { pointer-events: none; }
          #camera-aim-marker > * { pointer-events: none; }
+         /* Custom style for disabled upgrade buttons to show level text */
+         .upgrade-button:disabled .upgrade-desc-level { display: block; }
+         .upgrade-button:not(:disabled) .upgrade-desc-level { display: none; }
+
     </style>
   </head>
   <body>
@@ -37,101 +39,147 @@
       vr-mode-ui="enterARButton: #myEnterARButton"
       background="color: #ECECEC;"
     >
-      <a-assets>
-        <a-mixin id="cursor_animations"
-          animation__mouseenter="property: scale; to: 1.2 1.2 1.2; startEvents: mouseenter; dur: 200"
-          animation__mouseleave="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 200"
-          animation__jump="startEvents:click;property:object3D.position.y;from: 0.5; to: 0.8; dir:alternate;loop:1;easing:easeOutQuad;dur:300;">
-        </a-mixin>
-      </a-assets>
+     
+        <a-assets>
+            <a-mixin id="cursor_animations"
+              animation__mouseenter="property: scale; to: 1.2 1.2 1.2; startEvents: mouseenter; dur: 200"
+              animation__mouseleave="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 200"
+              animation__jump="startEvents:click;property:object3D.position.y;from: 0.5; to: 0.8; dir:alternate;loop:1;easing:easeOutQuad;dur:300;">
+            </a-mixin>
+          </a-assets>
 
-      <a-light type="directional" light="castShadow:true;" position="1 1 1" intensity="0.5" shadow-camera-automatic=".interactive"></a-light>
-      <a-light type="ambient" intensity="0.6"></a-light>
+          <a-light type="directional" light="castShadow:true;" position="1 1 1" intensity="0.5" shadow-camera-automatic=".interactive"></a-light>
+          <a-light type="ambient" intensity="0.6"></a-light>
 
-      <a-camera id="player-camera" position="0 0.4 0" wasd-controls="enabled: false;">
-        <a-entity id="camera-aim-marker" position="0 -0.1 -1.5">
-             <a-ring color="white" radius-inner="0.01" radius-outer="0.02"></a-ring>
-        </a-entity>
-      </a-camera>
+          <a-camera id="player-camera" position="0 0.4 0" wasd-controls="enabled: false;">
+            <a-entity id="camera-aim-marker" position="0 -0.1 -1.5">
+                 <a-ring color="white" radius-inner="0.01" radius-outer="0.02"></a-ring>
+            </a-entity>
+          </a-camera>
 
-      <a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1" visible="true">
-        <a-entity id="enemies"></a-entity>
-      </a-entity>
+          <a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1" visible="true">
+            <a-entity id="enemies"></a-entity>
+          </a-entity>
 
-      <a-plane follow-shadow="#objects" material="shader:shadow; transparent: true; opacity: 0.4;" shadow="cast:false; receive:true" rotation="-90 0 0" width="30" height="30"></a-plane>
+          <a-plane follow-shadow="#objects" material="shader:shadow; transparent: true; opacity: 0.4;" shadow="cast:false; receive:true" rotation="-90 0 0" width="30" height="30"></a-plane>
 
-      <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
+          <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
 
-      <a-entity id="placement-reticle" visible="false">
-         <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
-      </a-entity>
+          <a-entity id="placement-reticle" visible="false">
+             <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
+          </a-entity>
+    </a-scene>
 
-      </a-scene>
+       <section id="dom-overlay" class="text-cyan-100 text-sm select-none"> 
 
-       <section id="dom-overlay" class="hide-labels text-white text-sm select-none">
-
-            <div id="tower-health-indicator" class="absolute top-4 left-4 bg-black bg-opacity-60 rounded-lg p-4 font-bold hidden">
-              Tower Health: 10/10
+            <div id="tower-health-indicator" class="absolute top-4 left-4 bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-md p-3 px-4 font-semibold border border-cyan-500/30 shadow-lg hidden">
+            
             </div>
 
-            <div id="scanning-feedback" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white py-2 px-4 rounded-lg text-center whitespace-pre pointer-events-none hidden">Scanning for surfaces...<br>Move phone slowly.</div>
-
-            <div id="level-up-popup" class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-600 bg-opacity-85 text-white p-5 px-7 rounded-2xl border-2 border-white text-center z-10 pointer-events-none hidden text-xl shadow-lg">
-              <div class="level-up-text font-bold text-2xl mb-1">Level Up!</div>
-              <div id="level-number" class="text-lg">Level: 1</div>
+            <div id="scanning-feedback" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-75 text-white py-2 px-4 rounded-md text-center whitespace-pre pointer-events-none hidden shadow-md">
+            
             </div>
 
-            <div id="place-tower-popup" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-900 bg-opacity-85 text-white p-4 px-6 rounded-lg border-2 border-white text-center z-10 text-lg shadow-md hidden">
-              <div class="font-bold text-xl">Place Your Tower!</div>
-              <div class="text-base my-2">Tap the blue marker on a surface.</div>
-              <button id="startGameButton" disabled class="bg-gray-400 text-black font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed">Start Game</button>
-              <div id="tower-placed-feedback" class="text-sm mt-2 text-green-400 hidden">Tower Placed!</div>
+            <div id="level-up-popup" class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-br from-green-500 to-cyan-600 text-white p-5 px-7 rounded-lg border border-white/50 text-center z-30 pointer-events-none hidden text-xl shadow-xl backdrop-blur-sm">
+              <div class="level-up-text font-bold text-2xl mb-1 tracking-wide">LEVEL UP!</div>
+              <div id="level-number" class="text-lg opacity-90">Level: 1</div>
             </div>
 
-            <div id="upgrades-popup" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-900 bg-opacity-90 border-2 border-white rounded-lg z-20 p-6 text-center hidden min-w-[250px]">
-              <h2 class="mt-0 mb-2 text-yellow-400 text-xl font-bold">Level Up! Choose Upgrade:</h2>
-              <div class="upgrade-grid grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 my-4">
-                <button id="upgradeBtnHealth" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
-                  Tower Health <span class="upgrade-desc block text-xs mt-1 opacity-80">(+3 Max HP)</span>
+            <div id="place-tower-popup"
+            class="absolute top-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-sm  /* Position: Top, centered, controlled width */
+                   bg-gradient-to-b from-slate-900/95 to-black/95 backdrop-blur-lg /* Dark gradient background */
+                   border border-cyan-500/40 rounded-lg                 /* Cyan border */
+                   z-20 p-5                                             /* Z-index, padding */
+                   text-center text-slate-300                           /* Base text color */
+                   shadow-lg shadow-cyan-900/20                         /* Shadow */
+                   hidden                                               /* Initially hidden */
+                   ">
+ 
+    
+         <div class="font-bold text-lg text-cyan-300 tracking-wide mb-2">
+           Padėkite bokšta prieš save.
+         </div>
+ 
+  
+         <div class="text-sm mb-4 opacity-90">
+           Paspausk betkur ant paviršiaus
+         </div>
+ 
+  
+         <button id="startGameButton"
+                 disabled
+                 class="bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-slate-900 font-bold py-2 px-5 rounded shadow-md transition duration-150 ease-in-out disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed">
+           Pradėti.
+         </button>
+
+         <div id="tower-placed-feedback" class="text-xs mt-3 text-green-400 font-semibold hidden">
+           Pakeiskite poziciją arba pradėkite žaidimą.
+         </div>
+       </div>
+
+            <div id="upgrades-popup" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900 bg-opacity-90 backdrop-blur-md border border-cyan-500/30 rounded-lg z-40 p-6 text-center hidden min-w-[360px] shadow-xl"> 
+              <h2 class="mt-0 mb-4 text-cyan-300 text-xl font-bold tracking-wide">Level Up! Choose Upgrade:</h2>
+              <div class="grid grid-cols-2 gap-4 mb-4">
+              
+                <button id="upgradeShooter" class="upgrade-button relative overflow-hidden bg-cyan-700 hover:bg-cyan-600 text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out border border-cyan-600 hover:border-cyan-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:border-gray-600 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <span>ŠAUDYTOJAS</span>
+                    <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal"></span>
+                    <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span> 
                 </button>
-                <button id="upgradeBtnShooter" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
-                  Add Shooter <span class="upgrade-desc block text-xs mt-1 opacity-80">(Place Turret)</span>
+                <button id="upgradeHealth" class="upgrade-button relative overflow-hidden bg-cyan-700 hover:bg-cyan-600 text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out border border-cyan-600 hover:border-cyan-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:border-gray-600 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <span>BOKŠTO GYVYBĖ</span>
+                    <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal">(+3 Max HP)</span>
+                    <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span>
                 </button>
-                <button id="upgradeBtnSpeed" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
-                  Shooting Speed <span class="upgrade-desc block text-xs mt-1 opacity-80">(Future)</span>
+                <button id="upgradeSlower" class="upgrade-button relative overflow-hidden bg-cyan-700 hover:bg-cyan-600 text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out border border-cyan-600 hover:border-cyan-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:border-gray-600 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <span>LĖTINTOJAS</span>
+                    <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal"></span>
+                    <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span>
                 </button>
-                <button id="upgradeBtnSlow" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
-                  Slowing Effect <span class="upgrade-desc block text-xs mt-1 opacity-80">(Future)</span>
-                </button>
-                <button id="upgradeBtnShooterUpgrade" class="upgrade-button bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-base min-w-[120px] disabled:bg-gray-600 disabled:opacity-60 disabled:cursor-not-allowed">
-                  Turret Synergy <span class="upgrade-desc block text-xs mt-1 opacity-80">(Future)</span>
+                <button id="upgradePlayerDamage" class="upgrade-button relative overflow-hidden bg-cyan-700 hover:bg-cyan-600 text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out border border-cyan-600 hover:border-cyan-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:border-gray-600 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <span>ŽALA</span>
+                    <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal">(+15% Player Damage)</span>
+                    <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span>
                 </button>
               </div>
-              <button id="closeUpgradePopupButton" class="mt-6 py-2 px-4 bg-gray-300 hover:bg-gray-400 text-black rounded">Close</button>
+              <button id="closeUpgradePopupButton" class="mt-6 py-2 px-5 bg-gray-600 hover:bg-gray-500 text-cyan-100 rounded transition duration-150 ease-in-out">Close</button>
             </div>
 
-            <div id="confirm-placement-area" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 hidden">
-              <button id="confirmPlacementButton" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed">Confirm Placement</button>
+            <div id="confirm-placement-area" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 hidden">
+              <button id="confirmPlacementButton" class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 px-5 rounded shadow-md transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">Confirm Placement</button>
             </div>
 
-            <div id="game-over-screen" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-red-900 bg-opacity-90 border-2 border-white rounded-lg z-30 p-8 text-center hidden">
-              <h2 class="mt-0 text-red-300 text-2xl font-bold">Game Over!</h2>
-              <p id="final-score" class="text-lg my-6">Your Score: 0</p>
-              <button id="tryAgainButton" class="py-3 px-6 text-lg bg-gray-300 hover:bg-gray-400 text-black rounded cursor-pointer">Try Again</button>
+            <div id="game-over-screen" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-80 backdrop-blur-md border border-red-500/50 rounded-lg z-50 p-8 text-center hidden shadow-xl">
+              <h2 class="mt-0 text-red-400 text-2xl font-bold tracking-wide">PABAIGA/h2>
+              <p id="final-score" class="text-lg my-6 text-cyan-100">TAVO TAŠKAI: 0</p>
+              <button id="tryAgainButton" class="py-3 px-6 text-lg bg-cyan-600 hover:bg-cyan-500 text-gray-900 rounded cursor-pointer transition duration-150 ease-in-out shadow">Try Again</button>
             </div>
 
-            <div id="controls-widget" class="absolute bottom-4 left-4 bg-black bg-opacity-60 rounded-lg p-4">
-              <h1 class="m-0 mb-2 text-xl font-bold">AR Tower Defense</h1>
-              <div id="score-display" class="mb-4 text-lg font-bold">Score: 0</div>
-              <fieldset class="border-none p-0">
-                <button
-                id="myEnterARButton"
-                onclick="console.log('Enter AR Button Clicked!'); document.querySelector('a-scene').enterAR()"
-                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded mr-2">
-                Enter AR
-            </button>                  <button id="exitVRButton" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded hidden">Exit Immersive</button>
-                  <button id="shootButton" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-3 rounded mr-4 disabled:opacity-50 disabled:cursor-not-allowed">Shoot</button>
-                  <button id="manualUpgradesButton" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 rounded">Upgrades</button>
+            <div id="controls-widget" class="absolute bottom-4 left-4 right-4 md:left-auto md:right-auto md:w-auto bg-slate-900 bg-opacity-80 backdrop-blur-md rounded-md p-3 z-10 border border-cyan-600/40 shadow-lg text-center md:text-left"> 
+
+             
+              <div class="flex justify-center md:justify-start gap-4 mb-3 px-2">
+                  <div id="score-display" class="text-base font-semibold text-cyan-300 opacity-95">Score: 0</div>
+                  <div id="level-display" class="text-base font-semibold text-cyan-300 opacity-95">Level: 1</div>
+              </div>
+      
+            
+              <fieldset class="border-none p-0 flex justify-center items-center gap-3"> 
+                  
+                   <button
+                      id="myEnterARButton"
+                      onclick="console.log('Enter AR Button Clicked!'); document.querySelector('a-scene').enterAR()"
+                      class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-5 rounded shadow-md transition duration-150 ease-in-out active:scale-95">
+                      Eiti į AR
+                  </button>
+                 
+                  <button id="exitVRButton" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded shadow-md transition duration-150 ease-in-out active:scale-95 hidden">Exit</button>
+      
+                 
+                  <button id="shootButton" class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-6 rounded-lg shadow-lg transition duration-100 ease-in-out transform active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed">Šauk</button> 
+      
+              
+                  <button id="manualUpgradesButton" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded shadow-md transition duration-150 ease-in-out active:scale-95">Upgradai</button>
                </fieldset>
             </div>
       </section> </body>
