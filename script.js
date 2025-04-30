@@ -1,18 +1,16 @@
-// --- Component Definitions ---
-// --- Component Definitions ---
-// --- Component Definitions ---
+// --- Component defin ---
 AFRAME.registerComponent('follow-shadow', {
-    // Schema remains the same - A-Frame provides the element in this.data
+    //  this.data aframe scheme
     schema: {type: 'selector'},
     init: function() {
-        console.log("[follow-shadow] Initializing..."); // Log initialization
+        console.log("[follow-shadow] Initializing"); // Log initialization
         this.el.object3D.renderOrder = -1; // Keep render order
         this.targetEl = null;
         this.initialPosSet = false;
 
-        // **** CORRECTED: Directly use the element from this.data ****
+        
         this.targetEl = this.data; // this.data IS the selected element (or null)
-        // **** END CORRECTION ****
+      
 
         // Log whether the target was found by A-Frame
         if (this.targetEl) {
@@ -705,7 +703,7 @@ window.gameOver = function() {
     gameOverScreenEl = gameOverScreenEl || document.getElementById('game-over-screen');
     finalScoreEl = finalScoreEl || document.getElementById('final-score');
     if (gameOverScreenEl && finalScoreEl) {
-        finalScoreEl.textContent = `Your Score: ${score}`;
+        finalScoreEl.textContent = `Tavo taškai: ${score}`;
         gameOverScreenEl.style.display = 'block';
     }
 };
@@ -752,13 +750,13 @@ window.updateUpgradePopupButtonStates = function() {
 
     if (!upgradeShooter1Placed) {
         shooterAvailable = true; // Can always place the first one
-        shooterDesc = "(Place 1st Turret)";
+        shooterDesc = "Padėti pirmą bokštą";
     } else if (!upgradeShooter2Placed && currentLevel >= UPGRADE_UNLOCKS.SECOND_SHOOTER) {
         shooterAvailable = true;
-        shooterDesc = "(Place 2nd Turret)";
+        shooterDesc = "Padėti antrą bokstą";
     } else if (!upgradeShooter2Placed && currentLevel < UPGRADE_UNLOCKS.SECOND_SHOOTER) {
         shooterAvailable = false;
-        shooterDesc = "(Place 1st Turret)"; // Show Place 1st as disabled until Lv 10
+        shooterDesc = "Padėti pirmą bosktą"; // Show Place 1st as disabled until Lv 10
         shooterNextLvl = UPGRADE_UNLOCKS.SECOND_SHOOTER;
     } else { // Both placed, check for upgrades
         if (currentLevel >= nextShooterUpgradeLevel) {
@@ -795,19 +793,19 @@ window.updateUpgradePopupButtonStates = function() {
     if (!upgradeSlowTurretPlaced) {
         if (currentLevel >= UPGRADE_UNLOCKS.SLOW_TURRET) {
             slowerAvailable = true;
-            slowerDesc = "(Place Slow Turret)";
+            slowerDesc = "(Padėti letintojo bokštą)";
         } else {
             slowerAvailable = false;
-            slowerDesc = "(Place Slow Turret)";
+            slowerDesc = "(Padėti letintojo bokštą)";
             slowerNextLvl = UPGRADE_UNLOCKS.SLOW_TURRET;
         }
     } else { // Placed, check for upgrades
         if (currentLevel >= nextSlowTurretUpgradeLevel) {
             slowerAvailable = true;
-            slowerDesc = "(Upgrade Slow Turret)"; // Speed + Slow %
+            slowerDesc = "Atnaujinti lėtą bokštą"; // Speed + Slow %
         } else {
             slowerAvailable = false;
-            slowerDesc = "(Upgrade Slow Turret)";
+            slowerDesc = "Atnaujinti lėtą bokštą";
             slowerNextLvl = nextSlowTurretUpgradeLevel;
         }
     }
@@ -815,7 +813,7 @@ window.updateUpgradePopupButtonStates = function() {
 
 
     // PLAYER DAMAGE Button Logic (Always available)
-     window.setUpgradeButtonState(upgradePlayerDamageBtn, "DAMAGE", "(+15% Player Damage)", true);
+     window.setUpgradeButtonState(upgradePlayerDamageBtn, "DAMAGE", "(+15% Žaidėjo Damage)", true);
 
 };
 // Helper to set state for a single upgrade button
@@ -1676,7 +1674,7 @@ if (upgradePlayerDamageBtn) {
                  confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area');
                  confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
                  if (reticleEl) reticleEl.setAttribute('visible', true);
-                 if (feedbackEl) { feedbackEl.textContent = `Tap surface to place Shooter 1`; feedbackEl.style.display = 'block'; }
+                 if (feedbackEl) { feedbackEl.textContent = `Paspausk ant paviršiaus padėti bokštą`; feedbackEl.style.display = 'block'; }
                  if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'block';
                  if (confirmPlacementButtonEl) confirmPlacementButtonEl.disabled = true;
                  if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
@@ -1690,7 +1688,7 @@ if (upgradePlayerDamageBtn) {
                  confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area');
                  confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
                  if (reticleEl) reticleEl.setAttribute('visible', true);
-                 if (feedbackEl) { feedbackEl.textContent = `Tap surface to place Shooter 2`; feedbackEl.style.display = 'block'; }
+                 if (feedbackEl) { feedbackEl.textContent = `Paspausk ant paviršiaus padėti bokštą`; feedbackEl.style.display = 'block'; }
                  if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'block';
                  if (confirmPlacementButtonEl) confirmPlacementButtonEl.disabled = true;
                  if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
@@ -1732,7 +1730,7 @@ if (upgradePlayerDamageBtn) {
                     confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area');
                     confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
                     if (reticleEl) reticleEl.setAttribute('visible', true);
-                    if (feedbackEl) { feedbackEl.textContent = `Tap surface to place Slow Turret`; feedbackEl.style.display = 'block'; }
+                    if (feedbackEl) { feedbackEl.textContent = `Padėti ant paviršiaus bokšta`; feedbackEl.style.display = 'block'; }
                     if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'block';
                     if (confirmPlacementButtonEl) confirmPlacementButtonEl.disabled = true;
                     if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
