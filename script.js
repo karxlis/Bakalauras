@@ -101,7 +101,8 @@ AFRAME.registerComponent('projectile-hitter', {
       lifetime: { default: 3000.0 },
       direction: { type: 'vec3' },
       targetSelector: { type: 'string', default: '.enemy' }, // Target enemies
-      collisionRadius: { type: 'number', default: 0.2 }
+      collisionRadius: { type: 'number', default: 0.2 },
+      damage: { type: 'number', default: 1 } // **** ADD DAMAGE TO SCHEMA ****
     },
     init: function () {
       this.startTime = this.el.sceneEl.time;
@@ -165,23 +166,27 @@ AFRAME.registerComponent('projectile-hitter', {
        }
 
        for (let i = 0; i < this.targets.length; i++) {
-         const target = this.targets[i];
-         if (!target?.object3D) continue;
-         const targetVisible = target.getAttribute('visible');
-         const hasHitReceiver = target.components['hit-receiver'];
+        const target = this.targets[i];
+        if (!target?.object3D) continue;
+        const targetVisible = target.getAttribute('visible'); // Check attribute
+        const hasHitReceiver = target.components['hit-receiver'];
 
-         if (targetVisible && hasHitReceiver) {
-           target.object3D.getWorldPosition(this.targetWorldPos);
-           const distSq = this.projectileWorldPos.distanceToSquared(this.targetWorldPos);
-           if (distSq < this.collisionRadiusSq) {
-             console.log(`%c[projectile-hitter] HIT DETECTED with ${target.id}!`, "color: green; font-weight: bold;");
-             hasHitReceiver.hit(); // Call hit method
-             if (el.parentNode) { el.parentNode.removeChild(el); } // Remove projectile
-             return; // Exit loop and tick after hit
-           }
-         }
-       }
-     } // <<<< Closing brace for tick function
+        // Use object3D.visible for actual scene visibility check as well
+        if (targetVisible && target.object3D.visible && hasHitReceiver) {
+          target.object3D.getWorldPosition(this.targetWorldPos);
+          const distSq = this.projectileWorldPos.distanceToSquared(this.targetWorldPos);
+
+          if (distSq < this.collisionRadiusSq) {
+            console.log(`%c[projectile-hitter] HIT DETECTED with ${target.id}! Damage: ${this.data.damage}`, "color: green; font-weight: bold;");
+            // **** PASS DAMAGE TO HIT METHOD ****
+            hasHitReceiver.hit(this.data.damage);
+            // **** -------------------------- ****
+            if (el.parentNode) { el.parentNode.removeChild(el); } // Remove projectile
+            return; // Exit loop and tick after hit
+          }
+        }
+      }
+    }
    });
 
 
@@ -195,77 +200,57 @@ AFRAME.registerComponent('hit-receiver', {
         initialHealth: { type: 'int', default: 1 } // Use this to set starting HP
         // **** END HEALTH SCHEMA ****
     },
+
+    updateHealthText: function() {
+        if (this.healthTextEl && this.isEnemy && this.data.maxHealth > 1) {
+            this.healthTextEl.setAttribute('value', `HP: ${this.currentHealth}`);
+            this.healthTextEl.setAttribute('visible', this.currentHealth > 0);
+        } else if (this.healthTextEl) {
+             this.healthTextEl.setAttribute('visible', false);
+        }
+    },
+
     init: function () {
         this.isVisible = this.el.getAttribute('visible');
         this.respawnTimer = null;
-        this.hit = this.hit.bind(this);
+        this.hit = this.hit.bind(this); // Keep this bind
+        // REMOVED BIND for updateHealthText
         this.isEnemy = this.el.classList.contains('enemy');
-        // **** INITIALIZE CURRENT HEALTH ****
         this.currentHealth = this.data.initialHealth;
-        this.healthTextEl = this.el.querySelector('.enemy-health-text'); // Find health text child
-        // **** END INITIALIZE CURRENT HEALTH ****
+        this.healthTextEl = this.el.querySelector('.enemy-health-text');
         console.log(`[hit-receiver] Initialized on ${this.el.id}. Is Enemy: ${this.isEnemy}. MaxHealth: ${this.data.maxHealth}, CurrentHealth: ${this.currentHealth}`);
-        this.updateHealthText(); // Initial update
+        this.updateHealthText(); // Initial update - Should definitely work now
     },
-    hit: function() {
-        if (!this.isVisible || isGameOver) { return; } // Already hit or game over
 
-        console.log(`[hit-receiver] ${this.el.id} HIT!`);
-
-        // --- Handle Health Decrement ---
+    hit: function(damageAmount = 1) {
+        if (!this.isVisible || isGameOver) { return; }
+        console.log(`[hit-receiver] ${this.el.id} HIT for ${damageAmount} damage!`);
         if (this.isEnemy) {
-            this.currentHealth--;
+            this.currentHealth -= damageAmount;
+            this.currentHealth = Math.max(0, this.currentHealth);
             console.log(`[hit-receiver] Enemy health: ${this.currentHealth}/${this.data.maxHealth}`);
-            this.updateHealthText(); // Update visual indicator
+            this.updateHealthText(); // Call should still work here too
 
             if (this.currentHealth <= 0) {
-                // --- Enemy Destroyed ---
-                console.log(`[hit-receiver] Enemy ${this.el.id} destroyed!`);
-                this.isVisible = false; // Prevent further actions
-                this.el.setAttribute('visible', 'false'); // Hide visually (optional before removal)
-
-                if (window.incrementScore) { window.incrementScore(); } // Increment score ONLY on destroy
-
-                if (window.enemyManager) {
-                    window.enemyManager.decrementCount();
-                    console.log(`[hit-receiver] Decremented enemy count via destroy. Current: ${window.enemyManager.activeEnemies}`);
-                }
-                if (this.el.parentNode) {
-                    const removeDelay = 50; // Can be shorter now
-                    setTimeout(() => {
-                       if(this.el.parentNode) this.el.parentNode.removeChild(this.el);
-                    }, removeDelay);
-                }
+                // ... Enemy destroyed logic ...
+                 console.log(`[hit-receiver] Enemy ${this.el.id} destroyed!`);
+                 this.isVisible = false;
+                 this.el.setAttribute('visible', 'false');
+                 if (window.incrementScore) { window.incrementScore(); }
+                 if (window.enemyManager) { window.enemyManager.decrementCount(); }
+                 if (this.el.parentNode) {
+                     const removeDelay = 50;
+                     setTimeout(() => { if(this.el.parentNode) this.el.parentNode.removeChild(this.el); }, removeDelay);
+                 }
             } else {
-                // --- Enemy Damaged but not destroyed ---
-                // Optional: Add a visual hit effect (e.g., flash color)
+                // ... Enemy damaged logic ...
                 const originalColor = this.el.getAttribute('material')?.color || '#FFFFFF';
-                this.el.setAttribute('material', 'color', '#FFFFFF'); // Flash white
-                setTimeout(() => { this.el.setAttribute('material', 'color', originalColor); }, 100);
+                this.el.setAttribute('material', 'color', '#FF0000'); // Flash Red
+                setTimeout(() => { if (this.el) this.el.setAttribute('material', 'color', originalColor); }, 150);
             }
         } else {
-            // --- Non-Enemy Hit Logic (Respawn) ---
-            this.isVisible = false;
-            this.el.setAttribute('visible', 'false');
-            if (window.incrementScore) { window.incrementScore(); } // Score for non-enemy hits?
-             if (this.respawnTimer) clearTimeout(this.respawnTimer);
-            this.respawnTimer = setTimeout(() => {
-                 this.isVisible = true;
-                 this.el.setAttribute('visible', 'true');
-                 this.respawnTimer = null;
-             }, this.data.respawnDelay);
-        }
-    },
-    // **** ADD HEALTH TEXT UPDATE FUNCTION ****
-    updateHealthText: function() {
-        if (this.healthTextEl && this.isEnemy && this.data.maxHealth > 1) {
-            // **** CHANGE THIS LINE ****
-            // Original: this.healthTextEl.setAttribute('value', `${this.currentHealth}/${this.data.maxHealth}`);
-            this.healthTextEl.setAttribute('value', `HP: ${this.currentHealth}`); // New Format
-             // **** END CHANGE ****
-            this.healthTextEl.setAttribute('visible', this.currentHealth > 0); // Also hide if health is 0
-        } else if (this.healthTextEl) {
-             this.healthTextEl.setAttribute('visible', false);
+            // ... Non-enemy hit logic ...
+             console.log(`[hit-receiver] Non-enemy ${this.el.id} hit. No action taken.`);
         }
     },
     // **** END HEALTH TEXT UPDATE FUNCTION ****
@@ -462,12 +447,15 @@ AFRAME.registerComponent('auto-shooter', {
     this.projectileStartPos.copy(this.shooterWorldPos).addScaledVector(this.shootDirection, startOffset);
     projectile.setAttribute('position', this.projectileStartPos);
 
+    const turretBaseDamage = 1; // Define base damage for turrets (can be upgraded later)
+
     // Attach the projectile-hitter component
     projectile.setAttribute('projectile-hitter', {
         direction: this.shootDirection.clone(),
         speed: this.data.projectileSpeed,
         lifetime: this.data.projectileLifetime,
-        targetSelector: this.data.targetSelector
+        targetSelector: this.data.targetSelector,
+        damage: turretBaseDamage // **** ADD TURRET DAMAGE DATA ****
     });
 
     // Add to scene and update time
@@ -642,7 +630,7 @@ window.showLevelUpPopup = function(level) {
 
 // Function to increase enemy speed
 window.increaseEnemySpeed = function() {
-    window.enemyManager.speedMultiplier *= 1.3; // Slightly reduced increase per level
+    window.enemyManager.speedMultiplier *= 1.2; // Slightly reduced increase per level
     console.log(`New enemy speed multiplier: ${window.enemyManager.speedMultiplier.toFixed(2)}`);
     const activeEnemies = document.querySelectorAll('.enemy');
     activeEnemies.forEach(enemyEl => {
@@ -1560,6 +1548,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log(`Calculated TARGETED dir: ${shootDirection.x.toFixed(2)}, ${shootDirection.y.toFixed(2)}, ${shootDirection.z.toFixed(2)}`);
 
+        const basePlayerDamage = 1;
+        // Apply multiplicative 15% increase per level
+        const currentPlayerDamage = Math.round(basePlayerDamage * (1.30 ** playerDamageLevel)); // Round to nearest integer
+
+     console.log(`Player shooting. Damage Level: ${playerDamageLevel}, Calculated Damage: ${currentPlayerDamage}`);
+       
         const projectile = document.createElement('a-sphere');
         projectile.setAttribute('radius', '0.1');
         projectile.setAttribute('color', '#FFFF00'); // Yellow
@@ -1574,7 +1568,8 @@ document.addEventListener('DOMContentLoaded', () => {
             direction: shootDirection.clone(),
             speed: 10,
             lifetime: 3000,
-            targetSelector: '.enemy'
+            targetSelector: '.enemy',
+            damage: currentPlayerDamage // **** ADD DAMAGE DATA ****
         });
          console.log("Projectile component attributes set.");
 
@@ -1651,11 +1646,13 @@ if (upgradePlayerDamageBtn) {
     upgradePlayerDamageBtn.addEventListener('click', () => {
          console.log("Upgrade Player Damage chosen.");
          if (isGamePaused) {
-              playerDamageLevel++;
-              console.log(`Player Damage upgraded to Level ${playerDamageLevel}. Multiplier: ${(1 + playerDamageLevel * 0.15).toFixed(2)}x`); // Example multiplier logic
-              // Actual damage increase needs modification in hit-receiver
+              playerDamageLevel++; // Increment level
+              // Calculate theoretical damage multiplier for logging
+              let multiplier = (1.15 ** playerDamageLevel);
+              console.log(`Player Damage upgraded to Level ${playerDamageLevel}. Multiplier: ${multiplier.toFixed(2)}x`);
+              // The actual damage application happens when projectiles hit
               window.resumeGame();
-         } else { /* Handle manual click if needed */ }
+         } else { /* Handle manual click */ }
      });
  } else { console.error("Cannot add listener: upgradePlayerDamageBtn is null!"); }
 
