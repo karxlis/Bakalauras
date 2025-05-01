@@ -589,50 +589,179 @@ AFRAME.registerComponent('auto-shooter', {
 });
 // **** END NEW COMPONENT ****
 
+// ========================================================
+// ================= GAME CONFIGURATION ===================
+// ========================================================
+const GAME_CONFIG = {
+    DEBUG_LOGS: {
+        spawnValidation: false, // Set to true to see detailed spawn rejection reasons
+        spawnChance: true,     // Log enemy spawn chances
+        upgradeCalculation: false // Log detailed upgrade availability steps
+    },
+    LEVELING: {
+        MAX_LEVEL: 100,
+        INITIAL_SCORE_THRESHOLD: 10,
+        INITIAL_SCORE_GAP: 10,
+        GAP_MULTIPLIER: 1.1, // Score gap increases by 10% after level 4
+        GAP_MIN_INCREASE: 1    // Ensure gap increases by at least 1
+    },
+    TOWER: {
+        INITIAL_MAX_HEALTH: 10
+    },
+    PLAYER: {
+        SHOOT_DAMAGE_BASE: 1,
+        DAMAGE_UPGRADE_MULTIPLIER: 1.30 // +30% damage per upgrade level
+    },
+    UPGRADES: {
+        UNLOCKS: {
+            SLOW_TURRET: 8,      // Level required to unlock placing the slow turret
+            SECOND_SHOOTER: 10,  // Level required to unlock placing the second shooter
+            SHOOTER_DAMAGE_1: 15, // Player Level when Damage I upgrade *can* first be applied (via shooterLevel 1)
+            SHOOTER_DAMAGE_2: 25, // Player Level when Damage II upgrade *can* first be applied (via shooterLevel 2)
+            SECOND_SLOW_TURRET: 13
+        },
+        HEALTH: {
+            HP_INCREASE: 3
+        },
+        SHOOTER: {
+            UPGRADE_FREQUENCY: 2, // Upgrade offered every 2 levels (odd numbers)
+            INITIAL_LEVEL_CHECK: 3, // Start checking for upgrades from Player Level 3
+            SPEED_INCREASE_FACTOR: 0.85, // Speed upgrade reduces delay to 85% (15% faster)
+            DAMAGE_1_MULTIPLIER: 1.3, // +30% damage
+            DAMAGE_2_FACTOR: 1.2, // +20% on top of Damage 1
+            LEVEL_FOR_DAMAGE_1: 1, // Internal shooterLevel when Dmg I is applied
+            LEVEL_FOR_DAMAGE_2: 2  // Internal shooterLevel when Dmg II is applied
+        },
+        SLOWER: {
+            UPGRADE_FREQUENCY: 3, // Upgrade offered every 3 levels
+            SPEED_INCREASE_FACTOR: 0.90, // Speed upgrade reduces delay to 90% (10% faster)
+            SLOW_INCREASE_AMOUNT: 0.20, // Add +20% slow effectiveness
+            SLOW_MAX_PERCENTAGE: 0.90 // Cap slow effectiveness at 90%
+        }
+    },
+    TURRETS: { // Default/Initial values for placed turrets
+        SHOOTER: {
+            INITIAL_DELAY: 5000,
+            BASE_DAMAGE: 1
+        },
+        SLOWER: {
+            INITIAL_DELAY: 6000,
+            INITIAL_SLOW_PERCENTAGE: 0.3,
+            PROJECTILE_COLOR: '#FFFFFF' // White projectiles
+        },
+        PROJECTILE_DEFAULTS: { // Shared defaults
+            SPEED: 8.0,
+            LIFETIME: 4000.0,
+            RADIUS: 0.08,
+            COLOR: '#FF8C00' // Default shooter color
+        },
+        MIN_SHOOT_DELAY: 100 // Minimum delay in ms for any turret
+    },
+    ENEMIES: {
+        MAX_ACTIVE: 8,
+        SPAWN_INTERVAL_MS: 1000,
+        BASE_SPEED: 0.5,
+        SPEED_INCREASE_FACTOR: 1.1, // Speed multiplier increases by 10% per level (before cap)
+        SPEED_CAP_LEVEL: 8,         // Level at which speed stops increasing
+        TARGET_REACH_DISTANCE: 0.2,
+        // Spawn Position Logic
+        SPAWN_DISTANCE_MIN: 12,
+        SPAWN_DISTANCE_RANGE: 6, // Spawn 12 to (12+6)=18 units away
+        SPAWN_ANGLE_RANGE_RAD: Math.PI / 3.0, // 60 degrees arc
+        MIN_DIST_FROM_CAM_SQ: 5 * 5,
+        MIN_DIST_FROM_TOWER_SQ: 6 * 6,
+        VIEW_CONE_DOT_THRESHOLD: 0.3, // How far behind player they can spawn
+        Y_POS_CLAMP_MIN: 0.2,
+        Y_POS_CLAMP_MAX: 3.0,
+        // Enemy Types & Chances
+        TOUGH: {
+            SCORE_THRESHOLD: 10,
+            BASE_CHANCE: 0.35,
+            CHANCE_INCREASE_PER_5_SCORE: 0.07,
+            CHANCE_CAP: 0.60,
+            HEALTH: 3,
+            SCALE: '0.35 0.35 0.35',
+            SHAPE: 'sphere',
+            COLOR: '#8B0000' // Dark Red
+        },
+        TOUGHEST: {
+            SCORE_THRESHOLD: 30,
+            BASE_CHANCE: 0.2, // Reduced base chance
+            CHANCE_INCREASE_PER_5_SCORE: 0.05, // Kept increase rate
+            CHANCE_CAP: 1.0,
+            HEALTH: 7,
+            SCALE: '0.45 0.45 0.45',
+            SHAPE: 'dodecahedron',
+            COLOR: '#FFA500' // Neon Orange
+        },
+        BASIC: {
+            HEALTH: 1,
+            SCALE: '0.25 0.25 0.25',
+            SHAPE: 'box'
+            // Color is random HSL
+        }
+    },
+    EFFECTS: {
+        SLOW_DURATION_MS: 3000,
+        HIT_FLASH_COLOR_ENEMY: '#FF0000', // Red flash
+        SLOW_COLOR_INDICATOR: '#87CEEB' // Light blue
+    },
+    PROJECTILES: { // Defaults for projectile-hitter if not overridden
+        SPEED: 10.0,
+        LIFETIME: 3000.0,
+        COLLISION_RADIUS: 0.2,
+        PLAYER_COLOR: '#FFFF00', // Yellow
+        PLAYER_RADIUS: 0.1,
+        AOE_SLOW_RADIUS: 1.5
+    },
+    TIMINGS: {
+        LEVEL_UP_POPUP_MS: 1500,
+        ENEMY_REMOVE_DELAY_MS: 50,
+        SPAWN_RETRY_DELAY_MS: 50,
+        PROJECTILE_TARGET_QUERY_MS: 100,
+        DEBOUNCE_SELECT_MS: 100
+    }
+};
+// ========================================================
+// ============ END GAME CONFIGURATION ====================
+// ========================================================
+
 // --- Global Scope Variables & Functions ---
 let score = 0;
-let currentLevel = 1; // Start at level 1
-const MAX_LEVEL = 100; // **** NEW: Max level constant ****
-let scoreForNextLevel = 10; // **** NEW: Score needed for next level ****
-let scoreGap = 10;          // **** NEW: Score increase required for last level ****
+let currentLevel = 1;
+let scoreForNextLevel = GAME_CONFIG.LEVELING.INITIAL_SCORE_THRESHOLD;
+let scoreGap = GAME_CONFIG.LEVELING.INITIAL_SCORE_GAP;
 
-// --- Health Variables (Keep Existing) ---
-const TOWER_MAX_HEALTH = 10;
-let currentMaxTowerHealth = TOWER_MAX_HEALTH;
-let currentTowerHealth = TOWER_MAX_HEALTH;
+let currentMaxTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH;
+let currentTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH;
 
-const UPGRADE_UNLOCKS = { // Define unlock levels
-    SLOW_TURRET: 3,
-    SECOND_SHOOTER: 4,
-    SHOOTER_DAMAGE_1: 5,
-    SHOOTER_DAMAGE_2: 6
-};
-
+// Upgrade State
 let upgradeShooter1Placed = false;
 let upgradeShooter2Placed = false;
 let upgradeSlowTurretPlaced = false;
-let shooterLevel = 0; // Tracks speed/damage upgrades
-let playerDamageLevel = 0; // Tracks number of times player damage was upgraded
-let slowTurretLevel = 0; // Tracks slow turret upgrades (speed/slow amount)
-let nextShooterUpgradeLevel = 3; // Start checking for shooter upgrade availability from level 3
-let nextSlowTurretUpgradeLevel = UPGRADE_UNLOCKS.SLOW_TURRET + 3; // Start checking 3 levels after placement unlock
+let upgradeSlowTurret2Placed = false; // **** NEW: Flag for 2nd slow turret ****
+let shooterLevel = 0;
+let playerDamageLevel = 0;
+let slowTurretLevel = 0;
+let nextShooterUpgradeLevel = GAME_CONFIG.UPGRADES.SHOOTER.INITIAL_LEVEL_CHECK;
+let nextSlowTurretUpgradeLevel = GAME_CONFIG.UPGRADES.UNLOCKS.SLOW_TURRET + GAME_CONFIG.UPGRADES.SLOWER.UPGRADE_FREQUENCY;
 
-// --- Game State Variables (Keep Existing) ---
+// Game State
 let isGameSetupComplete = false;
 let towerPlaced = false;
 let placedTowerEl = null;
 let isGamePaused = false;
-let placingUpgrade = null; // 'shooter1', 'shooter2', 'slowTurret'
-let placedUpgradeEl = null; // Visual element during placement
-let activeShooterUpgrades = []; // Array to hold references to functional shooter entities
-let activeSlowTurrets = []; // Array to hold references to functional slow turrets
+let placingUpgrade = null;
+let placedUpgradeEl = null;
+let activeShooterUpgrades = [];
+let activeSlowTurrets = [];
 let isGameOver = false;
 
-// --- Debounce Variables (Keep Existing) ---
+// Technical State
 let lastSelectTime = 0;
-const SELECT_DEBOUNCE_MS = 100;
+const SELECT_DEBOUNCE_MS = GAME_CONFIG.TIMINGS.DEBOUNCE_SELECT_MS;
 
-// --- UI Element References (Initialize as null) ---
+// UI Element References
 let scoreDisplayEl = null;
 let levelUpPopupEl = null;
 let levelNumberEl = null;
@@ -643,8 +772,7 @@ let finalScoreEl = null;
 let upgradesPopupEl = null;
 let confirmPlacementAreaEl = null;
 let confirmPlacementButtonEl = null;
-// References for NEW upgrade buttons
-let upgradeShooterBtn = null; // Renamed to match grid
+let upgradeShooterBtn = null;
 let upgradeHealthBtn = null;
 let upgradeSlowerBtn = null;
 let upgradePlayerDamageBtn = null;
@@ -652,13 +780,14 @@ let closeUpgradePopupBtnEl = null;
 let manualUpgradesButtonEl = null;
 let levelDisplayEl = null;
 
+// Enemy Manager Setup
 window.enemyManager = {
     activeEnemies: 0,
-    maxEnemies: 8,
-    spawnInterval: 1000,
+    maxEnemies: GAME_CONFIG.ENEMIES.MAX_ACTIVE,
+    spawnInterval: GAME_CONFIG.ENEMIES.SPAWN_INTERVAL_MS,
     spawnTimerId: null,
-    baseSpeed: 0.5,
-    speedMultiplier: 1.0,
+    baseSpeed: GAME_CONFIG.ENEMIES.BASE_SPEED,
+    speedMultiplier: 1.0, // Starts at 1, increased by levels
     decrementCount: function() {
         this.activeEnemies = Math.max(0, this.activeEnemies - 1);
     }
@@ -705,7 +834,7 @@ window.calculateScoreForLevel = function(targetLevel) {
 
 // Function to update level state based on score
 window.updateLevelingState = function() {
-    if (currentLevel >= MAX_LEVEL || isGameOver) return;
+    if (currentLevel >= GAME_CONFIG.LEVELING.MAX_LEVEL || isGameOver) return; // Use Config
     if (score >= scoreForNextLevel) {
         const oldLevel = currentLevel;
         currentLevel++;
@@ -713,13 +842,12 @@ window.updateLevelingState = function() {
         window.updateLevelDisplay();
         window.showLevelUpPopup(currentLevel);
         window.increaseEnemySpeed();
-        if (currentLevel < MAX_LEVEL) {
-            if (oldLevel < 4) { scoreGap = 10; }
-            else {
-                 // **** CHANGE Multiplier from 1.5 to 1.1 ****
-                 scoreGap = Math.round(scoreGap * 1.1);
-                 // Ensure gap increases by at least 1 to prevent stagnation
-                 scoreGap = Math.max(scoreGap, oldLevel < 4 ? 10 : scoreGap + 1);
+        if (currentLevel < GAME_CONFIG.LEVELING.MAX_LEVEL) { // Use Config
+            if (oldLevel < 4) { // Threshold for changing gap calculation
+                scoreGap = GAME_CONFIG.LEVELING.INITIAL_SCORE_GAP; // Use Config
+            } else {
+                 scoreGap = Math.round(scoreGap * GAME_CONFIG.LEVELING.GAP_MULTIPLIER); // Use Config
+                 scoreGap = Math.max(scoreGap, GAME_CONFIG.LEVELING.INITIAL_SCORE_GAP + GAME_CONFIG.LEVELING.GAP_MIN_INCREASE); // Use Config
             }
             scoreForNextLevel += scoreGap;
             console.log(`Next level (${currentLevel + 1}) requires score: ${scoreForNextLevel} (Gap: ${scoreGap})`);
@@ -727,7 +855,7 @@ window.updateLevelingState = function() {
             console.log("Max Level Reached!");
             scoreForNextLevel = Infinity;
         }
-        window.showUpgradePopup(true); // Show upgrade choices on level up
+        window.showUpgradePopup(true);
     }
 };
 
@@ -743,7 +871,7 @@ window.showLevelUpPopup = function(level) {
         levelUpTimeout = setTimeout(() => {
             if (popupEl) popupEl.style.display = 'none';
             levelUpTimeout = null;
-        }, 1500); // Slightly longer display time
+        }, GAME_CONFIG.TIMINGS.LEVEL_UP_POPUP_MS); // Slightly longer display time
     } else {
         console.error("Could not find level-up popup elements!", { popupEl, levelNumEl });
     }
@@ -753,7 +881,7 @@ window.showLevelUpPopup = function(level) {
 window.increaseEnemySpeed = function() {
 
     // **** ADD LEVEL CAP CHECK ****
-    const SPEED_CAP_LEVEL = 8;
+    const SPEED_CAP_LEVEL = GAME_CONFIG.ENEMIES.SPEED_CAP_LEVEL; // Use Config
     if (currentLevel >= SPEED_CAP_LEVEL) {
         console.log(`Enemy speed increase capped at Level ${SPEED_CAP_LEVEL}. No further increase.`);
         // We still need to apply the current capped speed to any *newly* spawned enemies
@@ -771,11 +899,11 @@ window.increaseEnemySpeed = function() {
         return; // Exit before increasing multiplier
     }
 
-    window.enemyManager.speedMultiplier *= 1.2; // Slightly reduced increase per level
-    console.log(`New enemy speed multiplier: ${window.enemyManager.speedMultiplier.toFixed(2)}`);
+    window.enemyManager.speedMultiplier *= GAME_CONFIG.ENEMIES.SPEED_INCREASE_FACTOR; // Use Config
+    console.log(`New enemy speed multiplier: ${window.enemyManager.speedMultiplier.toFixed(2)} (Level ${currentLevel})`);
+    // Update existing enemies
 
- const activeEnemies = document.querySelectorAll('.enemy'); // Use '.enemy' class
-    console.log(`Found ${activeEnemies.length} active enemies to update speed.`);
+    const activeEnemies = document.querySelectorAll('.enemy');
     activeEnemies.forEach(enemyEl => {
         if (enemyEl.components['move-towards-target']) {
             const currentBaseSpeed = window.enemyManager.baseSpeed;
@@ -867,20 +995,20 @@ window.showUpgradePopup = function(pauseGame = false) {
 
 // **** NEW: Helper function to update button states ****
 // (~ Line 771)
+// --- Update Upgrade Button States Function ---
 window.updateUpgradePopupButtonStates = function() {
-    // Get fresh references
     upgradeShooterBtn = upgradeShooterBtn || document.getElementById('upgradeShooter');
     upgradeHealthBtn = upgradeHealthBtn || document.getElementById('upgradeHealth');
     upgradeSlowerBtn = upgradeSlowerBtn || document.getElementById('upgradeSlower');
     upgradePlayerDamageBtn = upgradePlayerDamageBtn || document.getElementById('upgradePlayerDamage');
 
-    // **** Declare ALL temporary variables needed in this function's scope ****
     let title, desc, available, nextLvl;
     let shooterText, shooterDesc, shooterAvailable, shooterNextLvl;
     let slowerText, slowerDesc, slowerAvailable, slowerNextLvl;
     let currentMult, nextMult;
     let currentDmg, currentDelay, nextDelay, nextSlow;
-    // **** End Variable Declarations ****
+
+    const UNLOCKS = GAME_CONFIG.UPGRADES.UNLOCKS; // Alias for cleaner access
 
 
     // --- SHOOTER Button Logic ---
@@ -891,45 +1019,51 @@ window.updateUpgradePopupButtonStates = function() {
 
     if (!upgradeShooter1Placed) {
         shooterAvailable = true;
-        shooterDesc = "Padėti pirmą bokštą"; // Or "(Place 1st Turret)"
-    } else if (!upgradeShooter2Placed && currentLevel >= UPGRADE_UNLOCKS.SECOND_SHOOTER) {
+        shooterDesc = "Padėti pirmą bokštą";
+    } else if (!upgradeShooter2Placed && currentLevel >= UNLOCKS.SECOND_SHOOTER) { // Use Config
         shooterAvailable = true;
-        shooterDesc = "Padėti antrą bokstą"; // Or "(Place 2nd Turret)"
-    } else if (!upgradeShooter2Placed && currentLevel < UPGRADE_UNLOCKS.SECOND_SHOOTER) {
+        shooterDesc = "Padėti antrą bokstą";
+    } else if (!upgradeShooter2Placed && currentLevel < UNLOCKS.SECOND_SHOOTER) { // Use Config
         shooterAvailable = false;
-        shooterDesc = "Padėti antrą bokstą"; // Keep description but show level lock
-        shooterNextLvl = UPGRADE_UNLOCKS.SECOND_SHOOTER;
+        shooterDesc = "Padėti antrą bokstą";
+        shooterNextLvl = UNLOCKS.SECOND_SHOOTER; // Use Config
     } else { // Both placed, check for upgrades
         if (currentLevel >= nextShooterUpgradeLevel) {
              shooterAvailable = true;
-             // Determine next upgrade description based on current shooterLevel
-             if (shooterLevel === 0) {
-                 desc = `Damage: 1 -> ${Math.round(1 * 1.3)}`;
-             } else if (shooterLevel === 1) {
-                 currentDmg = 1.3;
-                 if(activeShooterUpgrades.length > 0) { currentDmg = activeShooterUpgrades[0].getAttribute('auto-shooter')?.turretDamage || 1.3; }
-                 desc = `Damage: ${currentDmg.toFixed(1)} -> ${Math.round(currentDmg * 1.2)}`;
-             } else {
-                  currentDelay = 5000;
-                  if(activeShooterUpgrades.length > 0) { currentDelay = activeShooterUpgrades[0].getAttribute('auto-shooter')?.shootDelay || 5000; }
-                  desc = `Speed Up (Delay ${currentDelay.toFixed(0)} -> ${Math.max(100, currentDelay * 0.85).toFixed(0)}ms)`;
-             }
-             shooterDesc = desc; // Assign calculated description
+             const SHOOTER_CONFIG = GAME_CONFIG.UPGRADES.SHOOTER; // Alias
+             if (shooterLevel === GAME_CONFIG.UPGRADES.SHOOTER.LEVEL_FOR_DAMAGE_1 - 1) { // Check if next level IS Damage 1
+                const baseDmg = GAME_CONFIG.TURRETS.SHOOTER.BASE_DAMAGE;
+                const nextDmg = (baseDmg * GAME_CONFIG.UPGRADES.SHOOTER.DAMAGE_1_MULTIPLIER);
+                // **** Corrected Display Calculation ****
+                desc = `Damage: ${baseDmg.toFixed(1)} -> ${nextDmg.toFixed(1)}`;
+                // **** --------------------------- ****
+            } else if (shooterLevel === GAME_CONFIG.UPGRADES.SHOOTER.LEVEL_FOR_DAMAGE_2 - 1) { // Check if next level IS Damage 2
+                let currentDmg = (GAME_CONFIG.TURRETS.SHOOTER.BASE_DAMAGE * GAME_CONFIG.UPGRADES.SHOOTER.DAMAGE_1_MULTIPLIER); // Estimate Dmg1 level
+                if(activeShooterUpgrades.length > 0) { currentDmg = activeShooterUpgrades[0].getAttribute('auto-shooter')?.turretDamage || currentDmg; }
+                const nextDmg = (currentDmg * GAME_CONFIG.UPGRADES.SHOOTER.DAMAGE_2_FACTOR);
+                // **** Corrected Display Calculation ****
+                desc = `Damage: ${currentDmg.toFixed(1)} -> ${nextDmg.toFixed(1)}`;
+             } else { // Next upgrade is Speed
+                let currentDelay = GAME_CONFIG.TURRETS.SHOOTER.INITIAL_DELAY;
+                if(activeShooterUpgrades.length > 0) { currentDelay = activeShooterUpgrades[0].getAttribute('auto-shooter')?.shootDelay || currentDelay; }
+                const nextDelay = Math.max(GAME_CONFIG.TURRETS.MIN_SHOOT_DELAY, currentDelay * GAME_CONFIG.UPGRADES.SHOOTER.SPEED_INCREASE_FACTOR);
+                // Display Calculation remains the same (rounding delay is fine)
+                desc = `Speed Up (Delay ${currentDelay.toFixed(0)} -> ${nextDelay.toFixed(0)}ms)`;
+           }
+             shooterDesc = desc;
         } else {
             shooterAvailable = false;
-            shooterDesc = "(Atnaujinti šaudyklę)"; // Or "(Upgrade Turrets)"
+            shooterDesc = "(Atnaujinti šaudyklę)";
             shooterNextLvl = nextShooterUpgradeLevel;
         }
     }
-    // Log values right before the call causing issues previously
-    // console.log("DEBUG Shooter State:", { upgradeShooterBtn, shooterText, shooterDesc, shooterAvailable, shooterNextLvl });
     window.setUpgradeButtonState(upgradeShooterBtn, shooterText, shooterDesc, shooterAvailable, shooterNextLvl);
 
 
     // --- HEALTH Button Logic ---
-    title = "HEALTH"; // Assign to function-scoped variable
+    title = "HEALTH";
     available = true;
-    desc = `Max HP: ${currentMaxTowerHealth} -> ${currentMaxTowerHealth + 3}`;
+    desc = `Max HP: ${currentMaxTowerHealth} -> ${currentMaxTowerHealth + GAME_CONFIG.UPGRADES.HEALTH.HP_INCREASE}`; // Use Config
     window.setUpgradeButtonState(upgradeHealthBtn, title, desc, available);
 
     // --- SLOWER Button Logic ---
@@ -938,50 +1072,51 @@ window.updateUpgradePopupButtonStates = function() {
     slowerAvailable = false; // Assign to function-scoped variable (declared at top)
     slowerNextLvl = -1;    // Assign to function-scoped variable
 
-    if (!upgradeSlowTurretPlaced) {
-        if (currentLevel >= UPGRADE_UNLOCKS.SLOW_TURRET) {
+    if (!upgradeSlowTurretPlaced) { // Can place the first one?
+        if (currentLevel >= UNLOCKS.SLOW_TURRET) {
             slowerAvailable = true;
-            slowerDesc = "(Padėti letintojo bokštą)";
+            slowerDesc = "Padėti Lėtintoją (1/2)"; // Update text
         } else {
             slowerAvailable = false;
-            slowerDesc = "(Padėti letintojo bokštą)";
-            slowerNextLvl = UPGRADE_UNLOCKS.SLOW_TURRET;
+            slowerDesc = "Padėti Lėtintoją (1/2)";
+            slowerNextLvl = UNLOCKS.SLOW_TURRET;
         }
-    } else { // Placed, check for upgrades
+    } else if (!upgradeSlowTurret2Placed) { // First is placed, can place the second?
+        if (currentLevel >= UNLOCKS.SECOND_SLOW_TURRET) {
+            slowerAvailable = true;
+            slowerDesc = "Padėti antrą Lėtintoją (2/2)"; // Update text
+        } else {
+            slowerAvailable = false;
+            slowerDesc = "Padėti antrą Lėtintoją (2/2)";
+            slowerNextLvl = UNLOCKS.SECOND_SLOW_TURRET;
+        }
+    } else { // Both placed, check for upgrades
         if (currentLevel >= nextSlowTurretUpgradeLevel) {
             slowerAvailable = true;
-            // Calculate next state
-            currentDelay = 6000; // Estimate default
-            let currentSlow = 0.3;
-            if (activeSlowTurrets.length > 0) {
-                const currentData = activeSlowTurrets[0].getAttribute('auto-shooter');
-                if (currentData) {
-                    currentDelay = currentData.shootDelay;
-                    currentSlow = currentData.slowPercentage;
-                }
-            }
-            nextDelay = Math.max(100, currentDelay * 0.9).toFixed(0);
-            nextSlow = Math.min(0.9, currentSlow + 0.2) * 100;
-            slowerDesc = `Speed/Slow: ${currentSlow * 100}% -> ${nextSlow.toFixed(0)}%`;
+            // Calculate next state description (remains the same)
+            let currentDelay = GAME_CONFIG.TURRETS.SLOWER.INITIAL_DELAY;
+            let currentSlow = GAME_CONFIG.TURRETS.SLOWER.INITIAL_SLOW_PERCENTAGE;
+            // ... (get current stats from activeSlowTurrets[0] if available) ...
+            let nextDelay = Math.max(GAME_CONFIG.TURRETS.MIN_SHOOT_DELAY, currentDelay * GAME_CONFIG.UPGRADES.SLOWER.SPEED_INCREASE_FACTOR).toFixed(0);
+            let nextSlow = Math.min(GAME_CONFIG.UPGRADES.SLOWER.SLOW_MAX_PERCENTAGE, currentSlow + GAME_CONFIG.UPGRADES.SLOWER.SLOW_INCREASE_AMOUNT) * 100;
+            slowerDesc = `Atnaujinti Lėtintoją (${(currentSlow * 100).toFixed(0)}% -> ${nextSlow.toFixed(0)}%)`; // Updated text
         } else {
             slowerAvailable = false;
-            slowerDesc = "Atnaujinti lėtą bokštą"; // Or "(Upgrade Slow Turret)"
+            slowerDesc = "Atnaujinti Lėtintoją";
             slowerNextLvl = nextSlowTurretUpgradeLevel;
         }
     }
-    // Log values right before the call
-    // console.log("DEBUG Slower State:", { upgradeSlowerBtn, slowerText, slowerDesc, slowerAvailable, slowerNextLvl });
-    window.setUpgradeButtonState(upgradeSlowerBtn, slowerText, slowerDesc, slowerAvailable, slowerNextLvl);
+     window.setUpgradeButtonState(upgradeSlowerBtn, title, slowerDesc, slowerAvailable, slowerNextLvl); // Pass slowerAvailable here
 
 
     // --- PLAYER DAMAGE Button Logic ---
-    title = "DAMAGE"; // Assign to function-scoped variable
+    title = "DAMAGE";
     available = true;
-    currentMult = (1.30 ** playerDamageLevel);
-    nextMult = (1.30 ** (playerDamageLevel + 1));
+    currentMult = (GAME_CONFIG.PLAYER.DAMAGE_UPGRADE_MULTIPLIER ** playerDamageLevel); // Use Config
+    nextMult = (GAME_CONFIG.PLAYER.DAMAGE_UPGRADE_MULTIPLIER ** (playerDamageLevel + 1)); // Use Config
     desc = `Player Dmg: ${currentMult.toFixed(2)}x -> ${nextMult.toFixed(2)}x`;
     window.setUpgradeButtonState(upgradePlayerDamageBtn, title, desc, available);
-}; // End of updateUpgradePopupButtonStates function
+};
 
 
 // Helper to set state for a single upgrade button
@@ -1067,10 +1202,10 @@ window.resetGame = function() {
     towerPlaced = false;
     score = 0;
     currentLevel = 1;
-    scoreForNextLevel = 10;
-    scoreGap = 10;
-    currentMaxTowerHealth = TOWER_MAX_HEALTH;
-    currentTowerHealth = TOWER_MAX_HEALTH;
+    scoreForNextLevel = GAME_CONFIG.LEVELING.INITIAL_SCORE_THRESHOLD; // Use Config
+    scoreGap = GAME_CONFIG.LEVELING.INITIAL_SCORE_GAP; // Use Config
+    currentMaxTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH; // Use Config
+    currentTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH; // Use Config
     window.enemyManager.activeEnemies = 0;
     window.enemyManager.speedMultiplier = 1.0;
     isGamePaused = false;
@@ -1082,9 +1217,11 @@ window.resetGame = function() {
     shooterLevel = 0;
     playerDamageLevel = 0;
     slowTurretLevel = 0;
-    nextShooterUpgradeLevel = 3;
-    nextSlowTurretUpgradeLevel = UPGRADE_UNLOCKS.SLOW_TURRET + 3;
-
+    nextShooterUpgradeLevel = GAME_CONFIG.UPGRADES.SHOOTER.INITIAL_LEVEL_CHECK; // Use Config
+    nextSlowTurretUpgradeLevel = GAME_CONFIG.UPGRADES.UNLOCKS.SLOW_TURRET + GAME_CONFIG.UPGRADES.SLOWER.UPGRADE_FREQUENCY; // Use Configs
+    window.enemyManager.baseSpeed = GAME_CONFIG.ENEMIES.BASE_SPEED; // Use Config
+    window.enemyManager.spawnInterval = GAME_CONFIG.ENEMIES.SPAWN_INTERVAL_MS; // Use Config
+    // ... (rest of reset logic) ...
 
     if (window.enemyManager.spawnTimerId) { clearInterval(window.enemyManager.spawnTimerId); window.enemyManager.spawnTimerId = null; }
     if (gameOverScreenEl) gameOverScreenEl.style.display = 'none';
@@ -1224,51 +1361,39 @@ window.spawnEnemy = function() { // Attached to window
     let enemyScale = '0.25 0.25 0.25';
     let enemyShape = 'box'; // Default basic shape
 
-    const SCORE_THRESHOLD_TOUGHEST = 30;
-    const SCORE_THRESHOLD_TOUGH = 10;
+    const SCORE_THRESHOLD_TOUGHEST = GAME_CONFIG.ENEMIES.TOUGHEST.SCORE_THRESHOLD; // Use Config
+    const SCORE_THRESHOLD_TOUGH = GAME_CONFIG.ENEMIES.TOUGH.SCORE_THRESHOLD; // Use Config
     const randomRoll = Math.random(); // Roll once for chance checks
 
     // 1. Check for Toughest Enemy
-    if (score >= SCORE_THRESHOLD_TOUGHEST) {
-        const baseChanceToughest = 0.1; // 50% at score 30
+ if (score >= SCORE_THRESHOLD_TOUGHEST) {
+        const T_CONFIG = GAME_CONFIG.ENEMIES.TOUGHEST; // Alias
         const scoreAboveThreshold = score - SCORE_THRESHOLD_TOUGHEST;
-        const additionalChance = Math.floor(scoreAboveThreshold / 10) * 0.05; // +5% for every 5 points above 30
-        const toughestSpawnChance = Math.min(1.0, baseChanceToughest + additionalChance); // Cap at 100%
-
-        console.log(`Score ${score}, Toughest Chance: ${(toughestSpawnChance * 100).toFixed(0)}%`); // Log chance
-
-        if (randomRoll < toughestSpawnChance) {
-            enemyType = 'toughest';
-            enemyHealth = 7; // Give it more health
-            enemyColor = '#FFA500'; // Neon Orange
-            enemyScale = '0.45 0.45 0.45'; // Make it larger
-            enemyShape = 'dodecahedron'; // Make it a distinct shape
+        const additionalChance = Math.floor(scoreAboveThreshold / 5) * T_CONFIG.CHANCE_INCREASE_PER_5_SCORE; // Use Config
+        const toughestSpawnChance = Math.min(1.0, T_CONFIG.BASE_CHANCE + additionalChance); // Use Config
+         if (GAME_CONFIG.DEBUG_LOGS.spawnChance) console.log(`Score ${score}, Toughest Chance: ${(toughestSpawnChance * 100).toFixed(0)}%`);
+         if (randomRoll < toughestSpawnChance) {
+            enemyType = 'toughest'; enemyHealth = T_CONFIG.HEALTH; enemyColor = T_CONFIG.COLOR; enemyScale = T_CONFIG.SCALE; enemyShape = T_CONFIG.SHAPE; // Use Configs
             console.log('%c--> Spawning TOUGHEST Enemy!', 'color: #FFA500; font-weight: bold;');
         }
     }
 
     // 2. Check for Tough Enemy (only if Toughest didn't spawn)
     if (enemyType === 'basic' && score >= SCORE_THRESHOLD_TOUGH) {
-        // Note: This chance calculation might overlap with toughest. Adjust if needed.
-        // Original tough chance calculation:
-        const toughChance = Math.min(0.60, 0.35 + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * 0.07);
-        console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`); // Log chance
-
-        // Roll again? Or use a different part of the original roll? Let's use a separate check for simplicity.
+        const T_CONFIG = GAME_CONFIG.ENEMIES.TOUGH; // Alias
+        const toughChance = Math.min(T_CONFIG.CHANCE_CAP, T_CONFIG.BASE_CHANCE + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * T_CONFIG.CHANCE_INCREASE_PER_5_SCORE); // Use Configs
+        if (GAME_CONFIG.DEBUG_LOGS.spawnChance) console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`);
         if (Math.random() < toughChance) { // Separate roll for tough if toughest didn't spawn
-            enemyType = 'tough';
-            enemyHealth = 3;
-            enemyColor = '#8B0000'; // Dark Red
-            enemyScale = '0.35 0.35 0.35';
-            enemyShape = 'sphere';
+            enemyType = 'tough'; enemyHealth = T_CONFIG.HEALTH; enemyColor = T_CONFIG.COLOR; enemyScale = T_CONFIG.SCALE; enemyShape = T_CONFIG.SHAPE; // Use Configs
             console.log('%c--> Spawning TOUGH Enemy!', 'color: #DC143C; font-weight: bold;');
         }
     }
 
     // 3. Basic Enemy (Default if others didn't spawn)
     if (enemyType === 'basic') {
-         console.log('--> Spawning BASIC Enemy.');
-         // Basic attributes are already set by default
+        const B_CONFIG = GAME_CONFIG.ENEMIES.BASIC; // Alias
+        enemyHealth = B_CONFIG.HEALTH; enemyScale = B_CONFIG.SCALE; enemyShape = B_CONFIG.SHAPE; // Use Config
+        enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`; // Random color remains
     }
 
     // --- Create Enemy Element ---
@@ -1300,7 +1425,8 @@ window.spawnEnemy = function() { // Attached to window
     enemy.setAttribute('hit-receiver', { maxHealth: enemyHealth, initialHealth: enemyHealth });
     enemy.setAttribute('move-towards-target', {
         target: `#${placedTowerEl.id}`,
-        speed: manager.baseSpeed * manager.speedMultiplier // Use current speed multiplier
+        speed: manager.baseSpeed * manager.speedMultiplier, // Uses multiplier updated elsewhere
+        reachDistance: GAME_CONFIG.ENEMIES.TARGET_REACH_DISTANCE // Use Config
     });
 
     // Add to Scene
@@ -1728,11 +1854,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log(`Calculated TARGETED dir: ${shootDirection.x.toFixed(2)}, ${shootDirection.y.toFixed(2)}, ${shootDirection.z.toFixed(2)}`);
 
-        const basePlayerDamage = 1;
-        // Apply multiplicative 15% increase per level
-        const currentPlayerDamage = Math.round(basePlayerDamage * (1.45 ** playerDamageLevel)); // Round to nearest integer
-
-     console.log(`Player shooting. Damage Level: ${playerDamageLevel}, Calculated Damage: ${currentPlayerDamage}`);
+        const basePlayerDamage = GAME_CONFIG.PLAYER.SHOOT_DAMAGE_BASE;
+        const currentPlayerDamage = Math.round(basePlayerDamage * (GAME_CONFIG.PLAYER.DAMAGE_UPGRADE_MULTIPLIER ** playerDamageLevel));
+        console.log(`Player shooting. Damage Level: ${playerDamageLevel}, Calculated Damage: ${currentPlayerDamage}`);
        
         const projectile = document.createElement('a-sphere');
         projectile.setAttribute('radius', '0.1');
@@ -1745,13 +1869,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Attach projectile-hitter component
         projectile.setAttribute('projectile-hitter', {
+            // Use config values for defaults if needed, but most are set here
             direction: shootDirection.clone(),
-            speed: 10,
-            lifetime: 3000,
+            speed: GAME_CONFIG.PROJECTILES.SPEED, // Use Config
+            lifetime: GAME_CONFIG.PROJECTILES.LIFETIME, // Use Config
             targetSelector: '.enemy',
-            damage: currentPlayerDamage // **** ADD DAMAGE DATA ****
+            damage: currentPlayerDamage, // Pass calculated damage
+            isSlowing: false, // Player doesn't slow
+            slowAmount: 0,
+            aoeRadius: 0 // Player doesn't have AoE slow
         });
-         console.log("Projectile component attributes set.");
+        projectile.setAttribute('color', GAME_CONFIG.PROJECTILES.PLAYER_COLOR); // Use Config
+        projectile.setAttribute('radius', GAME_CONFIG.PROJECTILES.PLAYER_RADIUS); // Use Config
 
          sceneInstance.appendChild(projectile);
          console.log("Projectile added to scene.");
@@ -1767,12 +1896,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // Reset state for new game
             isGameSetupComplete = true;
             isGameOver = false; // Ensure game over is false
-            currentMaxTowerHealth = TOWER_MAX_HEALTH;
-            currentTowerHealth = TOWER_MAX_HEALTH; // Reset health
+            currentMaxTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH;
+            currentTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH;
+            scoreForNextLevel = GAME_CONFIG.LEVELING.INITIAL_SCORE_THRESHOLD;
+            scoreGap = GAME_CONFIG.LEVELING.INITIAL_SCORE_GAP;
+            nextShooterUpgradeLevel = GAME_CONFIG.UPGRADES.SHOOTER.INITIAL_LEVEL_CHECK;
+            nextSlowTurretUpgradeLevel = GAME_CONFIG.UPGRADES.UNLOCKS.SLOW_TURRET + GAME_CONFIG.UPGRADES.SLOWER.UPGRADE_FREQUENCY;
             score = 0; // Reset score
             currentLevel = 1; // Reset level
             scoreForNextLevel = 10; // Reset level threshold
-            scoreGap = 10;          // Reset score gap
             upgradeShooter1Placed = false; // Reset upgrade flags
             upgradeShooter2Placed = false;
             window.enemyManager.activeEnemies = 0;
@@ -1792,9 +1924,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
             // Start Enemy Spawner
-            if (window.enemyManager.spawnTimerId) clearInterval(window.enemyManager.spawnTimerId);
-            window.enemyManager.spawnTimerId = setInterval(window.spawnEnemy, window.enemyManager.spawnInterval); // Use window.
-            console.log(`Enemy spawner started with interval: ${window.enemyManager.spawnInterval}ms`);
+            window.enemyManager.spawnTimerId = setInterval(window.spawnEnemy, GAME_CONFIG.ENEMIES.SPAWN_INTERVAL_MS);
+            console.log(`Enemy spawner started with interval: ${GAME_CONFIG.ENEMIES.SPAWN_INTERVAL_MS}ms`);
 
         } else {
              console.log("DEBUG: Condition 'towerPlaced' is FALSE inside listener."); // Log state
@@ -1806,14 +1937,13 @@ document.addEventListener('DOMContentLoaded', () => {
      // --- Try Again Button Listener ---
     tryAgainButton.addEventListener('click', window.resetGame); // Use window.
 
-   // --- Attach Upgrade/Confirm/Manual/Close Listeners directly (NO setTimeout) ---
+   // --- Upgrade/Confirm/Manual/Close Listeners ---
    console.log("DEBUG: Attaching listeners for UPGRADE/Confirm/Close/Manual buttons directly...");
 
    if (upgradeHealthBtn) {
     upgradeHealthBtn.addEventListener('click', () => {
-        console.log("Upgrade Health chosen.");
         if (isGamePaused) {
-             currentMaxTowerHealth += 3;
+             currentMaxTowerHealth += GAME_CONFIG.UPGRADES.HEALTH.HP_INCREASE; // Use Config
              currentTowerHealth = currentMaxTowerHealth;
              window.updateTowerHealthUI();
              console.log(`Health upgraded. Max: ${currentMaxTowerHealth}`);
@@ -1824,13 +1954,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 if (upgradePlayerDamageBtn) {
     upgradePlayerDamageBtn.addEventListener('click', () => {
-         console.log("Upgrade Player Damage chosen.");
          if (isGamePaused) {
-              playerDamageLevel++; // Increment level
-              // Calculate theoretical damage multiplier for logging
-              let multiplier = (1.45 ** playerDamageLevel);
-              console.log(`Player Damage upgraded to Level ${playerDamageLevel}. Multiplier: ${multiplier.toFixed(2)}x (+30% each)`);
-              // The actual damage application happens when projectiles hit
+              playerDamageLevel++;
+              let multiplier = (GAME_CONFIG.PLAYER.DAMAGE_UPGRADE_MULTIPLIER ** playerDamageLevel); // Use Config
+              console.log(`Player Damage upgraded to Level ${playerDamageLevel}. Multiplier: ${multiplier.toFixed(2)}x (+${(GAME_CONFIG.PLAYER.DAMAGE_UPGRADE_MULTIPLIER-1)*100}% each)`);
               window.resumeGame();
          } else { /* Handle manual click */ }
      });
@@ -1838,8 +1965,10 @@ if (upgradePlayerDamageBtn) {
 
  if (upgradeShooterBtn) {
     upgradeShooterBtn.addEventListener('click', () => {
-        console.log("Upgrade Shooter chosen.");
         if (isGamePaused) {
+            const SHOOTER_CONFIG = GAME_CONFIG.UPGRADES.SHOOTER; // Alias
+            const TURRET_CONFIG = GAME_CONFIG.TURRETS.SHOOTER; // Alias
+            const UNLOCKS = GAME_CONFIG.UPGRADES.UNLOCKS; // Alias
             // Determine action: Place 1, Place 2, or Upgrade Level
             if (!upgradeShooter1Placed) {
                  console.log("Initiating placement for Shooter 1...");
@@ -1855,7 +1984,7 @@ if (upgradePlayerDamageBtn) {
                  if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'block';
                  if (confirmPlacementButtonEl) confirmPlacementButtonEl.disabled = true;
                  if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
-             } else if (!upgradeShooter2Placed && currentLevel >= UPGRADE_UNLOCKS.SECOND_SHOOTER) {
+             } else if (!upgradeShooter2Placed && currentLevel >= UNLOCKS.SECOND_SHOOTER) {
                  console.log("Initiating placement for Shooter 2...");
                  placingUpgrade = 'shooter2';
                  // Start placement process... (similar to above)
@@ -1874,16 +2003,14 @@ if (upgradePlayerDamageBtn) {
                 shooterLevel++;
                 console.log(`Selected Shooter Upgrade. Internal Shooter Level now: ${shooterLevel}.`);
             
-                let upgradeApplied = false;
-                let upgradeDescription = "";
+                let upgradeApplied = false; let upgradeDescription = "";
             
                 // Determine and apply effect based on the new shooterLevel
-                if (shooterLevel === 1) { // First Upgrade: Apply Damage I (+30%)
-                     console.log(" -> Applying Shooter Damage Upgrade I (+30%)");
+                if (shooterLevel === SHOOTER_CONFIG.LEVEL_FOR_DAMAGE_1) { // Use Config level
+                    console.log(" -> Applying Shooter Damage Upgrade I");
                      activeShooterUpgrades.forEach(shooterEl => {
                          if (shooterEl?.components['auto-shooter']) {
-                             const baseDamage = 1; // Define base damage
-                             const newDamage = Math.round(baseDamage * 1.3);
+                             const newDamage = Math.round(TURRET_CONFIG.BASE_DAMAGE * SHOOTER_CONFIG.DAMAGE_1_MULTIPLIER); // Use Configs
                              shooterEl.setAttribute('auto-shooter', 'turretDamage', newDamage);
                              console.log(`  - Turret ${shooterEl.id} damage set to ${newDamage}`);
                              upgradeApplied = true;
@@ -1891,35 +2018,35 @@ if (upgradePlayerDamageBtn) {
                      });
                      upgradeDescription = "(Dmg I Applied!)";
             
-                } else if (shooterLevel === 2) { // Second Upgrade: Apply Damage II (+20% on top of previous)
-                    console.log(" -> Applying Shooter Damage Upgrade II (+20%)");
-                     activeShooterUpgrades.forEach(shooterEl => {
-                         if (shooterEl?.components['auto-shooter']) {
-                             const currentDamage = shooterEl.getAttribute('auto-shooter')?.turretDamage || 1.3; // Get current (should be ~1.3)
-                             const newDamage = Math.round(currentDamage * 1.2); // Apply +20%
-                             shooterEl.setAttribute('auto-shooter', 'turretDamage', newDamage);
-                             console.log(`  - Turret ${shooterEl.id} damage increased to ${newDamage}`);
-                             upgradeApplied = true;
-                         }
+                    } else if (shooterLevel === SHOOTER_CONFIG.LEVEL_FOR_DAMAGE_2) { // Use Config level
+                        console.log(" -> Applying Shooter Damage Upgrade II");
+                        activeShooterUpgrades.forEach(shooterEl => {
+                            if (shooterEl?.components['auto-shooter']) {
+                                const currentDamage = shooterEl.getAttribute('auto-shooter')?.turretDamage || (TURRET_CONFIG.BASE_DAMAGE * SHOOTER_CONFIG.DAMAGE_1_MULTIPLIER);
+                                const newDamage = Math.round(currentDamage * SHOOTER_CONFIG.DAMAGE_2_FACTOR); // Use Configs
+                                shooterEl.setAttribute('auto-shooter', 'turretDamage', newDamage);
+                                console.log(`  - Turret ${shooterEl.id} damage increased to ${newDamage}`);
+                                upgradeApplied = true;
+                            }
                      });
                      upgradeDescription = "(Dmg II Applied!)";
             
                 } else { // All other upgrades (Level 0, Level 3+) are speed increases
                     console.log(` -> Applying Shooter Speed Upgrade (Level ${shooterLevel})`);
                     activeShooterUpgrades.forEach(shooterEl => {
-                         if (shooterEl?.components['auto-shooter']) {
-                             const currentDelay = shooterEl.getAttribute('auto-shooter').shootDelay;
-                             const newDelay = Math.max(100, currentDelay * 0.85); // 15% speed increase per level now
-                             shooterEl.setAttribute('auto-shooter', 'shootDelay', newDelay);
-                             console.log(`  - Turret ${shooterEl.id} speed increased (Delay: ${newDelay.toFixed(0)}ms)`);
-                             upgradeApplied = true;
-                         }
+                        if (shooterEl?.components['auto-shooter']) {
+                            const currentDelay = shooterEl.getAttribute('auto-shooter').shootDelay;
+                            const newDelay = Math.max(GAME_CONFIG.TURRETS.MIN_SHOOT_DELAY, currentDelay * SHOOTER_CONFIG.SPEED_INCREASE_FACTOR); // Use Configs
+                            shooterEl.setAttribute('auto-shooter', 'shootDelay', newDelay);
+                            console.log(`  - Turret ${shooterEl.id} speed increased (Delay: ${newDelay.toFixed(0)}ms)`);
+                            upgradeApplied = true;
+                        }
                     });
                      upgradeDescription = `(Speed Lv ${shooterLevel})`; // Indicate speed level
                 }
             
                 // Set next available upgrade level (always 2 levels later)
-                nextShooterUpgradeLevel += 2;
+                nextShooterUpgradeLevel += SHOOTER_CONFIG.UPGRADE_FREQUENCY; // Use Config
                 console.log(`Next shooter upgrade available at Player Lv ${nextShooterUpgradeLevel}.`);
             
                 if (!upgradeApplied) { console.log("No upgrade effect applied (check conditions)."); }
@@ -1940,65 +2067,87 @@ if (upgradePlayerDamageBtn) {
     } else { console.error("Cannot add listener: upgradeShooterBtn is null!"); }
 
        // Slower Turret Upgrade (Place / Upgrade Level)
-       if (upgradeSlowerBtn) {
+      if (upgradeSlowerBtn) {
         upgradeSlowerBtn.addEventListener('click', () => {
             console.log("Upgrade Slower chosen.");
             if (isGamePaused) {
-                if (!upgradeSlowTurretPlaced && currentLevel >= UPGRADE_UNLOCKS.SLOW_TURRET) {
-                     console.log("Initiating placement for Slow Turret...");
-                     placingUpgrade = 'slowTurret'; // Set type for placement
-                     // Start placement process...
+                const SLOWER_CONFIG = GAME_CONFIG.UPGRADES.SLOWER;
+                const UNLOCKS = GAME_CONFIG.UPGRADES.UNLOCKS;
+
+                // Action 1: Place First Slow Turret
+                if (!upgradeSlowTurretPlaced && currentLevel >= UNLOCKS.SLOW_TURRET) {
+                     console.log("Initiating placement for Slow Turret 1...");
+                     placingUpgrade = 'slowTurret1'; // Distinguish first placement
+                     // Start placement process... (Show reticle, confirm button etc.)
                      placedUpgradeEl = null;
+                     const reticleEl = document.getElementById('placement-reticle');
+                     const feedbackEl = document.getElementById('scanning-feedback');
+                     confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area');
+                     confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
+                     if (reticleEl) reticleEl.setAttribute('visible', true);
+                     if (feedbackEl) { feedbackEl.textContent = `Padėti Lėtintoją (1/2)`; feedbackEl.style.display = 'block'; }
+                     if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'block';
+                     if (confirmPlacementButtonEl) confirmPlacementButtonEl.disabled = true;
+                     if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
+                }
+                // Action 2: Place Second Slow Turret
+                else if (upgradeSlowTurretPlaced && !upgradeSlowTurret2Placed && currentLevel >= UNLOCKS.SECOND_SLOW_TURRET) {
+                    console.log("Initiating placement for Slow Turret 2...");
+                    placingUpgrade = 'slowTurret2'; // Distinguish second placement
+                    // Start placement process...
+                    placedUpgradeEl = null;
                     const reticleEl = document.getElementById('placement-reticle');
                     const feedbackEl = document.getElementById('scanning-feedback');
                     confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area');
                     confirmPlacementButtonEl = confirmPlacementButtonEl || document.getElementById('confirmPlacementButton');
                     if (reticleEl) reticleEl.setAttribute('visible', true);
-                    if (feedbackEl) { feedbackEl.textContent = `Padėti ant paviršiaus bokšta`; feedbackEl.style.display = 'block'; }
+                    if (feedbackEl) { feedbackEl.textContent = `Padėti Lėtintoją (2/2)`; feedbackEl.style.display = 'block'; }
                     if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'block';
                     if (confirmPlacementButtonEl) confirmPlacementButtonEl.disabled = true;
                     if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
-                 }  else if (upgradeSlowTurretPlaced && currentLevel >= nextSlowTurretUpgradeLevel) {
+                }
+                // Action 3: Upgrade Existing Slow Turrets
+                else if (upgradeSlowTurretPlaced && upgradeSlowTurret2Placed && currentLevel >= nextSlowTurretUpgradeLevel) {
                     slowTurretLevel++;
-                    nextSlowTurretUpgradeLevel += 3; // Set next available level
-                    console.log(`Upgrading Slow Turret to Level ${slowTurretLevel}. Next upgrade available at Lv ${nextSlowTurretUpgradeLevel}.`);
-                
+                    console.log(`Upgrading Slow Turrets to Level ${slowTurretLevel}.`);
+
                     // Apply upgrade effect (speed + slow%)
                     let turretsUpgraded = 0;
-                    activeSlowTurrets.forEach(turretEl => {
-                        if (turretEl && turretEl.components['auto-shooter']) {
+                    let currentShootDelay = GAME_CONFIG.TURRETS.SLOWER.INITIAL_DELAY; // Use defaults if no active found
+                    let currentSlowPerc = GAME_CONFIG.TURRETS.SLOWER.INITIAL_SLOW_PERCENTAGE;
+                    if (activeSlowTurrets.length > 0 && activeSlowTurrets[0].components['auto-shooter']) {
+                        const currentData = activeSlowTurrets[0].getAttribute('auto-shooter');
+                        currentShootDelay = currentData.shootDelay;
+                        currentSlowPerc = currentData.slowPercentage;
+                    }
+                    const newDelay = Math.max(GAME_CONFIG.TURRETS.MIN_SHOOT_DELAY, currentShootDelay * SLOWER_CONFIG.SPEED_INCREASE_FACTOR);
+                    const newSlowPercentage = Math.min(SLOWER_CONFIG.SLOW_MAX_PERCENTAGE, currentSlowPerc + SLOWER_CONFIG.SLOW_INCREASE_AMOUNT);
+
+                    console.log(` -> Calculated new stats: Delay=${newDelay.toFixed(0)}ms, Slow=${(newSlowPercentage * 100).toFixed(0)}%`);
+
+                    activeSlowTurrets.forEach(turretEl => { // Apply to ALL active slow turrets
+                        if (turretEl?.components['auto-shooter']) {
                             try {
-                                const currentData = turretEl.getAttribute('auto-shooter');
-                                // Speed Increase: +10% -> 90% of current delay
-                                const newDelay = Math.max(100, currentData.shootDelay * 0.9);
-                                // Slow Increase: +20% absolute -> current + 0.2 (capped)
-                                const newSlowPercentage = Math.min(0.9, currentData.slowPercentage + 0.2); // Cap at 90% slow
-                
-                                // Update component attributes directly
-                                turretEl.setAttribute('auto-shooter', {
-                                    shootDelay: newDelay,
-                                    slowPercentage: newSlowPercentage
-                                    // Type and other params remain unchanged
-                                });
-                                console.log(`  - Slow Turret <span class="math-inline">\{turretEl\.id\} upgraded\: Delay\=</span>{newDelay.toFixed(0)}ms, Slow=${(newSlowPercentage * 100).toFixed(0)}%`);
+                                turretEl.setAttribute('auto-shooter', { shootDelay: newDelay, slowPercentage: newSlowPercentage });
                                 turretsUpgraded++;
-                            } catch (err) {
-                                console.error("Error upgrading slow turret:", err);
-                            }
+                            } catch (err) { console.error("Error upgrading slow turret:", err); }
                         }
                     });
+
                     if (turretsUpgraded > 0) {
-                         const descSpan = upgradeSlowerBtn.querySelector('.upgrade-desc');
-                         if(descSpan) descSpan.textContent = "(Stats Increased!)";
+                        nextSlowTurretUpgradeLevel += SLOWER_CONFIG.UPGRADE_FREQUENCY; // Set next available level
+                        console.log(`Next Slow Turret upgrade available at Lv ${nextSlowTurretUpgradeLevel}.`);
+                        const descSpan = upgradeSlowerBtn.querySelector('.upgrade-desc');
+                        if (descSpan) descSpan.textContent = `(Atnaujinta Lvl ${slowTurretLevel})`;
                     } else {
                         console.log("No active slow turrets found to upgrade.");
                     }
                     window.resumeGame();
-                
-                 } else { // Conditions for placing or upgrading not met
+
+                } else { // Conditions for placing or upgrading not met
                      console.log("Slow Turret upgrade not available at this level or condition not met.");
                      window.resumeGame();
-                 }
+                }
             } else { /* Handle manual click */ }
         });
     } else { console.error("Cannot add listener: upgradeSlowerBtn is null!"); }
@@ -2021,9 +2170,10 @@ if (upgradePlayerDamageBtn) {
          });
     } else { console.error("Cannot add listener: closeUpgradePopupBtnEl is null!"); }
 
-    if (confirmPlacementButtonEl) {
-        confirmPlacementButtonEl.addEventListener('click', () => {
-             console.log("Confirm Placement button clicked for:", placingUpgrade);
+    // Confirm Placement Listener
+  if (confirmPlacementButtonEl) {
+    confirmPlacementButtonEl.addEventListener('click', () => {
+        console.log("Confirm Placement button clicked for:", placingUpgrade);
              const currentConfirmArea = document.getElementById('confirm-placement-area');
              const feedbackEl = document.getElementById('scanning-feedback');
              if (placedUpgradeEl && placingUpgrade) {
@@ -2031,28 +2181,36 @@ if (upgradePlayerDamageBtn) {
 
                   // Apply component based on type
                   if (placingUpgrade === 'shooter1' || placingUpgrade === 'shooter2') {
-                      placedUpgradeEl.setAttribute('auto-shooter', {
-                          type: 'damage', // Explicitly set type
-                          shootDelay: 5000 // Initial delay for damage turret
-                          // slowPercentage will use default (0.3) but won't be used by damage type
-                      });
+                    placedUpgradeEl.setAttribute('auto-shooter', {
+                        type: 'damage',
+                        shootDelay: GAME_CONFIG.TURRETS.SHOOTER.INITIAL_DELAY, // Use Config
+                        turretDamage: GAME_CONFIG.TURRETS.SHOOTER.BASE_DAMAGE // Use Config
+                    });
                       activeShooterUpgrades.push(placedUpgradeEl);
                       if (placingUpgrade === 'shooter1') { upgradeShooter1Placed = true; console.log("Shooter 1 marked as placed."); }
                       else { upgradeShooter2Placed = true; console.log("Shooter 2 marked as placed.");}
-                  } else if (placingUpgrade === 'slowTurret') {
-                      // **** CONFIGURE SLOW TURRET ****
-                      placedUpgradeEl.setAttribute('auto-shooter', {
-                          type: 'slow', // Set type to slow
-                          shootDelay: 1000, // Slower base fire rate?
-                          slowPercentage: 0.3 // Initial slow amount
-                      });
-                      // **** --------------------- ****
-                      activeSlowTurrets.push(placedUpgradeEl);
-                      upgradeSlowTurretPlaced = true;
-                      console.log("Slow Turret marked as placed.");
-                      nextSlowTurretUpgradeLevel = currentLevel + 3; // Set next upgrade level availability
-                      console.log(`Next Slow Turret upgrade available at Lv ${nextSlowTurretUpgradeLevel}`);
-                  }
+                    }  else if (placingUpgrade === 'slowTurret1' || placingUpgrade === 'slowTurret2') {
+                        placedUpgradeEl.setAttribute('auto-shooter', {
+                            type: 'slow',
+                            shootDelay: GAME_CONFIG.TURRETS.SLOWER.INITIAL_DELAY,
+                            slowPercentage: GAME_CONFIG.TURRETS.SLOWER.INITIAL_SLOW_PERCENTAGE,
+                            turretDamage: 0
+                        });
+                        activeSlowTurrets.push(placedUpgradeEl); // Add to the array
+  
+                        // Update appropriate placed flag and next upgrade level ONLY after first one
+                        if (placingUpgrade === 'slowTurret1') {
+                            upgradeSlowTurretPlaced = true; // Mark first as placed
+                            console.log("Slow Turret 1 marked as placed.");
+                            // Set the level for the *first* stat upgrade after placing the first turret
+                            nextSlowTurretUpgradeLevel = currentLevel + GAME_CONFIG.UPGRADES.SLOWER.UPGRADE_FREQUENCY;
+                             console.log(`Next Slow Turret upgrade available at Lv ${nextSlowTurretUpgradeLevel}`);
+                        } else { // placingUpgrade === 'slowTurret2'
+                             upgradeSlowTurret2Placed = true; // Mark second as placed
+                             console.log("Slow Turret 2 marked as placed.");
+                             // No need to update nextSlowTurretUpgradeLevel here again
+                        }
+                    }
 
                  // Reset state and UI
                  placingUpgrade = null;
