@@ -1,4 +1,4 @@
-// --- Component defin ---
+// --- Component Definitions ---
 AFRAME.registerComponent('follow-shadow', {
     //  this.data aframe scheme
     schema: {type: 'selector'},
@@ -97,23 +97,27 @@ AFRAME.registerComponent('attach-dom-element', {
 
 AFRAME.registerComponent('projectile-hitter', {
     schema: {
-      speed: { default: 10.0 },
-      lifetime: { default: 3000.0 },
-      direction: { type: 'vec3' },
-      targetSelector: { type: 'string', default: '.enemy' }, // Target enemies
-      collisionRadius: { type: 'number', default: 0.2 },
-      damage: { type: 'number', default: 1 } // **** ADD DAMAGE TO SCHEMA ****
+        speed: { default: 10.0 },
+        lifetime: { default: 3000.0 },
+        direction: { type: 'vec3' },
+        targetSelector: { type: 'string', default: '.enemy' },
+        collisionRadius: { type: 'number', default: 0.2 },
+        damage: { type: 'number', default: 1 },
+        isSlowing: { type: 'boolean', default: false },
+        slowAmount: { type: 'number', default: 0 },
+        aoeRadius: { type: 'number', default: 1.5 } // **** NEW: AoE Radius ****fault: 0 }
+        // **** END SLOWING SCHEMA ****
     },
     init: function () {
-      this.startTime = this.el.sceneEl.time;
-      if (this.data.direction.lengthSq() > 0.001) { this.data.direction.normalize(); }
-      else { this.data.direction.set(0, 0, -1); }
-
-      this.targets = [];
-      this.targetsFound = false;
-      this.projectileWorldPos = new THREE.Vector3();
-      this.targetWorldPos = new THREE.Vector3();
-      this.collisionRadiusSq = this.data.collisionRadius * this.data.collisionRadius;
+        if (this.data.direction.lengthSq() > 0.001) { this.data.direction.normalize(); }
+        else { this.data.direction.set(0, 0, -1); }
+        this.targets = [];
+        this.targetsFound = false;
+        this.projectileWorldPos = new THREE.Vector3();
+        this.targetWorldPos = new THREE.Vector3(); // Position of primary target hit
+        this.otherEnemyWorldPos = new THREE.Vector3(); // For checking nearby enemies
+        this.collisionRadiusSq = this.data.collisionRadius * this.data.collisionRadius;
+        this.aoeRadiusSq = this.data.aoeRadius * this.data.aoeRadius; // Pre-calculate squared radius
 
       // Defer target query slightly
       setTimeout(() => {
@@ -165,28 +169,64 @@ AFRAME.registerComponent('projectile-hitter', {
            return; // Exit tick early if no targets found yet
        }
 
+ // Loop through potential targets
        for (let i = 0; i < this.targets.length; i++) {
-        const target = this.targets[i];
-        if (!target?.object3D) continue;
-        const targetVisible = target.getAttribute('visible'); // Check attribute
-        const hasHitReceiver = target.components['hit-receiver'];
+         const primaryTarget = this.targets[i]; // Renamed for clarity
+         if (!primaryTarget?.object3D) continue;
+         const targetVisibleAttr = primaryTarget.getAttribute('visible');
+         const primaryHitReceiver = primaryTarget.components['hit-receiver'];
 
-        // Use object3D.visible for actual scene visibility check as well
-        if (targetVisible && target.object3D.visible && hasHitReceiver) {
-          target.object3D.getWorldPosition(this.targetWorldPos);
-          const distSq = this.projectileWorldPos.distanceToSquared(this.targetWorldPos);
+         if (targetVisibleAttr && primaryTarget.object3D.visible && primaryHitReceiver) {
+           primaryTarget.object3D.getWorldPosition(this.targetWorldPos); // Store primary target position
+           const distSq = this.projectileWorldPos.distanceToSquared(this.targetWorldPos);
 
-          if (distSq < this.collisionRadiusSq) {
-            console.log(`%c[projectile-hitter] HIT DETECTED with ${target.id}! Damage: ${this.data.damage}`, "color: green; font-weight: bold;");
-            // **** PASS DAMAGE TO HIT METHOD ****
-            hasHitReceiver.hit(this.data.damage);
-            // **** -------------------------- ****
-            if (el.parentNode) { el.parentNode.removeChild(el); } // Remove projectile
-            return; // Exit loop and tick after hit
-          }
-        }
-      }
-    }
+           // --- Collision Detected ---
+           if (distSq < this.collisionRadiusSq) {
+
+             // Apply effect based on projectile type
+             if (data.isSlowing) {
+                 console.log(`%c[projectile-hitter] SLOW HIT on Primary: ${primaryTarget.id}! Amount: ${data.slowAmount * 100}%`, "color: cyan; font-weight: bold;");
+                 // --- Apply Slow to Primary Target ---
+                 primaryHitReceiver.applySlow(data.slowAmount);
+
+                 // --- Apply AoE Slow ---
+                 console.log(`[projectile-hitter] Checking for AoE targets within ${data.aoeRadius}m...`);
+                 const allEnemies = this.el.sceneEl.querySelectorAll(data.targetSelector + '[visible="true"]'); // Get currently visible enemies
+                 let aoeHits = 0;
+
+                 allEnemies.forEach(otherEnemy => {
+                    if (otherEnemy === primaryTarget || !otherEnemy?.object3D?.visible) {
+                        return; // Skip the primary target and non-visible ones
+                    }
+
+                    const secondaryHitReceiver = otherEnemy.components['hit-receiver'];
+                    if (!secondaryHitReceiver) return; // Skip if no hit-receiver
+
+                    // Check distance from the impact point (primary target position)
+                    otherEnemy.object3D.getWorldPosition(this.otherEnemyWorldPos);
+                    const distToImpactSq = this.targetWorldPos.distanceToSquared(this.otherEnemyWorldPos);
+
+                    if (distToImpactSq < this.aoeRadiusSq) {
+                        console.log(`  -> Applying AoE slow to ${otherEnemy.id}`);
+                        secondaryHitReceiver.applySlow(data.slowAmount);
+                        aoeHits++;
+                    }
+                 });
+                 if (aoeHits > 0) console.log(`[projectile-hitter] Applied AoE slow to ${aoeHits} additional targets.`);
+                 // --- End AoE Slow ---
+
+             } else { // Regular Damage Hit
+                 console.log(`%c[projectile-hitter] DAMAGE HIT on: ${primaryTarget.id}! Damage: ${data.damage}`, "color: green; font-weight: bold;");
+                 primaryHitReceiver.hit(data.damage);
+             }
+
+             // Remove Projectile after applying effect(s)
+             if (el.parentNode) { el.parentNode.removeChild(el); }
+             return; // Exit loop and tick after hit
+           }
+         }
+       } // End target loop
+     } // End tick
    });
 
 
@@ -253,6 +293,21 @@ AFRAME.registerComponent('hit-receiver', {
              console.log(`[hit-receiver] Non-enemy ${this.el.id} hit. No action taken.`);
         }
     },
+
+    applySlow: function(slowAmount) {
+        if (!this.isEnemy || isGameOver) return; // Only slow active enemies
+
+        console.log(`[hit-receiver] Applying slow (${(slowAmount * 100).toFixed(0)}%) to ${this.el.id}`);
+        const moveComponent = this.el.components['move-towards-target'];
+
+        if (moveComponent && moveComponent.applySlowEffect) {
+            const SLOW_DURATION_MS = 3000; // Slow lasts for 3 seconds
+            moveComponent.applySlowEffect(slowAmount, SLOW_DURATION_MS);
+        } else {
+            console.warn(`[hit-receiver] Could not find move-towards-target component or applySlowEffect method on ${this.el.id} to apply slow.`);
+        }
+        // Note: Projectile removal is handled by projectile-hitter
+    },
     // **** END HEALTH TEXT UPDATE FUNCTION ****
     remove: function() {
         if (this.respawnTimer) { clearTimeout(this.respawnTimer); }
@@ -276,16 +331,36 @@ AFRAME.registerComponent('move-towards-target', {
         this.targetPosition = new THREE.Vector3();
         this.direction = new THREE.Vector3();
         this.currentPosition = new THREE.Vector3();
+        // **** ADD SLOW STATE VARIABLES ****
+        this.isSlowed = false;
+        this.slowMultiplier = 1.0; // 1.0 means no slow
+        this.slowEndTime = 0;
+        this.originalColor = null; // To store original color when slowed
+        // **** END SLOW STATE ****
 
-        // Add class for easy selection
         this.el.classList.add('enemy');
-        this.el.setAttribute('visible', true); // Ensure visible on init
-        console.log(`[move-towards] Initialized on ${this.el.id || 'enemy'} targeting ${this.data.target?.id || 'null'}. Speed: ${this.data.speed}`);
-
-        if (!this.data.target) {
-             console.error(`[move-towards] Target not set for ${this.el.id}`);
-        }
+        this.el.setAttribute('visible', true);
+        console.log(`[move-towards] Initialized on ${this.el.id || 'enemy'}...`);
+        if (!this.data.target) { /* ... error log ... */ }
     },
+
+    applySlowEffect: function(percentage, duration) {
+        if (isGameOver) return; // Don't apply if game over
+
+        const currentTime = this.el.sceneEl.time;
+        this.isSlowed = true;
+        this.slowMultiplier = Math.max(0, 1.0 - percentage); // Clamp multiplier at 0 (100% slow)
+        this.slowEndTime = currentTime + duration;
+
+        console.log(`[move-towards] ${this.el.id} slowed! Multiplier: ${this.slowMultiplier.toFixed(2)}, EndTime: ${this.slowEndTime.toFixed(0)}`);
+
+        // Visual indicator: Change color to blue
+        try {
+             this.originalColor = this.el.getAttribute('material')?.color || '#FFFFFF'; // Store original
+             this.el.setAttribute('material', 'color', '#87CEEB'); // Set to light blue
+        } catch(e) { console.warn("Could not set slow color indicator", e); }
+    },
+    
     update: function(oldData) {
         // Handle target or speed changes if needed later
          if (oldData.speed !== this.data.speed) {
@@ -298,6 +373,20 @@ AFRAME.registerComponent('move-towards-target', {
     tick: function (time, timeDelta) {
         const targetEl = this.data.target;
         const el = this.el;
+
+        if (this.isSlowed && time > this.slowEndTime) {
+            console.log(`[move-towards] ${this.el.id} slow expired.`);
+            this.isSlowed = false;
+            this.slowMultiplier = 1.0;
+            this.slowEndTime = 0;
+            // Restore original color
+            if (this.originalColor && this.el) {
+                 try {
+                     this.el.setAttribute('material', 'color', this.originalColor);
+                 } catch(e) { console.warn("Could not restore original color after slow", e); }
+            }
+            this.originalColor = null;
+        }
 
         if (!targetEl || !targetEl.object3D || !el.object3D || timeDelta <= 0 || !el.getAttribute('visible') || isGameOver || isGamePaused) {
             return; // Stop if paused, game over, or other issues
@@ -329,7 +418,9 @@ AFRAME.registerComponent('move-towards-target', {
         this.direction.copy(this.targetPosition).sub(this.currentPosition).normalize();
 
         // Calculate movement distance
-        const moveDistance = this.data.speed * (timeDelta / 1000);
+         // **** APPLY SLOW MULTIPLIER TO MOVEMENT ****
+         const moveDistance = this.data.speed * this.slowMultiplier * (timeDelta / 1000);
+         // **** END SPEED MODIFICATION ****
 
         // Move the element
         el.object3D.position.addScaledVector(this.direction, moveDistance);
@@ -351,12 +442,18 @@ AFRAME.registerComponent('move-towards-target', {
 // **** NEW: Auto Shooter Component ****
 AFRAME.registerComponent('auto-shooter', {
     schema: {
-        shootDelay: { type: 'number', default: 1000 }, // Configurable delay (ms)
+        shootDelay: { type: 'number', default: 5000 }, // Base delay for damage turret
         targetSelector: { type: 'string', default: '.enemy' },
         projectileSpeed: { type: 'number', default: 8.0 },
         projectileLifetime: { type: 'number', default: 4000.0 },
         projectileRadius: { type: 'number', default: 0.08 },
-        projectileColor: { type: 'string', default: '#FF8C00' } // Dark Orange
+        projectileColor: { type: 'string', default: '#FF8C00' }, // Default damage color
+        // **** NEW SCHEMA PROPERTIES ****
+        type: { type: 'string', default: 'damage', oneOf: ['damage', 'slow'] }, // Type of turret
+        slowPercentage: { type: 'number', default: 0.3 }, // Base slow amount for slow turret
+        turretDamage: { type: 'number', default: 1 } // **** ADD turretDamage ****
+
+        // **** END NEW SCHEMA ****
     },
 
     init: function () {
@@ -368,6 +465,8 @@ AFRAME.registerComponent('auto-shooter', {
         this.shootDirection = new THREE.Vector3();
         this.projectileStartPos = new THREE.Vector3();
         console.log(`[auto-shooter] Initialized on ${this.el.id}. Shoot Delay: ${this.data.shootDelay}ms`);
+        console.log(`[auto-shooter] Initialized on ${this.el.id}. Type: ${this.data.type}, Delay: ${this.data.shootDelay}ms`);
+
 
     },
 
@@ -430,42 +529,59 @@ AFRAME.registerComponent('auto-shooter', {
         // --- Shoot if a Target Was Found ---
  // --- Shoot if a Closest Visible Target Was Found ---
  if (closestTarget) {
-    console.log(`AUTO-SHOOTER TICK: Closest visible target is ${closestTarget.id}. Firing!`); // <-- UPDATED LOG
+    console.log(`AUTO-SHOOTER (${this.data.type}) TICK: Closest visible target is ${closestTarget.id}. Firing!`);
 
-    // Calculate direction
+    // Calculate direction (same as before)
     closestTarget.object3D.getWorldPosition(this.targetWorldPos);
     this.shootDirection.copy(this.targetWorldPos).sub(this.shooterWorldPos).normalize();
 
     // Create projectile
     const projectile = document.createElement('a-sphere');
     projectile.setAttribute('radius', this.data.projectileRadius);
-    projectile.setAttribute('color', this.data.projectileColor);
     projectile.setAttribute('material', 'shader: flat;');
 
-    // Calculate start position
+    // Calculate start position (same as before)
     const startOffset = 0.2;
     this.projectileStartPos.copy(this.shooterWorldPos).addScaledVector(this.shootDirection, startOffset);
     projectile.setAttribute('position', this.projectileStartPos);
 
-    const turretBaseDamage = 1; // Define base damage for turrets (can be upgraded later)
-
-    // Attach the projectile-hitter component
-    projectile.setAttribute('projectile-hitter', {
+    // **** CONFIGURE PROJECTILE BASED ON TYPE ****
+    let projectileData = {
         direction: this.shootDirection.clone(),
         speed: this.data.projectileSpeed,
         lifetime: this.data.projectileLifetime,
         targetSelector: this.data.targetSelector,
-        damage: turretBaseDamage // **** ADD TURRET DAMAGE DATA ****
-    });
+        // Default damage settings
+        damage: 1,
+        isSlowing: false,
+        slowAmount: 0
+    };
+
+    if (this.data.type === 'slow') {
+        projectile.setAttribute('color', '#FFFFFF');
+        projectileData.damage = 0;
+        projectileData.isSlowing = true;
+        projectileData.slowAmount = this.data.slowPercentage; // Use current slow%
+        // console.log(`   - Slow Projectile Configured: Slow=${projectileData.slowAmount * 100}%`);
+    } else { // 'damage' type
+        projectile.setAttribute('color', this.data.projectileColor);
+         // **** Use turretDamage from component data ****
+        projectileData.damage = this.data.turretDamage;
+        // **** ---------------------------------- ****
+        projectileData.isSlowing = false;
+        // console.log(`   - Damage Projectile Configured: Damage=${projectileData.damage}`);
+    }
+    // **** END PROJECTILE CONFIGURATION ****
+
+    // Attach the projectile-hitter component with configured data
+    projectile.setAttribute('projectile-hitter', projectileData);
 
     // Add to scene and update time
     this.el.sceneEl.appendChild(projectile);
     this.lastShotTime = time;
-} else if (visibleTargetCount > 0) {
-     // This case shouldn't happen if visibleTargetCount > 0, but good for debugging
-     console.log(`AUTO-SHOOTER TICK: Found ${visibleTargetCount} visible targets, but failed to select closest.`);
 }
-}, // End tick function
+// ... (rest of tick logic) ...
+},
 
     remove: function() {
          console.log(`[auto-shooter] Removed from ${this.el.id}`);
@@ -599,7 +715,12 @@ window.updateLevelingState = function() {
         window.increaseEnemySpeed();
         if (currentLevel < MAX_LEVEL) {
             if (oldLevel < 4) { scoreGap = 10; }
-            else { scoreGap = Math.round(scoreGap * 1.5); }
+            else {
+                 // **** CHANGE Multiplier from 1.5 to 1.1 ****
+                 scoreGap = Math.round(scoreGap * 1.1);
+                 // Ensure gap increases by at least 1 to prevent stagnation
+                 scoreGap = Math.max(scoreGap, oldLevel < 4 ? 10 : scoreGap + 1);
+            }
             scoreForNextLevel += scoreGap;
             console.log(`Next level (${currentLevel + 1}) requires score: ${scoreForNextLevel} (Gap: ${scoreGap})`);
         } else {
@@ -630,16 +751,40 @@ window.showLevelUpPopup = function(level) {
 
 // Function to increase enemy speed
 window.increaseEnemySpeed = function() {
+
+    // **** ADD LEVEL CAP CHECK ****
+    const SPEED_CAP_LEVEL = 8;
+    if (currentLevel >= SPEED_CAP_LEVEL) {
+        console.log(`Enemy speed increase capped at Level ${SPEED_CAP_LEVEL}. No further increase.`);
+        // We still need to apply the current capped speed to any *newly* spawned enemies
+        // So, we update existing enemies but DON'T increase the multiplier further.
+        const activeEnemies = document.querySelectorAll('.enemy');
+        console.log(`Found ${activeEnemies.length} active enemies to apply capped speed.`);
+        activeEnemies.forEach(enemyEl => {
+            if (enemyEl.components['move-towards-target']) {
+                const currentBaseSpeed = window.enemyManager.baseSpeed;
+                // Apply the speed based on the multiplier *as it was* when level 8 was reached
+                const cappedSpeed = currentBaseSpeed * window.enemyManager.speedMultiplier;
+                enemyEl.setAttribute('move-towards-target', 'speed', cappedSpeed);
+            }
+        });
+        return; // Exit before increasing multiplier
+    }
+
     window.enemyManager.speedMultiplier *= 1.2; // Slightly reduced increase per level
     console.log(`New enemy speed multiplier: ${window.enemyManager.speedMultiplier.toFixed(2)}`);
-    const activeEnemies = document.querySelectorAll('.enemy');
+
+ const activeEnemies = document.querySelectorAll('.enemy'); // Use '.enemy' class
+    console.log(`Found ${activeEnemies.length} active enemies to update speed.`);
     activeEnemies.forEach(enemyEl => {
         if (enemyEl.components['move-towards-target']) {
             const currentBaseSpeed = window.enemyManager.baseSpeed;
             const newSpeed = currentBaseSpeed * window.enemyManager.speedMultiplier;
             enemyEl.setAttribute('move-towards-target', 'speed', newSpeed);
+        } else {
+             console.warn(`Enemy ${enemyEl.id} missing 'move-towards-target' component during speed update.`);
         }
-    });
+    })
 };
 
 // Modified incrementScore to check for level up
@@ -721,62 +866,77 @@ window.showUpgradePopup = function(pauseGame = false) {
 };
 
 // **** NEW: Helper function to update button states ****
+// (~ Line 771)
 window.updateUpgradePopupButtonStates = function() {
-    // Get fresh references (important if called before DOMContentLoaded finishes fully)
+    // Get fresh references
     upgradeShooterBtn = upgradeShooterBtn || document.getElementById('upgradeShooter');
     upgradeHealthBtn = upgradeHealthBtn || document.getElementById('upgradeHealth');
     upgradeSlowerBtn = upgradeSlowerBtn || document.getElementById('upgradeSlower');
     upgradePlayerDamageBtn = upgradePlayerDamageBtn || document.getElementById('upgradePlayerDamage');
 
-    // --- Logic for each button ---
+    // **** Declare ALL temporary variables needed in this function's scope ****
+    let title, desc, available, nextLvl;
+    let shooterText, shooterDesc, shooterAvailable, shooterNextLvl;
+    let slowerText, slowerDesc, slowerAvailable, slowerNextLvl;
+    let currentMult, nextMult;
+    let currentDmg, currentDelay, nextDelay, nextSlow;
+    // **** End Variable Declarations ****
 
-    // SHOOTER Button Logic
-    let shooterText = "SHOOTER";
-    let shooterDesc = "";
-    let shooterAvailable = false;
-    let shooterNextLvl = -1;
+
+    // --- SHOOTER Button Logic ---
+    shooterText = "SHOOTER"; // Assign to function-scoped variable
+    shooterDesc = "";        // Assign to function-scoped variable
+    shooterAvailable = false;// Assign to function-scoped variable
+    shooterNextLvl = -1;     // Assign to function-scoped variable
 
     if (!upgradeShooter1Placed) {
-        shooterAvailable = true; // Can always place the first one
-        shooterDesc = "Padėti pirmą bokštą";
+        shooterAvailable = true;
+        shooterDesc = "Padėti pirmą bokštą"; // Or "(Place 1st Turret)"
     } else if (!upgradeShooter2Placed && currentLevel >= UPGRADE_UNLOCKS.SECOND_SHOOTER) {
         shooterAvailable = true;
-        shooterDesc = "Padėti antrą bokstą";
+        shooterDesc = "Padėti antrą bokstą"; // Or "(Place 2nd Turret)"
     } else if (!upgradeShooter2Placed && currentLevel < UPGRADE_UNLOCKS.SECOND_SHOOTER) {
         shooterAvailable = false;
-        shooterDesc = "Padėti pirmą bosktą"; // Show Place 1st as disabled until Lv 10
+        shooterDesc = "Padėti antrą bokstą"; // Keep description but show level lock
         shooterNextLvl = UPGRADE_UNLOCKS.SECOND_SHOOTER;
     } else { // Both placed, check for upgrades
         if (currentLevel >= nextShooterUpgradeLevel) {
              shooterAvailable = true;
-             // Determine next upgrade type based on shooterLevel or specific level thresholds
-             if (currentLevel >= UPGRADE_UNLOCKS.SHOOTER_DAMAGE_2 && shooterLevel >= 2) { // Example threshold check
-                 shooterDesc = "(+20% Turret Damage)";
-                 shooterLevel = 2; // Max level for now
-             } else if (currentLevel >= UPGRADE_UNLOCKS.SHOOTER_DAMAGE_1 && shooterLevel >= 1) {
-                 shooterDesc = "(+30% Turret Damage)";
-                 shooterLevel = 1;
+             // Determine next upgrade description based on current shooterLevel
+             if (shooterLevel === 0) {
+                 desc = `Damage: 1 -> ${Math.round(1 * 1.3)}`;
+             } else if (shooterLevel === 1) {
+                 currentDmg = 1.3;
+                 if(activeShooterUpgrades.length > 0) { currentDmg = activeShooterUpgrades[0].getAttribute('auto-shooter')?.turretDamage || 1.3; }
+                 desc = `Damage: ${currentDmg.toFixed(1)} -> ${Math.round(currentDmg * 1.2)}`;
              } else {
-                 shooterDesc = "(Increase Turret Speed)";
-                 shooterLevel = 0;
+                  currentDelay = 5000;
+                  if(activeShooterUpgrades.length > 0) { currentDelay = activeShooterUpgrades[0].getAttribute('auto-shooter')?.shootDelay || 5000; }
+                  desc = `Speed Up (Delay ${currentDelay.toFixed(0)} -> ${Math.max(100, currentDelay * 0.85).toFixed(0)}ms)`;
              }
+             shooterDesc = desc; // Assign calculated description
         } else {
             shooterAvailable = false;
-            shooterDesc = "(Upgrade Turrets)";
+            shooterDesc = "(Atnaujinti šaudyklę)"; // Or "(Upgrade Turrets)"
             shooterNextLvl = nextShooterUpgradeLevel;
         }
     }
+    // Log values right before the call causing issues previously
+    // console.log("DEBUG Shooter State:", { upgradeShooterBtn, shooterText, shooterDesc, shooterAvailable, shooterNextLvl });
     window.setUpgradeButtonState(upgradeShooterBtn, shooterText, shooterDesc, shooterAvailable, shooterNextLvl);
 
 
-    // HEALTH Button Logic (Always available)
-    window.setUpgradeButtonState(upgradeHealthBtn, "HEALTH", "(+3 Max HP)", true);
+    // --- HEALTH Button Logic ---
+    title = "HEALTH"; // Assign to function-scoped variable
+    available = true;
+    desc = `Max HP: ${currentMaxTowerHealth} -> ${currentMaxTowerHealth + 3}`;
+    window.setUpgradeButtonState(upgradeHealthBtn, title, desc, available);
 
-    // SLOWER Button Logic
-    let slowerText = "SLOWER";
-    let slowerDesc = "";
-    let slowerAvailable = false;
-    let slowerNextLvl = -1;
+    // --- SLOWER Button Logic ---
+    slowerText = "SLOWER"; // Assign to function-scoped variable
+    slowerDesc = "";       // Assign to function-scoped variable
+    slowerAvailable = false; // Assign to function-scoped variable (declared at top)
+    slowerNextLvl = -1;    // Assign to function-scoped variable
 
     if (!upgradeSlowTurretPlaced) {
         if (currentLevel >= UPGRADE_UNLOCKS.SLOW_TURRET) {
@@ -790,20 +950,40 @@ window.updateUpgradePopupButtonStates = function() {
     } else { // Placed, check for upgrades
         if (currentLevel >= nextSlowTurretUpgradeLevel) {
             slowerAvailable = true;
-            slowerDesc = "Atnaujinti lėtą bokštą"; // Speed + Slow %
+            // Calculate next state
+            currentDelay = 6000; // Estimate default
+            let currentSlow = 0.3;
+            if (activeSlowTurrets.length > 0) {
+                const currentData = activeSlowTurrets[0].getAttribute('auto-shooter');
+                if (currentData) {
+                    currentDelay = currentData.shootDelay;
+                    currentSlow = currentData.slowPercentage;
+                }
+            }
+            nextDelay = Math.max(100, currentDelay * 0.9).toFixed(0);
+            nextSlow = Math.min(0.9, currentSlow + 0.2) * 100;
+            slowerDesc = `Speed/Slow: ${currentSlow * 100}% -> ${nextSlow.toFixed(0)}%`;
         } else {
             slowerAvailable = false;
-            slowerDesc = "Atnaujinti lėtą bokštą";
+            slowerDesc = "Atnaujinti lėtą bokštą"; // Or "(Upgrade Slow Turret)"
             slowerNextLvl = nextSlowTurretUpgradeLevel;
         }
     }
-     window.setUpgradeButtonState(upgradeSlowerBtn, slowerText, slowerDesc, slowerAvailable, slowerNextLvl);
+    // Log values right before the call
+    // console.log("DEBUG Slower State:", { upgradeSlowerBtn, slowerText, slowerDesc, slowerAvailable, slowerNextLvl });
+    window.setUpgradeButtonState(upgradeSlowerBtn, slowerText, slowerDesc, slowerAvailable, slowerNextLvl);
 
 
-    // PLAYER DAMAGE Button Logic (Always available)
-     window.setUpgradeButtonState(upgradePlayerDamageBtn, "DAMAGE", "(+15% Žaidėjo Damage)", true);
+    // --- PLAYER DAMAGE Button Logic ---
+    title = "DAMAGE"; // Assign to function-scoped variable
+    available = true;
+    currentMult = (1.30 ** playerDamageLevel);
+    nextMult = (1.30 ** (playerDamageLevel + 1));
+    desc = `Player Dmg: ${currentMult.toFixed(2)}x -> ${nextMult.toFixed(2)}x`;
+    window.setUpgradeButtonState(upgradePlayerDamageBtn, title, desc, available);
+}; // End of updateUpgradePopupButtonStates function
 
-};
+
 // Helper to set state for a single upgrade button
 window.setUpgradeButtonState = function(buttonEl, title, description, available, nextLevel = -1) {
     if (!buttonEl) return;
@@ -1050,9 +1230,9 @@ window.spawnEnemy = function() { // Attached to window
 
     // 1. Check for Toughest Enemy
     if (score >= SCORE_THRESHOLD_TOUGHEST) {
-        const baseChanceToughest = 0.2; // 50% at score 30
+        const baseChanceToughest = 0.1; // 50% at score 30
         const scoreAboveThreshold = score - SCORE_THRESHOLD_TOUGHEST;
-        const additionalChance = Math.floor(scoreAboveThreshold / 5) * 0.05; // +5% for every 5 points above 30
+        const additionalChance = Math.floor(scoreAboveThreshold / 10) * 0.05; // +5% for every 5 points above 30
         const toughestSpawnChance = Math.min(1.0, baseChanceToughest + additionalChance); // Cap at 100%
 
         console.log(`Score ${score}, Toughest Chance: ${(toughestSpawnChance * 100).toFixed(0)}%`); // Log chance
@@ -1550,7 +1730,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const basePlayerDamage = 1;
         // Apply multiplicative 15% increase per level
-        const currentPlayerDamage = Math.round(basePlayerDamage * (1.30 ** playerDamageLevel)); // Round to nearest integer
+        const currentPlayerDamage = Math.round(basePlayerDamage * (1.45 ** playerDamageLevel)); // Round to nearest integer
 
      console.log(`Player shooting. Damage Level: ${playerDamageLevel}, Calculated Damage: ${currentPlayerDamage}`);
        
@@ -1648,8 +1828,8 @@ if (upgradePlayerDamageBtn) {
          if (isGamePaused) {
               playerDamageLevel++; // Increment level
               // Calculate theoretical damage multiplier for logging
-              let multiplier = (1.15 ** playerDamageLevel);
-              console.log(`Player Damage upgraded to Level ${playerDamageLevel}. Multiplier: ${multiplier.toFixed(2)}x`);
+              let multiplier = (1.45 ** playerDamageLevel);
+              console.log(`Player Damage upgraded to Level ${playerDamageLevel}. Multiplier: ${multiplier.toFixed(2)}x (+30% each)`);
               // The actual damage application happens when projectiles hit
               window.resumeGame();
          } else { /* Handle manual click */ }
@@ -1689,22 +1869,68 @@ if (upgradePlayerDamageBtn) {
                  if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'block';
                  if (confirmPlacementButtonEl) confirmPlacementButtonEl.disabled = true;
                  if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
-             } else if (upgradeShooter1Placed && currentLevel >= nextShooterUpgradeLevel) { // Check if upgrade is due
+             }   else if (upgradeShooter1Placed && currentLevel >= nextShooterUpgradeLevel) { // Check if UPGRADE is due
+                // Increment internal level FIRST to decide effect
                 shooterLevel++;
-                nextShooterUpgradeLevel += 2; // Set next available level
-                console.log(`Upgrading Shooters to Level ${shooterLevel}. Next upgrade available at Lv ${nextShooterUpgradeLevel}.`);
-                // Apply the upgrade effect (e.g., speed first)
-                activeShooterUpgrades.forEach(shooterEl => {
-                     if (shooterEl && shooterEl.components['auto-shooter']) {
-                         const currentDelay = shooterEl.getAttribute('auto-shooter').shootDelay;
-                         const newDelay = Math.max(100, currentDelay * 0.8); // Example: 20% speed increase
-                         shooterEl.setAttribute('auto-shooter', 'shootDelay', newDelay);
-                         console.log(`  - Turret ${shooterEl.id} speed increased (Delay: ${newDelay.toFixed(0)}ms)`);
-                     }
-                     // Add logic for damage upgrades based on shooterLevel later
-                });
-                window.resumeGame();
-             } else {
+                console.log(`Selected Shooter Upgrade. Internal Shooter Level now: ${shooterLevel}.`);
+            
+                let upgradeApplied = false;
+                let upgradeDescription = "";
+            
+                // Determine and apply effect based on the new shooterLevel
+                if (shooterLevel === 1) { // First Upgrade: Apply Damage I (+30%)
+                     console.log(" -> Applying Shooter Damage Upgrade I (+30%)");
+                     activeShooterUpgrades.forEach(shooterEl => {
+                         if (shooterEl?.components['auto-shooter']) {
+                             const baseDamage = 1; // Define base damage
+                             const newDamage = Math.round(baseDamage * 1.3);
+                             shooterEl.setAttribute('auto-shooter', 'turretDamage', newDamage);
+                             console.log(`  - Turret ${shooterEl.id} damage set to ${newDamage}`);
+                             upgradeApplied = true;
+                         }
+                     });
+                     upgradeDescription = "(Dmg I Applied!)";
+            
+                } else if (shooterLevel === 2) { // Second Upgrade: Apply Damage II (+20% on top of previous)
+                    console.log(" -> Applying Shooter Damage Upgrade II (+20%)");
+                     activeShooterUpgrades.forEach(shooterEl => {
+                         if (shooterEl?.components['auto-shooter']) {
+                             const currentDamage = shooterEl.getAttribute('auto-shooter')?.turretDamage || 1.3; // Get current (should be ~1.3)
+                             const newDamage = Math.round(currentDamage * 1.2); // Apply +20%
+                             shooterEl.setAttribute('auto-shooter', 'turretDamage', newDamage);
+                             console.log(`  - Turret ${shooterEl.id} damage increased to ${newDamage}`);
+                             upgradeApplied = true;
+                         }
+                     });
+                     upgradeDescription = "(Dmg II Applied!)";
+            
+                } else { // All other upgrades (Level 0, Level 3+) are speed increases
+                    console.log(` -> Applying Shooter Speed Upgrade (Level ${shooterLevel})`);
+                    activeShooterUpgrades.forEach(shooterEl => {
+                         if (shooterEl?.components['auto-shooter']) {
+                             const currentDelay = shooterEl.getAttribute('auto-shooter').shootDelay;
+                             const newDelay = Math.max(100, currentDelay * 0.85); // 15% speed increase per level now
+                             shooterEl.setAttribute('auto-shooter', 'shootDelay', newDelay);
+                             console.log(`  - Turret ${shooterEl.id} speed increased (Delay: ${newDelay.toFixed(0)}ms)`);
+                             upgradeApplied = true;
+                         }
+                    });
+                     upgradeDescription = `(Speed Lv ${shooterLevel})`; // Indicate speed level
+                }
+            
+                // Set next available upgrade level (always 2 levels later)
+                nextShooterUpgradeLevel += 2;
+                console.log(`Next shooter upgrade available at Player Lv ${nextShooterUpgradeLevel}.`);
+            
+                if (!upgradeApplied) { console.log("No upgrade effect applied (check conditions)."); }
+                else {
+                    // Optionally update button description temporarily after upgrade
+                    const descSpan = upgradeShooterBtn.querySelector('.upgrade-desc');
+                    if (descSpan) descSpan.textContent = upgradeDescription;
+                }
+                window.resumeGame(); // Resume after applying
+            
+             } else { // Conditions for placing 2nd shooter or upgrading not met
                  console.log("Shooter upgrade not available at this level or condition not met.");
                  window.resumeGame(); // Resume even if no action taken
              }
@@ -1713,13 +1939,14 @@ if (upgradePlayerDamageBtn) {
         });
     } else { console.error("Cannot add listener: upgradeShooterBtn is null!"); }
 
-    if (upgradeSlowerBtn) {
+       // Slower Turret Upgrade (Place / Upgrade Level)
+       if (upgradeSlowerBtn) {
         upgradeSlowerBtn.addEventListener('click', () => {
             console.log("Upgrade Slower chosen.");
             if (isGamePaused) {
                 if (!upgradeSlowTurretPlaced && currentLevel >= UPGRADE_UNLOCKS.SLOW_TURRET) {
                      console.log("Initiating placement for Slow Turret...");
-                     placingUpgrade = 'slowTurret';
+                     placingUpgrade = 'slowTurret'; // Set type for placement
                      // Start placement process...
                      placedUpgradeEl = null;
                     const reticleEl = document.getElementById('placement-reticle');
@@ -1731,17 +1958,44 @@ if (upgradePlayerDamageBtn) {
                     if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'block';
                     if (confirmPlacementButtonEl) confirmPlacementButtonEl.disabled = true;
                     if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
-                 } else if (upgradeSlowTurretPlaced && currentLevel >= nextSlowTurretUpgradeLevel) {
+                 }  else if (upgradeSlowTurretPlaced && currentLevel >= nextSlowTurretUpgradeLevel) {
                     slowTurretLevel++;
                     nextSlowTurretUpgradeLevel += 3; // Set next available level
                     console.log(`Upgrading Slow Turret to Level ${slowTurretLevel}. Next upgrade available at Lv ${nextSlowTurretUpgradeLevel}.`);
-                    // Apply upgrade effect (speed + slow%) - Requires component modification
+                
+                    // Apply upgrade effect (speed + slow%)
+                    let turretsUpgraded = 0;
                     activeSlowTurrets.forEach(turretEl => {
-                        // TODO: Add logic to modify slow turret component attributes
-                        console.log(`  - Slow Turret ${turretEl.id} upgraded (Effect TBD)`);
+                        if (turretEl && turretEl.components['auto-shooter']) {
+                            try {
+                                const currentData = turretEl.getAttribute('auto-shooter');
+                                // Speed Increase: +10% -> 90% of current delay
+                                const newDelay = Math.max(100, currentData.shootDelay * 0.9);
+                                // Slow Increase: +20% absolute -> current + 0.2 (capped)
+                                const newSlowPercentage = Math.min(0.9, currentData.slowPercentage + 0.2); // Cap at 90% slow
+                
+                                // Update component attributes directly
+                                turretEl.setAttribute('auto-shooter', {
+                                    shootDelay: newDelay,
+                                    slowPercentage: newSlowPercentage
+                                    // Type and other params remain unchanged
+                                });
+                                console.log(`  - Slow Turret <span class="math-inline">\{turretEl\.id\} upgraded\: Delay\=</span>{newDelay.toFixed(0)}ms, Slow=${(newSlowPercentage * 100).toFixed(0)}%`);
+                                turretsUpgraded++;
+                            } catch (err) {
+                                console.error("Error upgrading slow turret:", err);
+                            }
+                        }
                     });
+                    if (turretsUpgraded > 0) {
+                         const descSpan = upgradeSlowerBtn.querySelector('.upgrade-desc');
+                         if(descSpan) descSpan.textContent = "(Stats Increased!)";
+                    } else {
+                        console.log("No active slow turrets found to upgrade.");
+                    }
                     window.resumeGame();
-                 } else {
+                
+                 } else { // Conditions for placing or upgrading not met
                      console.log("Slow Turret upgrade not available at this level or condition not met.");
                      window.resumeGame();
                  }
@@ -1772,18 +2026,27 @@ if (upgradePlayerDamageBtn) {
              console.log("Confirm Placement button clicked for:", placingUpgrade);
              const currentConfirmArea = document.getElementById('confirm-placement-area');
              const feedbackEl = document.getElementById('scanning-feedback');
-             if (placedUpgradeEl && placingUpgrade) { // Check if we have a visual and type
+             if (placedUpgradeEl && placingUpgrade) {
                   console.log(`Finalizing placement for ${placingUpgrade}...`);
 
                   // Apply component based on type
                   if (placingUpgrade === 'shooter1' || placingUpgrade === 'shooter2') {
-                      placedUpgradeEl.setAttribute('auto-shooter', { shootDelay: 5000 }); // Initial delay
+                      placedUpgradeEl.setAttribute('auto-shooter', {
+                          type: 'damage', // Explicitly set type
+                          shootDelay: 5000 // Initial delay for damage turret
+                          // slowPercentage will use default (0.3) but won't be used by damage type
+                      });
                       activeShooterUpgrades.push(placedUpgradeEl);
                       if (placingUpgrade === 'shooter1') { upgradeShooter1Placed = true; console.log("Shooter 1 marked as placed."); }
                       else { upgradeShooter2Placed = true; console.log("Shooter 2 marked as placed.");}
                   } else if (placingUpgrade === 'slowTurret') {
-                      // TODO: Add component for slowing turret
-                      // placedUpgradeEl.setAttribute('slowing-shooter', { slowAmount: 0.3, shootDelay: 6000 }); // Example
+                      // **** CONFIGURE SLOW TURRET ****
+                      placedUpgradeEl.setAttribute('auto-shooter', {
+                          type: 'slow', // Set type to slow
+                          shootDelay: 1000, // Slower base fire rate?
+                          slowPercentage: 0.3 // Initial slow amount
+                      });
+                      // **** --------------------- ****
                       activeSlowTurrets.push(placedUpgradeEl);
                       upgradeSlowTurretPlaced = true;
                       console.log("Slow Turret marked as placed.");
