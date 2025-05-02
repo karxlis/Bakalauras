@@ -673,6 +673,8 @@ const GAME_CONFIG = {
         VIEW_CONE_DOT_THRESHOLD: 0.3, // How far behind player they can spawn
         Y_POS_CLAMP_MIN: 0.2,
         Y_POS_CLAMP_MAX: 3.0,
+        MIN_ENEMY_SEPARATION_SQ: 1.5 * 1.5, 
+
         // Enemy Types & Chances
         TOUGH: {
             SCORE_THRESHOLD: 10,
@@ -1195,71 +1197,115 @@ window.resumeGame = function(forceClosePopup = true) {
 
 
 // **** ADD GAME RESET LOGIC ****
+// (~ Line 910)
 window.resetGame = function() {
     console.log("Resetting game...");
+
+    // Reset state variables (Keep all these)
     isGameOver = false;
     isGameSetupComplete = false;
     towerPlaced = false;
     score = 0;
     currentLevel = 1;
-    scoreForNextLevel = GAME_CONFIG.LEVELING.INITIAL_SCORE_THRESHOLD; // Use Config
-    scoreGap = GAME_CONFIG.LEVELING.INITIAL_SCORE_GAP; // Use Config
-    currentMaxTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH; // Use Config
-    currentTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH; // Use Config
+    scoreForNextLevel = GAME_CONFIG.LEVELING.INITIAL_SCORE_THRESHOLD;
+    scoreGap = GAME_CONFIG.LEVELING.INITIAL_SCORE_GAP;
+    currentMaxTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH;
+    currentTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH;
     window.enemyManager.activeEnemies = 0;
     window.enemyManager.speedMultiplier = 1.0;
     isGamePaused = false;
     placingUpgrade = null;
-    // Reset upgrade states
     upgradeShooter1Placed = false;
     upgradeShooter2Placed = false;
     upgradeSlowTurretPlaced = false;
+    upgradeSlowTurret2Placed = false;
     shooterLevel = 0;
     playerDamageLevel = 0;
     slowTurretLevel = 0;
-    nextShooterUpgradeLevel = GAME_CONFIG.UPGRADES.SHOOTER.INITIAL_LEVEL_CHECK; // Use Config
-    nextSlowTurretUpgradeLevel = GAME_CONFIG.UPGRADES.UNLOCKS.SLOW_TURRET + GAME_CONFIG.UPGRADES.SLOWER.UPGRADE_FREQUENCY; // Use Configs
-    window.enemyManager.baseSpeed = GAME_CONFIG.ENEMIES.BASE_SPEED; // Use Config
-    window.enemyManager.spawnInterval = GAME_CONFIG.ENEMIES.SPAWN_INTERVAL_MS; // Use Config
-    // ... (rest of reset logic) ...
+    nextShooterUpgradeLevel = GAME_CONFIG.UPGRADES.SHOOTER.INITIAL_LEVEL_CHECK;
+    nextSlowTurretUpgradeLevel = GAME_CONFIG.UPGRADES.UNLOCKS.SLOW_TURRET + GAME_CONFIG.UPGRADES.SLOWER.UPGRADE_FREQUENCY;
+    window.enemyManager.baseSpeed = GAME_CONFIG.ENEMIES.BASE_SPEED;
+    window.enemyManager.spawnInterval = GAME_CONFIG.ENEMIES.SPAWN_INTERVAL_MS;
 
+
+    // Clear spawner (Keep)
     if (window.enemyManager.spawnTimerId) { clearInterval(window.enemyManager.spawnTimerId); window.enemyManager.spawnTimerId = null; }
+
+    // Hide Game Over screen (Keep)
     if (gameOverScreenEl) gameOverScreenEl.style.display = 'none';
-    if (placedTowerEl && placedTowerEl.parentNode) placedTowerEl.parentNode.removeChild(placedTowerEl);
+
+    // Remove placed tower (Keep)
+    if (placedTowerEl && placedTowerEl.parentNode) {
+        placedTowerEl.parentNode.removeChild(placedTowerEl);
+    }
     placedTowerEl = null;
+
+    // Remove placed upgrades (Keep)
     activeShooterUpgrades.forEach(shooter => { if (shooter.parentNode) shooter.parentNode.removeChild(shooter); });
     activeShooterUpgrades = [];
-    activeSlowTurrets.forEach(turret => { if (turret.parentNode) turret.parentNode.removeChild(turret); }); // Remove slow turrets
+    activeSlowTurrets.forEach(turret => { if (turret.parentNode) turret.parentNode.removeChild(turret); });
     activeSlowTurrets = [];
     console.log("Removed active upgrades.");
 
+    // Remove enemies and projectiles (Keep)
     const entitiesToRemove = document.querySelectorAll('.enemy, [projectile-hitter]');
     entitiesToRemove.forEach(el => { if (el.parentNode) el.parentNode.removeChild(el); });
     console.log(`Removed ${entitiesToRemove.length} enemies/projectiles.`);
 
+
+    // Reset UI elements (Keep these updates)
     window.updateScoreDisplay();
     window.updateTowerHealthUI();
     window.updateLevelDisplay();
+
+    // **** MODIFY UI RESET FOR AR MODE ****
     if (sceneElGlobal && sceneElGlobal.is('ar-mode')) {
+        // Reset UI directly to the "Surface Found, Place Tower" state
+        console.log('Resetting UI to Place Tower state (AR Mode).');
+
         const scanningFeedbackEl = document.getElementById('scanning-feedback');
         const placeTowerPopupEl = document.getElementById('place-tower-popup');
         const controlsWidget = document.getElementById('controls-widget');
         const shootButton = document.getElementById('shootButton');
         const startGameButton = document.getElementById('startGameButton');
         const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
-        if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'block';
-        if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
-        if (controlsWidget) controlsWidget.style.display = 'none';
-        if (shootButton) shootButton.disabled = true;
-        if (startGameButton) startGameButton.disabled = true;
-        if (towerPlacedFeedback) towerPlacedFeedback.style.display = 'none';
-        window.updateTowerHealthUI();
         const reticleEl = document.getElementById('placement-reticle');
-        if (reticleEl) reticleEl.setAttribute('visible', false);
+        const confirmArea = document.getElementById('confirm-placement-area'); // Ensure confirm area is hidden too
+
+        // Hide scanning feedback and general controls
+        if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'none';
+        if (controlsWidget) controlsWidget.style.display = 'none';
+        if (confirmArea) confirmArea.style.display = 'none';
+
+
+        // Show the "Place Tower" popup
+        if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'block';
+
+        // Ensure buttons within the popup are in the correct initial state
+        if (startGameButton) startGameButton.disabled = true; // Start button must be disabled
+        if (towerPlacedFeedback) towerPlacedFeedback.style.display = 'none'; // Hide placement feedback
+
+        // Ensure main game buttons are disabled/hidden
+        if (shootButton) shootButton.disabled = true;
+
+        // Show the placement reticle (ready for placement)
+        if (reticleEl) reticleEl.setAttribute('visible', 'true');
+
+        // Ensure health is hidden initially as game hasn't started
+         window.updateTowerHealthUI(); // This function already hides it if isGameSetupComplete is false
+
+
     } else {
-        const controlsWidget = document.getElementById('controls-widget');
-        if (controlsWidget) controlsWidget.style.display = 'block';
+        // Non-AR mode reset (remains the same)
+         const controlsWidget = document.getElementById('controls-widget');
+         if(controlsWidget) controlsWidget.style.display = 'block'; // Show controls if not in AR
+         // Hide AR specific popups if they were somehow visible
+         const placeTowerPopupEl = document.getElementById('place-tower-popup');
+         if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
+         const scanningFeedbackEl = document.getElementById('scanning-feedback');
+         if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'none';
     }
+    // **** END MODIFIED UI RESET ****
 };
 
 
@@ -1284,8 +1330,9 @@ window.spawnEnemy = function() { // Attached to window
     const towerToCamDir = new THREE.Vector3();
     const spawnBaseDir = new THREE.Vector3();
     const spawnOffsetDir = new THREE.Vector3();
-    const spawnPos = new THREE.Vector3();
+    const spawnPos = new THREE.Vector3(); // Calculated potential spawn position
     const camToSpawnDir = new THREE.Vector3();
+    const activeEnemyPos = new THREE.Vector3(); // For checking proximity
 
     // Get world positions/directions
     cameraEl.object3D.getWorldPosition(camPos);
@@ -1304,7 +1351,7 @@ window.spawnEnemy = function() { // Attached to window
     spawnBaseDir.y = 0;
     spawnBaseDir.normalize();
     // 2. Angular Offset
-    const angleRange = Math.PI / 3.0;
+    const angleRange = GAME_CONFIG.ENEMIES.SPAWN_ANGLE_RANGE_RAD;
     const randomAngle = (Math.random() - 0.5) * angleRange;
     const rotationAxis = new THREE.Vector3(0, 1, 0);
     spawnOffsetDir.copy(spawnBaseDir).applyAxisAngle(rotationAxis, randomAngle);
@@ -1314,45 +1361,59 @@ window.spawnEnemy = function() { // Attached to window
     spawnPos.copy(towerPos).addScaledVector(spawnOffsetDir, spawnDistance);
 
     // --- Validation Checks (Logic remains the same) ---
+
+    // --- Validation Checks --- (Remain the same)
     // A. Behind tower check
     towerToCamDir.copy(camPos).sub(towerPos).normalize();
     const towerToSpawnDir = new THREE.Vector3().copy(spawnPos).sub(towerPos).normalize();
     const dotSideCheck = towerToCamDir.dot(towerToSpawnDir);
     if (dotSideCheck > -0.2) {
-        // console.warn(`Spawn rejected: Not clearly behind tower relative to cam (dotSideCheck: ${dotSideCheck.toFixed(2)}). Retrying.`); // Less verbose logging
-        // Consider trying again instead of just returning
-        setTimeout(window.spawnEnemy, 50); // Retry slightly later
-        return;
+        if (GAME_CONFIG.DEBUG_LOGS.spawnValidation) console.warn("Spawn rejected: Not behind tower.");
+        setTimeout(window.spawnEnemy, GAME_CONFIG.TIMINGS.SPAWN_RETRY_DELAY_MS); return;
     }
     // B. Min distance from Camera
-    const minCamDistSq = 5 * 5;
-    if (spawnPos.distanceToSquared(camPos) < minCamDistSq) {
-        // console.warn("Spawn rejected: Too close to the camera. Retrying.");
-        setTimeout(window.spawnEnemy, 50); // Retry slightly later
-        return;
+    if (spawnPos.distanceToSquared(camPos) < GAME_CONFIG.ENEMIES.MIN_DIST_FROM_CAM_SQ) {
+        if (GAME_CONFIG.DEBUG_LOGS.spawnValidation) console.warn("Spawn rejected: Too close to camera.");
+        setTimeout(window.spawnEnemy, GAME_CONFIG.TIMINGS.SPAWN_RETRY_DELAY_MS); return;
     }
     // C. Min distance from Tower
-    const minDistTowerSq = 6 * 6;
-    if (spawnPos.distanceToSquared(towerPos) < minDistTowerSq) {
-        // console.warn(`Spawn rejected: Calculated position too close to tower (DistSq: ${spawnPos.distanceToSquared(towerPos).toFixed(2)}). Retrying.`);
-       setTimeout(window.spawnEnemy, 50); // Retry slightly later
-       return;
+    if (spawnPos.distanceToSquared(towerPos) < GAME_CONFIG.ENEMIES.MIN_DIST_FROM_TOWER_SQ) {
+       if (GAME_CONFIG.DEBUG_LOGS.spawnValidation) console.warn("Spawn rejected: Too close to tower.");
+       setTimeout(window.spawnEnemy, GAME_CONFIG.TIMINGS.SPAWN_RETRY_DELAY_MS); return;
     }
     // D. Check camera view
     camToSpawnDir.copy(spawnPos).sub(camPos).normalize();
     const dotCamView = camDir.dot(camToSpawnDir);
-     // Allow spawning slightly behind the direct view to make it harder
-    if (dotCamView > 0.3) { // More lenient check (acos(0.3) ~ 72 degrees)
-        // console.warn(`Spawn rejected: Position outside forward camera view cone (dotCamView: ${dotCamView.toFixed(2)}). Retrying.`);
-        setTimeout(window.spawnEnemy, 50); // Retry slightly later
-        return;
+    if (dotCamView > GAME_CONFIG.ENEMIES.VIEW_CONE_DOT_THRESHOLD) {
+        if (GAME_CONFIG.DEBUG_LOGS.spawnValidation) console.warn("Spawn rejected: Outside camera view cone.");
+        setTimeout(window.spawnEnemy, GAME_CONFIG.TIMINGS.SPAWN_RETRY_DELAY_MS); return;
     }
 
     // Clamp Y position
-    spawnPos.y = THREE.MathUtils.clamp(towerPos.y + 0.5 + (Math.random() - 0.5) * 1.5, 0.2, 3.0);
+    spawnPos.y = THREE.MathUtils.clamp(towerPos.y + 0.5 + (Math.random() - 0.5) * 1.5, GAME_CONFIG.ENEMIES.Y_POS_CLAMP_MIN, GAME_CONFIG.ENEMIES.Y_POS_CLAMP_MAX);
 
     // --- Create Enemy (If validation passed) ---
     console.log(`Spawn validation passed. Spawning check at: ${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)}, ${spawnPos.z.toFixed(1)}`);
+
+ // **** NEW: Check Proximity to Existing Enemies ****
+ const minSeparationSq = GAME_CONFIG.ENEMIES.MIN_ENEMY_SEPARATION_SQ;
+ const activeEnemies = enemyContainer.querySelectorAll('.enemy[visible="true"]'); // Query only visible enemies
+
+ for (let i = 0; i < activeEnemies.length; i++) {
+    const enemyEl = activeEnemies[i];
+    if (!enemyEl.object3D) continue;
+
+    enemyEl.object3D.getWorldPosition(activeEnemyPos);
+    const distSq = spawnPos.distanceToSquared(activeEnemyPos);
+
+    if (distSq < minSeparationSq) {
+        if (GAME_CONFIG.DEBUG_LOGS.spawnValidation) {
+             console.warn(`Spawn rejected: Too close to existing enemy ${enemyEl.id} (DistSq: ${distSq.toFixed(2)} < ${minSeparationSq.toFixed(2)}). Retrying.`);
+        }
+        setTimeout(window.spawnEnemy, GAME_CONFIG.TIMINGS.SPAWN_RETRY_DELAY_MS); // Retry
+        return; // Stop this spawn attempt
+    }
+}
 
     // --- *** Determine Enemy Type based on Score *** ---
     let enemyType = 'basic';
@@ -1425,14 +1486,15 @@ window.spawnEnemy = function() { // Attached to window
     enemy.setAttribute('hit-receiver', { maxHealth: enemyHealth, initialHealth: enemyHealth });
     enemy.setAttribute('move-towards-target', {
         target: `#${placedTowerEl.id}`,
-        speed: manager.baseSpeed * manager.speedMultiplier, // Uses multiplier updated elsewhere
-        reachDistance: GAME_CONFIG.ENEMIES.TARGET_REACH_DISTANCE // Use Config
+        speed: manager.baseSpeed * manager.speedMultiplier,
+        reachDistance: GAME_CONFIG.ENEMIES.TARGET_REACH_DISTANCE
     });
 
     // Add to Scene
     enemyContainer.appendChild(enemy);
     manager.activeEnemies++;
     console.log(`%cSpawn Successful: ${enemyType} ${enemyId} (HP:${enemyHealth}). Active Count:${manager.activeEnemies}`, "color: cyan;");
+
 
 }; // End of spawnEnemy
 
