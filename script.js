@@ -1,4 +1,143 @@
-// --- Component Definitions ---
+// ========================================================
+// ================= GAME CONFIGURATION ===================
+// ========================================================
+const GAME_CONFIG = {
+    DEBUG_LOGS: {
+        spawnValidation: true, // Set to true to see detailed spawn rejection reasons
+        spawnChance: true,     // Log enemy spawn chances
+        upgradeCalculation: false // Log detailed upgrade availability steps
+    },
+    LEVELING: {
+        MAX_LEVEL: 100,
+        INITIAL_SCORE_THRESHOLD: 10,
+        INITIAL_SCORE_GAP: 10,
+        GAP_MULTIPLIER: 1.1, // Score gap increases by 10% after level 4
+        GAP_MIN_INCREASE: 1    // Ensure gap increases by at least 1
+    },
+    TOWER: {
+        INITIAL_MAX_HEALTH: 10
+    },
+    PLAYER: {
+        SHOOT_DAMAGE_BASE: 1,
+        DAMAGE_UPGRADE_MULTIPLIER: 1.30 // +30% damage per upgrade level
+    },
+    UPGRADES: {
+        UNLOCKS: {
+            SLOW_TURRET: 2,      // Level required to unlock placing the slow turret
+            SECOND_SHOOTER: 10,  // Level required to unlock placing the second shooter
+            SHOOTER_DAMAGE_1: 15, // Player Level when Damage I upgrade *can* first be applied (via shooterLevel 1)
+            SHOOTER_DAMAGE_2: 25, // Player Level when Damage II upgrade *can* first be applied (via shooterLevel 2)
+            SECOND_SLOW_TURRET: 13
+        },
+        HEALTH: {
+            HP_INCREASE: 3
+        },
+        SHOOTER: {
+            UPGRADE_FREQUENCY: 2, // Upgrade offered every 2 levels (odd numbers)
+            INITIAL_LEVEL_CHECK: 3, // Start checking for upgrades from Player Level 3
+            SPEED_INCREASE_FACTOR: 0.85, // Speed upgrade reduces delay to 85% (15% faster)
+            DAMAGE_1_MULTIPLIER: 1.3, // +30% damage
+            DAMAGE_2_FACTOR: 1.2, // +20% on top of Damage 1
+            LEVEL_FOR_DAMAGE_1: 1, // Internal shooterLevel when Dmg I is applied
+            LEVEL_FOR_DAMAGE_2: 2  // Internal shooterLevel when Dmg II is applied
+        },
+        SLOWER: {
+            INITIAL_SLOW_PERCENTAGE: 0.90,// Base slow for newly placed turret
+            UPGRADE_FREQUENCY: 3, // Upgrade offered every 3 levels
+            SPEED_INCREASE_FACTOR: 0.90, // Speed upgrade reduces delay to 90% (10% faster)
+            SLOW_INCREASE_AMOUNT: 0.90, // Add +20% slow effectiveness
+            SLOW_MAX_PERCENTAGE: 0.90 // Cap slow effectiveness at 90%
+        }
+    },
+    TURRETS: { // Default/Initial values for placed turrets
+        SHOOTER: {
+            INITIAL_DELAY: 5000,
+            BASE_DAMAGE: 1
+        },
+        SLOWER: {
+            INITIAL_DELAY: 6000,
+            INITIAL_SLOW_PERCENTAGE: 0.3,
+            PROJECTILE_COLOR: '#FFFFFF' // White projectiles
+        },
+        PROJECTILE_DEFAULTS: { // Shared defaults
+            SPEED: 8.0,
+            LIFETIME: 4000.0,
+            RADIUS: 0.08,
+            COLOR: '#FF8C00' // Default shooter color
+        },
+        MIN_SHOOT_DELAY: 100 // Minimum delay in ms for any turret
+    },
+    ENEMIES: {
+        MAX_ACTIVE: 8,
+        SPAWN_INTERVAL_MS: 1000,
+        BASE_SPEED: 0.9,
+        SPEED_INCREASE_FACTOR: 1.1, // Speed multiplier increases by 10% per level (before cap)
+        SPEED_CAP_LEVEL: 8,         // Level at which speed stops increasing
+        TARGET_REACH_DISTANCE: 0.2,
+        // Spawn Position Logic
+        SPAWN_DISTANCE_MIN: 12,
+        SPAWN_DISTANCE_RANGE: 6, // Spawn 12 to (12+6)=18 units away
+        SPAWN_ANGLE_RANGE_RAD: Math.PI / 3.0, // 60 degrees arc
+        MIN_DIST_FROM_CAM_SQ: 4 * 4,
+        MIN_DIST_FROM_TOWER_SQ: 4 * 4,
+        VIEW_CONE_DOT_THRESHOLD: 0.3, // How far behind player they can spawn
+        Y_POS_CLAMP_MIN: 0.2,
+        Y_POS_CLAMP_MAX: 3.0,
+        MIN_ENEMY_SEPARATION_SQ:  4 * 4,
+
+        // Enemy Types & Chances
+        TOUGH: {
+            SCORE_THRESHOLD: 10,
+            BASE_CHANCE: 0.35,
+            CHANCE_INCREASE_PER_5_SCORE: 0.07,
+            CHANCE_CAP: 0.60,
+            HEALTH: 3,
+            SCALE: '0.35 0.35 0.35',
+            SHAPE: 'sphere',
+            COLOR: '#8B0000' // Dark Red
+        },
+        TOUGHEST: {
+            SCORE_THRESHOLD: 30,
+            BASE_CHANCE: 0.2, // Reduced base chance
+            CHANCE_INCREASE_PER_5_SCORE: 0.05, // Kept increase rate
+            CHANCE_CAP: 1.0,
+            HEALTH: 7,
+            SCALE: '0.45 0.45 0.45',
+            SHAPE: 'dodecahedron',
+            COLOR: '#FFA500' // Neon Orange
+        },
+        BASIC: {
+            HEALTH: 1,
+            SCALE: '0.25 0.25 0.25',
+            SHAPE: 'box'
+            // Color is random HSL
+        }
+    },
+    EFFECTS: {
+        SLOW_DURATION_MS: 3000,
+        HIT_FLASH_COLOR_ENEMY: '#FF0000', // Red flash
+        SLOW_COLOR_INDICATOR: '#87CEEB' // Light blue
+    },
+    PROJECTILES: { // Defaults for projectile-hitter if not overridden
+        SPEED: 10.0,
+        LIFETIME: 3000.0,
+        COLLISION_RADIUS: 0.2,
+        PLAYER_COLOR: '#FFFF00', // Yellow
+        PLAYER_RADIUS: 0.1,
+        AOE_SLOW_RADIUS: 1.5
+    },
+    TIMINGS: {
+        LEVEL_UP_POPUP_MS: 1500,
+        ENEMY_REMOVE_DELAY_MS: 50,
+        SPAWN_RETRY_DELAY_MS: 50,
+        PROJECTILE_TARGET_QUERY_MS: 100,
+        DEBOUNCE_SELECT_MS: 100
+    }
+};
+// ========================================================
+// ============ END GAME CONFIGURATION ====================
+// ========================================================
+// // --- Component Definitions ---
 AFRAME.registerComponent('follow-shadow', {
     //  this.data aframe scheme
     schema: {type: 'selector'},
@@ -128,6 +267,7 @@ AFRAME.registerComponent('projectile-hitter', {
       }, 100);
     },
     tick: function (time, timeDelta) {
+        console.log('[projectile-hitter] Initialized with data:', this.data);
        const data = this.data; // Define inside tick
        const el = this.el;     // Define inside tick
        const elapsedTime = time - this.startTime; // Define inside tick
@@ -263,51 +403,111 @@ AFRAME.registerComponent('hit-receiver', {
     },
 
     hit: function(damageAmount = 1) {
+        // Initial checks (Should be present)
         if (!this.isVisible || isGameOver) { return; }
         console.log(`[hit-receiver] ${this.el.id} HIT for ${damageAmount} damage!`);
-        if (this.isEnemy) {
-            this.currentHealth -= damageAmount;
-            this.currentHealth = Math.max(0, this.currentHealth);
-            console.log(`[hit-receiver] Enemy health: ${this.currentHealth}/${this.data.maxHealth}`);
-            this.updateHealthText(); // Call should still work here too
 
+        // Check if it's an enemy (Should be present)
+        if (this.isEnemy) {
+
+            // **** CRITICAL: Health Subtraction ****
+            // Make SURE this line exists and is correct
+            this.currentHealth -= damageAmount;
+            this.currentHealth = Math.max(0, this.currentHealth); // Prevent negative
+            // **** ----------------------------- ****
+
+            console.log(`[hit-receiver] Enemy health: ${this.currentHealth}/${this.data.maxHealth}`);
+            this.updateHealthText(); // Update health display
+
+            // **** CRITICAL: Destruction Check ****
+            // Make SURE this entire 'if' block exists and is correct
             if (this.currentHealth <= 0) {
-                // ... Enemy destroyed logic ...
+                // --- Enemy destroyed logic ---
                  console.log(`[hit-receiver] Enemy ${this.el.id} destroyed!`);
                  this.isVisible = false;
                  this.el.setAttribute('visible', 'false');
                  if (window.incrementScore) { window.incrementScore(); }
                  if (window.enemyManager) { window.enemyManager.decrementCount(); }
                  if (this.el.parentNode) {
-                     const removeDelay = 50;
+                     const removeDelay = GAME_CONFIG.TIMINGS.ENEMY_REMOVE_DELAY_MS;
                      setTimeout(() => { if(this.el.parentNode) this.el.parentNode.removeChild(this.el); }, removeDelay);
                  }
+            // **** -------------------------- ****
+
             } else {
-                // ... Enemy damaged logic ...
-                const originalColor = this.el.getAttribute('material')?.color || '#FFFFFF';
-                this.el.setAttribute('material', 'color', '#FF0000'); // Flash Red
-                setTimeout(() => { if (this.el) this.el.setAttribute('material', 'color', originalColor); }, 150);
+                // --- Enemy Damaged but not destroyed ---
+                // (The Flash logic block we added goes in here)
+                try {
+                    // **** INCREASED DURATION & BRIGHT COLOR ****
+                    const particleDuration = 800; // ms (Make it last longer)
+                    const particleColor = '#FFFFFF'; // Bright Cyan - high visibility
+
+                    const hitPosition = new THREE.Vector3();
+                    this.el.object3D.updateMatrixWorld(true);
+                    this.el.object3D.getWorldPosition(hitPosition);
+
+                    // **** SLIGHTLY OFFSET POSITION (e.g., slightly above) ****
+                    hitPosition.y += 0.1; // Move it up a tiny bit from enemy origin
+
+                    console.log(`[hit-receiver] Creating DEBUG hit particle for ${this.el.id}`);
+
+                    const impactMarker = document.createElement('a-ring');
+
+                    impactMarker.setAttribute('position', hitPosition); // Use slightly offset position
+                    impactMarker.setAttribute('color', particleColor);
+                    impactMarker.setAttribute('material', 'shader: flat; side: double;');
+
+                    // **** INCREASED SIZE ****
+                    impactMarker.setAttribute('radius-inner', '0.05'); // Larger inner radius
+                    impactMarker.setAttribute('radius-outer', '0.30'); // Larger outer radius
+
+                    impactMarker.setAttribute('rotation', '0 0 0'); // Keep flat
+
+                 
+                    impactMarker.setAttribute('animation__hithide', {
+                        property: 'scale',
+                        from: '1 1 1',
+                        to: '0 0 0',
+                        dur: particleDuration, // Use longer duration
+                        easing: 'easeInQuad'
+                    });
+
+                    this.el.sceneEl.appendChild(impactMarker);
+
+                    // Remove after longer duration + buffer
+                    setTimeout(() => {
+                        if (impactMarker && impactMarker.parentNode) {
+                           impactMarker.parentNode.removeChild(impactMarker);
+                        }
+                    }, particleDuration + 100); // Remove after animation ends
+
+                } catch (particleError) {
+                    console.error(`[hit-receiver] Error creating particle effect for ${this.el.id}:`, particleError);
+                }
             }
         } else {
             // ... Non-enemy hit logic ...
-             console.log(`[hit-receiver] Non-enemy ${this.el.id} hit. No action taken.`);
+            console.log(`[hit-receiver] Non-enemy ${this.el.id} hit. No action taken.`);
         }
-    },
+    }, // End hit function
 
-    applySlow: function(slowAmount) {
-        if (!this.isEnemy || isGameOver) return; // Only slow active enemies
+  // --- Inside 'hit-receiver' component ---
+  applySlow: function(slowAmount) {
+    // Problematic console.log removed.
 
-        console.log(`[hit-receiver] Applying slow (${(slowAmount * 100).toFixed(0)}%) to ${this.el.id}`);
-        const moveComponent = this.el.components['move-towards-target'];
+    if (!this.isEnemy || isGameOver) return; // Only slow active enemies
 
-        if (moveComponent && moveComponent.applySlowEffect) {
-            const SLOW_DURATION_MS = 3000; // Slow lasts for 3 seconds
-            moveComponent.applySlowEffect(slowAmount, SLOW_DURATION_MS);
-        } else {
-            console.warn(`[hit-receiver] Could not find move-towards-target component or applySlowEffect method on ${this.el.id} to apply slow.`);
-        }
-        // Note: Projectile removal is handled by projectile-hitter
-    },
+    console.log(`[hit-receiver] Applying slow (${(slowAmount * 100).toFixed(0)}%) to ${this.el.id}`); // This log should appear now
+    const moveComponent = this.el.components['move-towards-target'];
+
+    if (moveComponent && moveComponent.applySlowEffect) {
+        const SLOW_DURATION_MS = 3000; // Slow lasts for 3 seconds
+        moveComponent.applySlowEffect(slowAmount, SLOW_DURATION_MS); // This should now be called
+    } else {
+        console.warn(`[hit-receiver] Could not find move-towards-target component or applySlowEffect method on ${this.el.id} to apply slow.`);
+    }
+    // Note: Projectile removal is handled by projectile-hitter
+},
     // **** END HEALTH TEXT UPDATE FUNCTION ****
     remove: function() {
         if (this.respawnTimer) { clearTimeout(this.respawnTimer); }
@@ -324,8 +524,8 @@ AFRAME.registerComponent('hit-receiver', {
 AFRAME.registerComponent('move-towards-target', {
     schema: {
         target: { type: 'selector' },
-        speed: { type: 'number', default: 0.5 }, // Initial speed
-        reachDistance: { type: 'number', default: 0.2 } // How close before stopping/destroying
+        speed: { type: 'number', default: GAME_CONFIG.ENEMIES.BASE_SPEED },
+        reachDistance: { type: 'number', default: GAME_CONFIG.ENEMIES.TARGET_REACH_DISTANCE }
     },
     init: function () {
         this.targetPosition = new THREE.Vector3();
@@ -338,9 +538,26 @@ AFRAME.registerComponent('move-towards-target', {
         this.originalColor = null; // To store original color when slowed
         // **** END SLOW STATE ****
 
-        this.el.classList.add('enemy');
-        this.el.setAttribute('visible', true);
-        console.log(`[move-towards] Initialized on ${this.el.id || 'enemy'}...`);
+
+        const currentScale = this.el.getAttribute('scale') || { x: 1, y: 1, z: 1 }; // Get current scale if possible
+        const targetScale = { x: currentScale.x * 0.75, y: currentScale.y * 0.75, z: currentScale.z * 0.75 }; // Scale down slightly
+
+        this.el.setAttribute('animation__wiggle', { // Renamed animation for clarity
+            property: 'scale',                          // Target scale property
+            from: `${currentScale.x} ${currentScale.y} ${currentScale.z}`, // Start at original scale
+            to: `${targetScale.x} ${targetScale.y} ${targetScale.z}`,     // Go to smaller scale
+            dur: 500,                                   // Duration of one pulse phase (ms)
+            dir: 'alternate',                           // Go back and forth
+            loop: true,                                 // Repeat while slowed
+            easing: 'easeInOutSine',                    // Smooth easing
+            enabled: false                              // Start disabled
+        });
+        // **** END SCALE ANIMATION DEFINITION ****
+        // Store the original Z rotation if needed (optional, lookAt might handle reset)
+        this.originalZRotation = this.el.object3D.rotation.z;
+        console.log(`[move-towards] Initialized on ${this.el.id || 'enemy'}.`);
+        // Log initial target data
+        console.log(`[move-towards] Initial target data received:`, this.data.target?.id || this.data.target);
         if (!this.data.target) { /* ... error log ... */ }
     },
 
@@ -353,12 +570,20 @@ AFRAME.registerComponent('move-towards-target', {
         this.slowEndTime = currentTime + duration;
 
         console.log(`[move-towards] ${this.el.id} slowed! Multiplier: ${this.slowMultiplier.toFixed(2)}, EndTime: ${this.slowEndTime.toFixed(0)}`);
+        console.log(`[move-towards applySlow] Indicator element check:`, this.slowIndicator);
 
         // Visual indicator: Change color to blue
         try {
-             this.originalColor = this.el.getAttribute('material')?.color || '#FFFFFF'; // Store original
-             this.el.setAttribute('material', 'color', '#87CEEB'); // Set to light blue
-        } catch(e) { console.warn("Could not set slow color indicator", e); }
+            // Ensure the animation component exists before playing
+            if (this.el.components['animation__wiggle']) {
+                this.el.components['animation__wiggle'].play();
+                console.log(`[move-towards] Started wiggle animation for ${this.el.id}`);
+            } else {
+                console.warn(`[move-towards] Could not find animation__wiggle component on ${this.el.id} to play.`);
+            }
+       } catch (e) {
+           console.error(`[move-towards] Error trying to play wiggle animation for ${this.el.id}:`, e);
+       }
     },
     
     update: function(oldData) {
@@ -377,15 +602,30 @@ AFRAME.registerComponent('move-towards-target', {
         const targetEl = this.data.target;
         const el = this.el;
 
-        // **** Log 2: Check Slow Expiration ****
         if (this.isSlowed && time > this.slowEndTime) {
             console.log(`[move-towards] ${this.el.id} slow expired.`);
             this.isSlowed = false;
             this.slowMultiplier = 1.0;
             this.slowEndTime = 0;
-            if (this.originalColor && this.el) { /* ... restore color ... */ }
-            this.originalColor = null;
-        }
+   
+            // **** HIDE AND STOP INDICATOR **** // <-- This comment refers to the section below
+            try {
+                // Ensure the animation component exists before pausing
+                if (this.el.components['animation__wiggle']) {
+                    this.el.components['animation__wiggle'].pause();
+                    // Optional: Explicitly reset rotation component if lookAt doesn't fix it immediately
+                    // this.el.object3D.rotation.z = this.originalZRotation || 0;
+                    console.log(`[move-towards] Paused wiggle animation for ${this.el.id}`);
+                } else {
+                     console.warn(`[move-towards] Could not find animation__wiggle component on ${this.el.id} to pause.`);
+                }
+            } catch (e) {
+                 console.error(`[move-towards] Error trying to pause wiggle animation for ${this.el.id}:`, e);
+            }
+            // Removed color restore logic
+            // if (this.originalColor && this.el) { /* ... restore color ... */ }
+            // **** -------------- // <-- End of section referred to by comment
+        } // <-- End of the if block
 
         // **** Log 3: Check Guard Conditions ****
         if (!targetEl || !targetEl.object3D || !el.object3D || timeDelta <= 0 || !el.getAttribute('visible') || isGameOver || isGamePaused) {
@@ -405,6 +645,18 @@ AFRAME.registerComponent('move-towards-target', {
 
         targetEl.object3D.getWorldPosition(this.targetPosition);
         el.object3D.getWorldPosition(this.currentPosition);
+
+
+        try {
+            // Check distance to prevent errors if positions are identical
+            if (this.targetPosition.distanceToSquared(this.currentPosition) > 0.0001) {
+                 this.el.object3D.lookAt(this.targetPosition);
+                 // Note: This might rotate the enemy on all axes. If you want it to only rotate
+                 // around the Y (up) axis, more complex quaternion math would be needed.
+            }
+        } catch(lookAtError) {
+            console.error(`[move-towards] Error during lookAt for ${this.el.id}:`, lookAtError);
+        }
 
         const distanceToTargetSq = this.currentPosition.distanceToSquared(this.targetPosition);
 
@@ -437,6 +689,7 @@ AFRAME.registerComponent('move-towards-target', {
        }
         // Move the element
         el.object3D.position.addScaledVector(this.direction, moveDistance);
+       // console.log(`[MoveCalc <span class="math-inline">\{this\.el\.id\}\] Speed\=</span>{this.data.speed.toFixed(2)}, Mult=<span class="math-inline">\{this\.slowMultiplier\.toFixed\(2\)\}, dT\=</span>{timeDelta.toFixed(1)}, MoveDist=${moveDistance.toFixed(4)}`);
 
     },
     remove: function() {
@@ -505,7 +758,7 @@ AFRAME.registerComponent('auto-shooter', {
              // console.log(`AUTO-SHOOTER TICK: Found 0 potential targets matching "${this.data.targetSelector}"`); // Optional debug
             return; // No potential targets at all
         }
-
+        console.log('[auto-shooter] Firing slow projectile. Slow %:', this.data.slowPercentage);
         // --- Find Closest Target ---
         let closestTarget = null;
         let minDistanceSq = Infinity;
@@ -633,7 +886,7 @@ AFRAME.registerComponent('fps-counter', {
   
       // Initialize startTime on the first valid tick
       if (this.startTime === -1 && time > 0) { // Ensure time is valid
-          console.log("FPS Tick: Initializing startTime and lastUpdateTime to", time);
+    //      console.log("FPS Tick: Initializing startTime and lastUpdateTime to", time);
           this.startTime = time;
           this.lastUpdateTime = time; // Set lastUpdateTime on first tick too
       } else if (this.startTime === -1) {
@@ -655,7 +908,7 @@ AFRAME.registerComponent('fps-counter', {
         const fps = Math.round((this.frameCount * 1000) / interval); // Calculate FPS
   
         // Log 4: Log calculated FPS and the update action
-        console.log(`FPS Update: Interval=${interval.toFixed(0)}ms, Frames=${this.frameCount}, Calculated FPS=${fps}`);
+      //  console.log(`FPS Update: Interval=${interval.toFixed(0)}ms, Frames=${this.frameCount}, Calculated FPS=${fps}`);
         this.fpsTextEl.textContent = `FPS: ${fps}`; // Update the display
   
         // Reset for next interval
@@ -668,144 +921,7 @@ AFRAME.registerComponent('fps-counter', {
 
 // **** END NEW COMPONENT ****
 
-// ========================================================
-// ================= GAME CONFIGURATION ===================
-// ========================================================
-const GAME_CONFIG = {
-    DEBUG_LOGS: {
-        spawnValidation: false, // Set to true to see detailed spawn rejection reasons
-        spawnChance: true,     // Log enemy spawn chances
-        upgradeCalculation: false // Log detailed upgrade availability steps
-    },
-    LEVELING: {
-        MAX_LEVEL: 100,
-        INITIAL_SCORE_THRESHOLD: 10,
-        INITIAL_SCORE_GAP: 10,
-        GAP_MULTIPLIER: 1.1, // Score gap increases by 10% after level 4
-        GAP_MIN_INCREASE: 1    // Ensure gap increases by at least 1
-    },
-    TOWER: {
-        INITIAL_MAX_HEALTH: 10
-    },
-    PLAYER: {
-        SHOOT_DAMAGE_BASE: 1,
-        DAMAGE_UPGRADE_MULTIPLIER: 1.30 // +30% damage per upgrade level
-    },
-    UPGRADES: {
-        UNLOCKS: {
-            SLOW_TURRET: 8,      // Level required to unlock placing the slow turret
-            SECOND_SHOOTER: 10,  // Level required to unlock placing the second shooter
-            SHOOTER_DAMAGE_1: 15, // Player Level when Damage I upgrade *can* first be applied (via shooterLevel 1)
-            SHOOTER_DAMAGE_2: 25, // Player Level when Damage II upgrade *can* first be applied (via shooterLevel 2)
-            SECOND_SLOW_TURRET: 13
-        },
-        HEALTH: {
-            HP_INCREASE: 3
-        },
-        SHOOTER: {
-            UPGRADE_FREQUENCY: 2, // Upgrade offered every 2 levels (odd numbers)
-            INITIAL_LEVEL_CHECK: 3, // Start checking for upgrades from Player Level 3
-            SPEED_INCREASE_FACTOR: 0.85, // Speed upgrade reduces delay to 85% (15% faster)
-            DAMAGE_1_MULTIPLIER: 1.3, // +30% damage
-            DAMAGE_2_FACTOR: 1.2, // +20% on top of Damage 1
-            LEVEL_FOR_DAMAGE_1: 1, // Internal shooterLevel when Dmg I is applied
-            LEVEL_FOR_DAMAGE_2: 2  // Internal shooterLevel when Dmg II is applied
-        },
-        SLOWER: {
-            UPGRADE_FREQUENCY: 3, // Upgrade offered every 3 levels
-            SPEED_INCREASE_FACTOR: 0.90, // Speed upgrade reduces delay to 90% (10% faster)
-            SLOW_INCREASE_AMOUNT: 0.20, // Add +20% slow effectiveness
-            SLOW_MAX_PERCENTAGE: 0.90 // Cap slow effectiveness at 90%
-        }
-    },
-    TURRETS: { // Default/Initial values for placed turrets
-        SHOOTER: {
-            INITIAL_DELAY: 5000,
-            BASE_DAMAGE: 1
-        },
-        SLOWER: {
-            INITIAL_DELAY: 6000,
-            INITIAL_SLOW_PERCENTAGE: 0.3,
-            PROJECTILE_COLOR: '#FFFFFF' // White projectiles
-        },
-        PROJECTILE_DEFAULTS: { // Shared defaults
-            SPEED: 8.0,
-            LIFETIME: 4000.0,
-            RADIUS: 0.08,
-            COLOR: '#FF8C00' // Default shooter color
-        },
-        MIN_SHOOT_DELAY: 100 // Minimum delay in ms for any turret
-    },
-    ENEMIES: {
-        MAX_ACTIVE: 8,
-        SPAWN_INTERVAL_MS: 1000,
-        BASE_SPEED: 0.5,
-        SPEED_INCREASE_FACTOR: 1.1, // Speed multiplier increases by 10% per level (before cap)
-        SPEED_CAP_LEVEL: 8,         // Level at which speed stops increasing
-        TARGET_REACH_DISTANCE: 0.2,
-        // Spawn Position Logic
-        SPAWN_DISTANCE_MIN: 12,
-        SPAWN_DISTANCE_RANGE: 6, // Spawn 12 to (12+6)=18 units away
-        SPAWN_ANGLE_RANGE_RAD: Math.PI / 3.0, // 60 degrees arc
-        MIN_DIST_FROM_CAM_SQ: 5 * 5,
-        MIN_DIST_FROM_TOWER_SQ: 6 * 6,
-        VIEW_CONE_DOT_THRESHOLD: 0.3, // How far behind player they can spawn
-        Y_POS_CLAMP_MIN: 0.2,
-        Y_POS_CLAMP_MAX: 3.0,
-        MIN_ENEMY_SEPARATION_SQ: 1.5 * 1.5, 
 
-        // Enemy Types & Chances
-        TOUGH: {
-            SCORE_THRESHOLD: 10,
-            BASE_CHANCE: 0.35,
-            CHANCE_INCREASE_PER_5_SCORE: 0.07,
-            CHANCE_CAP: 0.60,
-            HEALTH: 3,
-            SCALE: '0.35 0.35 0.35',
-            SHAPE: 'sphere',
-            COLOR: '#8B0000' // Dark Red
-        },
-        TOUGHEST: {
-            SCORE_THRESHOLD: 30,
-            BASE_CHANCE: 0.2, // Reduced base chance
-            CHANCE_INCREASE_PER_5_SCORE: 0.05, // Kept increase rate
-            CHANCE_CAP: 1.0,
-            HEALTH: 7,
-            SCALE: '0.45 0.45 0.45',
-            SHAPE: 'dodecahedron',
-            COLOR: '#FFA500' // Neon Orange
-        },
-        BASIC: {
-            HEALTH: 1,
-            SCALE: '0.25 0.25 0.25',
-            SHAPE: 'box'
-            // Color is random HSL
-        }
-    },
-    EFFECTS: {
-        SLOW_DURATION_MS: 3000,
-        HIT_FLASH_COLOR_ENEMY: '#FF0000', // Red flash
-        SLOW_COLOR_INDICATOR: '#87CEEB' // Light blue
-    },
-    PROJECTILES: { // Defaults for projectile-hitter if not overridden
-        SPEED: 10.0,
-        LIFETIME: 3000.0,
-        COLLISION_RADIUS: 0.2,
-        PLAYER_COLOR: '#FFFF00', // Yellow
-        PLAYER_RADIUS: 0.1,
-        AOE_SLOW_RADIUS: 1.5
-    },
-    TIMINGS: {
-        LEVEL_UP_POPUP_MS: 1500,
-        ENEMY_REMOVE_DELAY_MS: 50,
-        SPAWN_RETRY_DELAY_MS: 50,
-        PROJECTILE_TARGET_QUERY_MS: 100,
-        DEBOUNCE_SELECT_MS: 100
-    }
-};
-// ========================================================
-// ============ END GAME CONFIGURATION ====================
-// ========================================================
 
 // --- Global Scope Variables & Functions ---
 let gameState = 'menu'
@@ -1565,40 +1681,35 @@ window.spawnEnemy = function() { // Attached to window
 
    // --- Create Enemy Element (Modified) ---
    let enemy; // Declare variable
-   const enemyId = `enemy-${enemyType}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+   const enemyId = `enemy-${enemyType}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`; // Generate ID once
    console.log(`[spawnEnemy Create Check] enemyType is: "${enemyType}"`);
 
-   if (enemyType === 'basic') {
-       // --- Create Basic Enemy using GLTF ---
-       console.log(`[spawnEnemy Create Check] ==> Running BASIC block.`); // Log entry
-       enemy = document.createElement('a-entity');
-        enemy.setAttribute('id', enemyId); // Set ID here
-        enemy.classList.add('enemy');       // Add class here
+   enemy = document.createElement('a-entity'); // Create an entity for all types now
+   enemy.setAttribute('id', enemyId);
+   enemy.classList.add('enemy');
+   enemy.setAttribute('position', spawnPos);
+   enemy.setAttribute('visible', 'true');
+
+    if (enemyType === 'basic') {
+        // --- Configure Basic Enemy ---
+        console.log('--> Creating BASIC GLTF Enemy.');
         enemy.setAttribute('gltf-model', '#basic-enemy-model');
-        enemy.setAttribute('material', {
-            shader: 'flat', // Use flat shading
-            src: '#basic-enemy-texture'
-        });
-        enemy.setAttribute('material', { shader: 'standard', src: '#basic-enemy-texture' }); // Apply Texture
-        enemy.setAttribute('scale', '0.3 0.3 0.3'); // Adjust scale as needed
-        enemy.setAttribute('position', spawnPos);  // Set position here
-        enemy.setAttribute('visible', 'true');    // Set visibility here
-        enemy.setAttribute('material', 'shader: flat;');
+        enemy.setAttribute('material', { shader: 'flat', src: '#basic-enemy-texture' });
+        enemy.setAttribute('scale', '0.3 0.3 0.3'); // Keep adjusted scale
 
-    } else {
-        // --- Create Tough/Toughest Enemy using Primitives ---
-        console.log(`[spawnEnemy Create Check] ==> Running TOUGH/TOUGHEST block. Shape to create: "a-${enemyShape}"`);
-        console.log(`--> Creating ${enemyType.toUpperCase()} Primitive Enemy.`);        enemy = document.createElement(`a-${enemyShape}`);
-        enemy = document.createElement(`a-${enemyShape}`); // Use determined shape
-        // Use determined shape
-        enemy.setAttribute('id', enemyId); // Set ID here
-        enemy.classList.add('enemy');       // Add class here
-        enemy.setAttribute('color', enemyColor); // Use determined color
-        enemy.setAttribute('scale', enemyScale); // Use determined scale
-        enemy.setAttribute('position', spawnPos);  // Set position here
-        enemy.setAttribute('visible', 'true');    // Set visibility here
-        enemy.setAttribute('material', 'shader: flat;'); // CONFIRM: this line exists
+    } else if (enemyType === 'tough') {
+        // --- Configure Tough Enemy ---
+        console.log('--> Creating TOUGH GLTF Enemy.');
+        enemy.setAttribute('gltf-model', '#tough-enemy-model'); // Use tough model
+        enemy.setAttribute('material', { shader: 'flat', src: '#tough-enemy-texture' }); // Use tough texture
+        enemy.setAttribute('scale', '0.3 0.3 0.3'); // EXAMPLE SCALE - ADJUST FOR TOUGH MODEL!
 
+    } else { // Must be toughest
+        // --- Configure Toughest Enemy ---
+        console.log('--> Creating TOUGHEST GLTF Enemy.');
+        enemy.setAttribute('gltf-model', '#toughest-enemy-model'); // Use toughest model
+        enemy.setAttribute('material', { shader: 'flat', src: '#toughest-enemy-texture' }); // Use toughest texture
+        enemy.setAttribute('scale', '0.3 0.3 0.3'); // EXAMPLE SCALE - ADJUST FOR TOUGHEST MODEL!
     }
    // --- End Create Enemy Element ---
 
@@ -1842,31 +1953,53 @@ sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
         if (!position || isNaN(position.x) || isNaN(position.y) || isNaN(position.z)) { console.error("Upgrade Placement failed: Invalid position.", position); return; }
 
         if (!placedUpgradeEl) { // First tap for upgrade: Create visual
-            let color = '#FF6347'; // Default color (shooter)
-            let scale = '0.15 0.15 0.15';
-            let height = 0.4;
-            if (placingUpgrade === 'slowTurret') {
-                color = '#87CEEB'; // Light Blue for slow turret
-                scale = '0.2 0.2 0.2';
-                height = 0.3;
-            }
-            console.log(`Placing ${placingUpgrade} upgrade visually...`);
-            const upgradeBox = document.createElement('a-box'); // Use box for both for now
+            // **** Create Entity instead of Box ****
+            const upgradeEntity = document.createElement('a-entity');
             const visualId = `${placingUpgrade}-visual-${Date.now()}`;
-            upgradeBox.setAttribute('id', visualId);
-            upgradeBox.setAttribute('color', color);
-            upgradeBox.setAttribute('scale', scale);
-            upgradeBox.setAttribute('height', height);
-            upgradeBox.setAttribute('position', position);
-            sceneElGlobal.appendChild(upgradeBox);
-            placedUpgradeEl = upgradeBox;
+            upgradeEntity.setAttribute('id', visualId);
 
+            let modelId = '';
+            let textureId = '';
+            let scale = '1 1 1'; // Default scale - ADJUST PER MODEL!
+
+            // **** Set Model/Texture/Scale based on placingUpgrade type ****
+            if (placingUpgrade === 'shooter1' || placingUpgrade === 'shooter2') {
+                console.log(`Placing Shooter (${placingUpgrade}) upgrade visually...`);
+                modelId = '#shooter-upgrade-model';
+                textureId = '#shooter-upgrade-texture';
+                scale = '0.05 0.05 0.05'; // EXAMPLE SCALE - ADJUST FOR SHOOTER MODEL
+            } else if (placingUpgrade === 'slowTurret1' || placingUpgrade === 'slowTurret2') {
+                console.log(`Placing Slower (${placingUpgrade}) upgrade visually...`);
+                modelId = '#slower-upgrade-model';
+                textureId = '#slower-upgrade-texture';
+                scale = '0.05 0.05 0.05'; // EXAMPLE SCALE - ADJUST FOR SLOWER MODEL
+            } else {
+                console.warn("Unknown upgrade type being placed:", placingUpgrade);
+                // Optional: fallback to a box or skip?
+                return; // Don't place if type unknown
+            }
+
+            upgradeEntity.setAttribute('gltf-model', modelId);
+            // Apply flat shader and texture
+            upgradeEntity.setAttribute('material', {
+                shader: 'flat',
+                src: textureId
+            });
+            upgradeEntity.setAttribute('scale', scale); // Apply adjusted scale
+            upgradeEntity.setAttribute('position', position);
+            // Removed shadow setting
+
+            sceneElGlobal.appendChild(upgradeEntity);
+            placedUpgradeEl = upgradeEntity; // Store reference to the A-ENTITY
+
+            // Enable confirm button & update feedback (remains same)
             const currentConfirmButton = document.getElementById('confirmPlacementButton');
             if (currentConfirmButton) currentConfirmButton.disabled = false;
             if (scanningFeedbackEl) { scanningFeedbackEl.textContent = "Paspausk pakeist poziciją arba pradėk"; }
-        } else { // Subsequent taps: Move the visual
+
+        } else { // Subsequent taps: Move the visual entity
              console.log(`Moving ${placingUpgrade} upgrade visual...`);
-             placedUpgradeEl.setAttribute('position', position);
+             placedUpgradeEl.setAttribute('position', position); // Moves the a-entity
         }
 
     // --- TOWER PLACEMENT / MOVE (Setup Phase) ---
