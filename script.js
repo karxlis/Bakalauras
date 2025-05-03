@@ -315,7 +315,7 @@ AFRAME.registerComponent('hit-receiver', {
         if (this.isEnemy && window.enemyManager && this.currentHealth > 0 && !isGameOver) {
              // Only decrement if it wasn't already destroyed by a hit
             window.enemyManager.decrementCount();
-            console.warn(`[hit-receiver] Decremented count via REMOVE for ${this.el.id} which had health > 0.`);
+       //     console.warn(`[hit-receiver] Decremented count via REMOVE for ${this.el.id} which had health > 0.`);
         }
     }
 });
@@ -371,25 +371,35 @@ AFRAME.registerComponent('move-towards-target', {
          }
     },
     tick: function (time, timeDelta) {
+        // **** Log 1: Check if Tick is running ****
+        // console.log(`[move-towards] Tick running for ${this.el.id}. TimeDelta: ${timeDelta.toFixed(1)}`); // Can be very noisy, uncomment temporarily if needed
+
         const targetEl = this.data.target;
         const el = this.el;
 
+        // **** Log 2: Check Slow Expiration ****
         if (this.isSlowed && time > this.slowEndTime) {
             console.log(`[move-towards] ${this.el.id} slow expired.`);
             this.isSlowed = false;
             this.slowMultiplier = 1.0;
             this.slowEndTime = 0;
-            // Restore original color
-            if (this.originalColor && this.el) {
-                 try {
-                     this.el.setAttribute('material', 'color', this.originalColor);
-                 } catch(e) { console.warn("Could not restore original color after slow", e); }
-            }
+            if (this.originalColor && this.el) { /* ... restore color ... */ }
             this.originalColor = null;
         }
 
+        // **** Log 3: Check Guard Conditions ****
         if (!targetEl || !targetEl.object3D || !el.object3D || timeDelta <= 0 || !el.getAttribute('visible') || isGameOver || isGamePaused) {
-            return; // Stop if paused, game over, or other issues
+             // **** Log 3a: If guard FAILS, log why ****
+             console.warn(`[move-towards] Tick skipped for ${this.el.id}:`, {
+                 targetExists: !!targetEl,
+                 target3D: !!targetEl?.object3D,
+                 el3D: !!el.object3D,
+                 timeDeltaOK: timeDelta > 0,
+                 isVisible: el.getAttribute('visible'),
+                 isGameOver,
+                 isGamePaused
+             });
+            return;
         }
         // **** END PAUSE CHECK ****
 
@@ -421,7 +431,10 @@ AFRAME.registerComponent('move-towards-target', {
          // **** APPLY SLOW MULTIPLIER TO MOVEMENT ****
          const moveDistance = this.data.speed * this.slowMultiplier * (timeDelta / 1000);
          // **** END SPEED MODIFICATION ****
-
+         if (isNaN(moveDistance) || !isFinite(moveDistance)) {
+            console.error(`[move-towards] Invalid moveDistance calculated for ${this.el.id}:`, moveDistance);
+            return; // Don't try to move if distance is invalid
+       }
         // Move the element
         el.object3D.position.addScaledVector(this.direction, moveDistance);
 
@@ -587,6 +600,72 @@ AFRAME.registerComponent('auto-shooter', {
          console.log(`[auto-shooter] Removed from ${this.el.id}`);
     }
 });
+
+// --- Add this FPS Counter Component ---
+AFRAME.registerComponent('fps-counter', {
+    schema: {
+      updateInterval: { type: 'number', default: 1000 } // Update display every 1000ms (1 second)
+    },
+    init: function () {
+      this.fpsTextEl = document.getElementById('fps-counter');
+      this.frameCount = 0;
+      this.lastUpdateTime = 0; // Initialize to 0
+  
+      if (!this.fpsTextEl) {
+        // Use console.error for important setup issues
+        console.error("FPS Counter INIT Error: DOM element #fps-counter not found!");
+      } else {
+        console.log("FPS Counter component initialized, found element:", this.fpsTextEl);
+      }
+      // Initialize startTime based on the first tick's time for better first calculation
+      this.startTime = -1; // Use -1 to indicate it hasn't been set yet
+    },
+  
+    tick: function (time, timeDelta) {
+      // Log 1: Confirm tick is running (can be noisy, uncomment temporarily if needed)
+      // console.log(`FPS Tick: time=${time.toFixed(0)}`);
+  
+      // Log 2: Check if element exists *every tick* just in case
+      if (!this.fpsTextEl) {
+          // console.warn("FPS Tick: fpsTextEl is null, cannot update."); // Only log if it's actually missing
+          return; // Stop if element not found
+      }
+  
+      // Initialize startTime on the first valid tick
+      if (this.startTime === -1 && time > 0) { // Ensure time is valid
+          console.log("FPS Tick: Initializing startTime and lastUpdateTime to", time);
+          this.startTime = time;
+          this.lastUpdateTime = time; // Set lastUpdateTime on first tick too
+      } else if (this.startTime === -1) {
+          // Waiting for first valid time signal from A-Frame
+          return;
+      }
+  
+  
+      this.frameCount++;
+      const now = time;
+      const elapsedTimeSinceUpdate = now - this.lastUpdateTime;
+  
+      // Log 3: Check timing condition (uncomment to see interval checks)
+      // console.log(`FPS Tick: elapsedTimeSinceUpdate=${elapsedTimeSinceUpdate.toFixed(0)}, TargetInterval=${this.data.updateInterval}`);
+  
+      // Check if interval has passed
+      if (elapsedTimeSinceUpdate >= this.data.updateInterval) {
+        const interval = elapsedTimeSinceUpdate; // Use actual elapsed time
+        const fps = Math.round((this.frameCount * 1000) / interval); // Calculate FPS
+  
+        // Log 4: Log calculated FPS and the update action
+        console.log(`FPS Update: Interval=${interval.toFixed(0)}ms, Frames=${this.frameCount}, Calculated FPS=${fps}`);
+        this.fpsTextEl.textContent = `FPS: ${fps}`; // Update the display
+  
+        // Reset for next interval
+        this.frameCount = 0;
+        this.lastUpdateTime = now;
+      }
+    }
+});
+  // --- End FPS Counter Component ---
+
 // **** END NEW COMPONENT ****
 
 // ========================================================
@@ -729,6 +808,8 @@ const GAME_CONFIG = {
 // ========================================================
 
 // --- Global Scope Variables & Functions ---
+let gameState = 'menu'
+let highScore = 0; // For storing high score
 let score = 0;
 let currentLevel = 1;
 let scoreForNextLevel = GAME_CONFIG.LEVELING.INITIAL_SCORE_THRESHOLD;
@@ -963,6 +1044,16 @@ window.gameOver = function() {
     const controlsWidget = document.getElementById('controls-widget');
     if (controlsWidget) controlsWidget.style.display = 'none';
     window.updateTowerHealthUI();
+
+    if (score > highScore) {
+        console.log(`New High Score: ${score} (Old: ${highScore})`);
+        highScore = score;
+        localStorage.setItem('arTowerDefenseHighScore', highScore.toString());
+        // Update menu display immediately if possible (though menu is hidden)
+        const menuHighScoreDisplay = document.getElementById('menuHighScore');
+        if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore;
+    }
+
     gameOverScreenEl = gameOverScreenEl || document.getElementById('game-over-screen');
     finalScoreEl = finalScoreEl || document.getElementById('final-score');
     if (gameOverScreenEl && finalScoreEl) {
@@ -1415,93 +1506,138 @@ window.spawnEnemy = function() { // Attached to window
     }
 }
 
-    // --- *** Determine Enemy Type based on Score *** ---
-    let enemyType = 'basic';
-    let enemyHealth = 1;
-    let enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`; // Default basic color
-    let enemyScale = '0.25 0.25 0.25';
-    let enemyShape = 'box'; // Default basic shape
+   // --- *** Determine Enemy Type based on Score *** ---
+   let enemyType = 'basic';
+   let enemyHealth = GAME_CONFIG.ENEMIES.BASIC.HEALTH; // Use config
+   let enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`; // Default basic color (used only if not GLTF)
+   let enemyScale = GAME_CONFIG.ENEMIES.BASIC.SCALE; // Use config
+   let enemyShape = GAME_CONFIG.ENEMIES.BASIC.SHAPE; // Use config
 
-    const SCORE_THRESHOLD_TOUGHEST = GAME_CONFIG.ENEMIES.TOUGHEST.SCORE_THRESHOLD; // Use Config
-    const SCORE_THRESHOLD_TOUGH = GAME_CONFIG.ENEMIES.TOUGH.SCORE_THRESHOLD; // Use Config
-    const randomRoll = Math.random(); // Roll once for chance checks
+   const SCORE_THRESHOLD_TOUGHEST = GAME_CONFIG.ENEMIES.TOUGHEST.SCORE_THRESHOLD;
+   const SCORE_THRESHOLD_TOUGH = GAME_CONFIG.ENEMIES.TOUGH.SCORE_THRESHOLD;
+   const randomRoll = Math.random();
 
-    // 1. Check for Toughest Enemy
- if (score >= SCORE_THRESHOLD_TOUGHEST) {
-        const T_CONFIG = GAME_CONFIG.ENEMIES.TOUGHEST; // Alias
-        const scoreAboveThreshold = score - SCORE_THRESHOLD_TOUGHEST;
-        const additionalChance = Math.floor(scoreAboveThreshold / 5) * T_CONFIG.CHANCE_INCREASE_PER_5_SCORE; // Use Config
-        const toughestSpawnChance = Math.min(1.0, T_CONFIG.BASE_CHANCE + additionalChance); // Use Config
-         if (GAME_CONFIG.DEBUG_LOGS.spawnChance) console.log(`Score ${score}, Toughest Chance: ${(toughestSpawnChance * 100).toFixed(0)}%`);
-         if (randomRoll < toughestSpawnChance) {
-            enemyType = 'toughest'; enemyHealth = T_CONFIG.HEALTH; enemyColor = T_CONFIG.COLOR; enemyScale = T_CONFIG.SCALE; enemyShape = T_CONFIG.SHAPE; // Use Configs
-            console.log('%c--> Spawning TOUGHEST Enemy!', 'color: #FFA500; font-weight: bold;');
-        }
+   // 1. Check for Toughest Enemy
+   // Inside the if (score >= SCORE_THRESHOLD_TOUGHEST) block:
+
+   const T_CONFIG = GAME_CONFIG.ENEMIES.TOUGHEST; // Alias
+   const scoreAboveThreshold = score - SCORE_THRESHOLD_TOUGHEST;
+   const additionalChance = Math.floor(scoreAboveThreshold / 5) * T_CONFIG.CHANCE_INCREASE_PER_5_SCORE; // Use Config
+
+   // **** ENSURE THIS LINE EXISTS ****
+   const toughestSpawnChance = Math.min(1.0, T_CONFIG.BASE_CHANCE + additionalChance); // Use Config
+   // **** ----------------------- ****
+
+   if (GAME_CONFIG.DEBUG_LOGS.spawnChance) console.log(`Score ${score}, Toughest Chance: ${(toughestSpawnChance * 100).toFixed(0)}%`);
+
+   // This line (your line 1458) needs the variable defined above
+   if (randomRoll < toughestSpawnChance) {
+    enemyType = 'toughest';
+    enemyHealth = T_CONFIG.HEALTH;
+    enemyColor = T_CONFIG.COLOR;
+    enemyScale = T_CONFIG.SCALE;
+    // **** DOUBLE-CHECK THIS LINE CAREFULLY ****
+    enemyShape = T_CONFIG.SHAPE; // Make sure it's exactly this!
+    // **** ----------------------------- ****
+    console.log('%c--> Spawning TOUGHEST Enemy!', 'color: #FFA500; font-weight: bold;');
+}
+
+   // 2. Check for Tough Enemy (only if Toughest didn't spawn)
+   if (enemyType === 'basic' && score >= SCORE_THRESHOLD_TOUGH) {
+    const T_CONFIG = GAME_CONFIG.ENEMIES.TOUGH; // Alias
+
+    // **** ADD THIS LINE BACK TO CALCULATE THE CHANCE ****
+    const toughChance = Math.min(T_CONFIG.CHANCE_CAP, T_CONFIG.BASE_CHANCE + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * T_CONFIG.CHANCE_INCREASE_PER_5_SCORE); // Use Configs
+    // **** -------------------------------------- ****
+
+    if (GAME_CONFIG.DEBUG_LOGS.spawnChance) console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`); // Log using defined toughChance
+
+    // This line (your line 1455) should now work
+    if (Math.random() < toughChance) {
+        enemyType = 'tough';
+        enemyHealth = T_CONFIG.HEALTH;
+        enemyColor = T_CONFIG.COLOR;
+        enemyScale = T_CONFIG.SCALE;
+        enemyShape = T_CONFIG.SHAPE;
+        console.log('%c--> Spawning TOUGH Enemy!', 'color: #DC143C; font-weight: bold;');
     }
+}
 
-    // 2. Check for Tough Enemy (only if Toughest didn't spawn)
-    if (enemyType === 'basic' && score >= SCORE_THRESHOLD_TOUGH) {
-        const T_CONFIG = GAME_CONFIG.ENEMIES.TOUGH; // Alias
-        const toughChance = Math.min(T_CONFIG.CHANCE_CAP, T_CONFIG.BASE_CHANCE + Math.floor((score - SCORE_THRESHOLD_TOUGH) / 5) * T_CONFIG.CHANCE_INCREASE_PER_5_SCORE); // Use Configs
-        if (GAME_CONFIG.DEBUG_LOGS.spawnChance) console.log(`Score ${score}, Tough Chance: ${(toughChance * 100).toFixed(1)}%`);
-        if (Math.random() < toughChance) { // Separate roll for tough if toughest didn't spawn
-            enemyType = 'tough'; enemyHealth = T_CONFIG.HEALTH; enemyColor = T_CONFIG.COLOR; enemyScale = T_CONFIG.SCALE; enemyShape = T_CONFIG.SHAPE; // Use Configs
-            console.log('%c--> Spawning TOUGH Enemy!', 'color: #DC143C; font-weight: bold;');
-        }
+   // --- Create Enemy Element (Modified) ---
+   let enemy; // Declare variable
+   const enemyId = `enemy-${enemyType}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+   console.log(`[spawnEnemy Create Check] enemyType is: "${enemyType}"`);
+
+   if (enemyType === 'basic') {
+       // --- Create Basic Enemy using GLTF ---
+       console.log(`[spawnEnemy Create Check] ==> Running BASIC block.`); // Log entry
+       enemy = document.createElement('a-entity');
+        enemy.setAttribute('id', enemyId); // Set ID here
+        enemy.classList.add('enemy');       // Add class here
+        enemy.setAttribute('gltf-model', '#basic-enemy-model');
+        enemy.setAttribute('material', {
+            shader: 'flat', // Use flat shading
+            src: '#basic-enemy-texture'
+        });
+        enemy.setAttribute('material', { shader: 'standard', src: '#basic-enemy-texture' }); // Apply Texture
+        enemy.setAttribute('scale', '0.3 0.3 0.3'); // Adjust scale as needed
+        enemy.setAttribute('position', spawnPos);  // Set position here
+        enemy.setAttribute('visible', 'true');    // Set visibility here
+        enemy.setAttribute('material', 'shader: flat;');
+
+    } else {
+        // --- Create Tough/Toughest Enemy using Primitives ---
+        console.log(`[spawnEnemy Create Check] ==> Running TOUGH/TOUGHEST block. Shape to create: "a-${enemyShape}"`);
+        console.log(`--> Creating ${enemyType.toUpperCase()} Primitive Enemy.`);        enemy = document.createElement(`a-${enemyShape}`);
+        enemy = document.createElement(`a-${enemyShape}`); // Use determined shape
+        // Use determined shape
+        enemy.setAttribute('id', enemyId); // Set ID here
+        enemy.classList.add('enemy');       // Add class here
+        enemy.setAttribute('color', enemyColor); // Use determined color
+        enemy.setAttribute('scale', enemyScale); // Use determined scale
+        enemy.setAttribute('position', spawnPos);  // Set position here
+        enemy.setAttribute('visible', 'true');    // Set visibility here
+        enemy.setAttribute('material', 'shader: flat;'); // CONFIRM: this line exists
+
     }
-
-    // 3. Basic Enemy (Default if others didn't spawn)
-    if (enemyType === 'basic') {
-        const B_CONFIG = GAME_CONFIG.ENEMIES.BASIC; // Alias
-        enemyHealth = B_CONFIG.HEALTH; enemyScale = B_CONFIG.SCALE; enemyShape = B_CONFIG.SHAPE; // Use Config
-        enemyColor = `hsl(${Math.random() * 360}, 70%, 60%)`; // Random color remains
-    }
-
-    // --- Create Enemy Element ---
-    const enemy = document.createElement(`a-${enemyShape}`); // Use determined shape
-    const enemyId = `enemy-${enemyType}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-    enemy.setAttribute('id', enemyId);
-    enemy.classList.add('enemy');
-    enemy.setAttribute('color', enemyColor); // Use determined color
-    enemy.setAttribute('scale', enemyScale); // Use determined scale
-    enemy.setAttribute('position', spawnPos);
-    enemy.setAttribute('shadow', 'cast: true; receive: false;');
-    enemy.setAttribute('visible', 'true');
-
-    // Create Health Indicator if needed
-    if (enemyHealth > 1) {
-        const healthText = document.createElement('a-text');
-        healthText.classList.add('enemy-health-text');
-        healthText.setAttribute('value', `HP: ${enemyHealth}`);
-        healthText.setAttribute('position', '0 0.6 0'); // Adjust Y offset based on scale if needed
-        healthText.setAttribute('scale', '2 2 2');      // Adjust scale relative to parent
-        healthText.setAttribute('align', 'center');
-        healthText.setAttribute('color', '#FFFFFF');
-        healthText.setAttribute('side', 'double');
-        healthText.setAttribute('billboard', ''); // Make it face the camera
-        enemy.appendChild(healthText);
-    }
-
-    // Attach Components
-    enemy.setAttribute('hit-receiver', { maxHealth: enemyHealth, initialHealth: enemyHealth });
-    enemy.setAttribute('move-towards-target', {
-        target: `#${placedTowerEl.id}`,
-        speed: manager.baseSpeed * manager.speedMultiplier,
-        reachDistance: GAME_CONFIG.ENEMIES.TARGET_REACH_DISTANCE
-    });
-
-    // Add to Scene
-    enemyContainer.appendChild(enemy);
-    manager.activeEnemies++;
-    console.log(`%cSpawn Successful: ${enemyType} ${enemyId} (HP:${enemyHealth}). Active Count:${manager.activeEnemies}`, "color: cyan;");
+   // --- End Create Enemy Element ---
 
 
+   // Create Health Indicator if needed (Logic remains the same)
+   if (enemyHealth > 1) {
+       const healthText = document.createElement('a-text');
+       healthText.classList.add('enemy-health-text');
+       healthText.setAttribute('value', `HP: ${enemyHealth}`);
+       // ** Adjust Y position based on the basic model's height/origin **
+       healthText.setAttribute('position', '0 0.5 0'); // Example: Might need to be higher/lower - ADJUST!
+       healthText.setAttribute('scale', '2 2 2');
+       healthText.setAttribute('align', 'center');
+       healthText.setAttribute('color', '#FFFFFF');
+       healthText.setAttribute('side', 'double');
+       healthText.setAttribute('billboard', '');
+       enemy.appendChild(healthText);
+   }
+
+   // Attach Components (Logic remains the same)
+   enemy.setAttribute('hit-receiver', { maxHealth: enemyHealth, initialHealth: enemyHealth });
+   enemy.setAttribute('move-towards-target', {
+       target: placedTowerEl, // <-- Passing the actual tower element reference
+       speed: manager.baseSpeed * manager.speedMultiplier,
+       reachDistance: GAME_CONFIG.ENEMIES.TARGET_REACH_DISTANCE
+   });
+
+   // Add to Scene (Logic remains the same)
+   enemyContainer.appendChild(enemy);
+   manager.activeEnemies++;
+   console.log(`%cSpawn Successful: ${enemyType} ${enemyId} (HP:${enemyHealth}). Active Count:${manager.activeEnemies}`, "color: cyan;");
 }; // End of spawnEnemy
 
 // --- Global Scope Setup for Scene Listeners ---
 const sceneElGlobal = document.querySelector('a-scene');
 if (!sceneElGlobal) { console.error("FATAL: A-Frame scene not found!"); }
 else {
+
+    
     // --- Attach Core Event Listeners Directly to Scene ---
     sceneElGlobal.addEventListener('enter-vr', () => {
         console.log('Event: enter-vr');
@@ -1509,7 +1645,8 @@ else {
         isGameSetupComplete = false;
         towerPlaced = false;
         placedTowerEl = null;
-
+        console.log('Event: enter-vr');
+        gameState = 'ar_setup'; // Update state
         const myEnterARButton = document.getElementById('myEnterARButton'); // Get Enter AR button
         const exitVRButton = document.getElementById('exitVRButton');
         const scanningFeedbackEl = document.getElementById('scanning-feedback');
@@ -1518,15 +1655,22 @@ else {
         const shootButton = document.getElementById('shootButton');
         const startGameButton = document.getElementById('startGameButton');
         const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
+        const fpsCounterEl = document.getElementById('fps-counter'); // Get FPS element
 
-        if (sceneElGlobal.is('ar-mode')) {
-            console.log('AR Mode detected. Starting setup phase.');
-            if (myEnterARButton) myEnterARButton.style.display = 'none';
+        
+
+            if (sceneElGlobal.is('ar-mode')) {
+                console.log('AR Mode detected. Starting setup phase.');
+                if (myEnterARButton) myEnterARButton.style.display = 'none';
+                if (exitVRButton) exitVRButton.style.display = 'inline-block';
+                if (controlsWidget) controlsWidget.classList.add('hidden'); // Ensure controls hidden on enter
             if (exitVRButton) exitVRButton.style.display = 'inline-block';
             if (scanningFeedbackEl) {
                 scanningFeedbackEl.textContent = "Skanuojamas paviršius..."; // Update text slightly
                 scanningFeedbackEl.style.display = 'block';
             }
+            if (fpsCounterEl) fpsCounterEl.classList.remove('hidden'); // **** SHOW FPS COUNTER ****
+
             if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none'; // Ensure hidden
             if (controlsWidget) controlsWidget.style.display = 'none';      // Hide normal controls
             if (shootButton) shootButton.disabled = true;                 // Ensure shoot is disabled
@@ -1549,7 +1693,8 @@ else {
              if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
              if (controlsWidget) controlsWidget.style.display = 'block';
              if (shootButton) shootButton.disabled = false; // Or manage based on game state
-
+             if (exitVRButton) exitVRButton.style.display = 'none';
+             if (fpsCounterEl) fpsCounterEl.classList.add('hidden'); // **** HIDE FPS COUNTER ****
         }
     });
 
@@ -1560,6 +1705,19 @@ else {
         towerPlaced = false;
         placedTowerEl = null;
         isGameOver = false; // Reset game over flag
+        gameState = 'menu'; // Update state
+
+        window.resetGame(); // Calling resetGame also handles UI now
+
+        sceneElGlobal.style.display = 'none';
+
+        const mainMenu = document.getElementById('main-menu');
+        const menuHighScoreDisplay = document.getElementById('menuHighScore');
+        if (mainMenu) mainMenu.style.display = 'flex';
+        if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore; // Update score display
+
+        // 5. Ensure overlay widgets hidden (Reset game might already do this)
+        const fpsCounterEl = document.getElementById('fps-counter'); // Get FPS element
 
         const exitVRButton = document.getElementById('exitVRButton');
         const reticleEl = document.getElementById('placement-reticle');
@@ -1580,6 +1738,7 @@ else {
         towerHealthIndicatorEl = towerHealthIndicatorEl || document.getElementById('tower-health-indicator');
         if (gameOverScreenEl) gameOverScreenEl.style.display = 'none';
         if (towerHealthIndicatorEl) towerHealthIndicatorEl.style.display = 'none';
+        if (fpsCounterEl) fpsCounterEl.classList.add('hidden'); // **** HIDE FPS COUNTER ****
 
         // Stop spawner
         if (window.enemyManager.spawnTimerId) {
@@ -1699,7 +1858,6 @@ sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
             upgradeBox.setAttribute('scale', scale);
             upgradeBox.setAttribute('height', height);
             upgradeBox.setAttribute('position', position);
-            upgradeBox.setAttribute('shadow', 'cast: true; receive: false;');
             sceneElGlobal.appendChild(upgradeBox);
             placedUpgradeEl = upgradeBox;
 
@@ -1724,20 +1882,19 @@ sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
             console.log('Setup Phase: Attempting to place TOWER for the first time...');
             const tower = document.createElement('a-box');
             tower.setAttribute('id', 'placed-base-tower');
-            tower.setAttribute('color', '#00008B'); // Dark Blue
-            // **** USE SMALLER DIMENSIONS ****
-            tower.setAttribute('height', '0.5'); // Smaller Height
-            tower.setAttribute('width', '0.2');  // Smaller Width/Depth
-            tower.setAttribute('depth', '0.2');
-            // **** END SMALLER DIMENSIONS ****
+            tower.setAttribute('gltf-model', '#tower-model')
+            tower.setAttribute('material', {
+                shader: 'flat', // Use flat shading
+                src: '#tower-texture'
+            });
+            tower.setAttribute('scale', '0.05 0.05 0.05');
             tower.setAttribute('position', position); // Set initial position
-            tower.setAttribute('shadow', 'cast: true; receive: false;');
 
-            console.log("Tower attributes set.");
+            console.log("Tower (GLTF) attributes set.");
             sceneElGlobal.appendChild(tower);
             placedTowerEl = tower; // Store reference
             towerPlaced = true; // Mark as placed
-            console.log('Tower successfully placed.');
+            console.log('Tower (GLTF) successfully placed.');
 
             // Update UI: Enable Start button, show feedback
             const startGameButton = document.getElementById('startGameButton');
@@ -1799,6 +1956,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Get Element References ---
     const sceneInstance = sceneElGlobal || document.querySelector('a-scene');
     const overlay = document.getElementById('dom-overlay');
+    const mainMenu = document.getElementById('main-menu'); // **** Get Main Menu ****
+    const mainMenuStartButton = document.getElementById('mainMenuStartButton');
+    const menuHighScoreDisplay = document.getElementById('menuHighScore'); // Get high score display
     const exitVRButton = document.getElementById('exitVRButton');
     const shootButton = document.getElementById('shootButton');
     const cameraEl = document.getElementById('player-camera');
@@ -1830,6 +1990,10 @@ document.addEventListener('DOMContentLoaded', () => {
      // **** GRANULAR ELEMENT CHECKS ****
      // (Add checks for new button IDs: upgradeShooterBtn, upgradeHealthBtn, upgradeSlowerBtn, upgradePlayerDamageBtn)
      const missingElements = [];
+     if (!mainMenu) missingElements.push("mainMenu (#main-menu)");
+     if (!mainMenuStartButton) missingElements.push("mainMenuStartButton (#mainMenuStartButton)");
+     if (!menuHighScoreDisplay) missingElements.push("menuHighScoreDisplay (#menuHighScore)");
+     if (!mainMenuStartButton) missingElements.push("mainMenuStartButton (#mainMenuStartButton)"); // **** Check Menu Start Button ****
      if (!sceneInstance) missingElements.push("sceneInstance (a-scene)");
      if (!overlay) missingElements.push("overlay (#dom-overlay)");
      if (!startGameButton) missingElements.push("startGameButton (#startGameButton)");
@@ -1860,8 +2024,17 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.log("All essential page elements confirmed.");
     }
-     // **** END Granular Element Checks ****
+    // --- Load High Score ---
+    highScore = parseInt(localStorage.getItem('arTowerDefenseHighScore') || '0');
+    if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore;
 
+     // **** END Granular Element Checks ****
+     if (gameState === 'menu') {
+        if (sceneInstance) sceneInstance.style.display = 'none'; // Hide scene initially
+        if (mainMenu) mainMenu.style.display = 'flex'; // Show menu
+        if (controlsWidget) controlsWidget.classList.add('hidden'); // Ensure controls are hidden
+        // Ensure other overlay widgets are hidden via HTML 'hidden' class
+    }
 
     // Existing vectors for shooting (no change needed here)
     const shootCameraWorldPos = new THREE.Vector3();
@@ -1874,6 +2047,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // --- Event Listeners ---
     // Existing overlay interaction listener (beforexrselect)
+
+
+    if (mainMenuStartButton) {
+        mainMenuStartButton.addEventListener('click', () => {
+            console.log("Main Menu Start Button Clicked!");
+            if (mainMenu) mainMenu.style.display = 'none'; // Hide menu
+            if (sceneInstance) {
+                sceneInstance.style.display = 'block'; // Show scene
+                console.log("Attempting to enter AR...");
+                // Use a slight delay to ensure the scene is rendered before entering AR? (Optional)
+                // setTimeout(() => {
+                    sceneInstance.enterAR().catch(e => {
+                        console.error("AR Entry Failed:", e);
+                        // Optionally show an error message to the user here
+                        if (mainMenu) mainMenu.style.display = 'flex'; // Show menu again on failure
+                        if (sceneInstance) sceneInstance.style.display = 'none';
+                    });
+                // }, 100); // 100ms delay example
+                gameState = 'starting_ar'; // Update state
+            }
+        });
+    }
+
+    const howToPlayButton = document.getElementById('menuHowToPlayButton');
+    if (howToPlayButton) {
+        howToPlayButton.addEventListener('click', () => {
+            alert("How to Play:\n1. Scan your environment.\n2. Tap the blue reticle to place your tower.\n3. Press Start Game.\n4. Tap Shoot to destroy enemies.\n5. Choose upgrades when you level up!");
+        });
+    }
+
     overlay.addEventListener('beforexrselect', function (e) {
         const targetElement = e.target;
         let allowDefault = false;
