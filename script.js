@@ -965,7 +965,10 @@ let scoreDisplayEl = null;
 let levelUpPopupEl = null;
 let levelNumberEl = null;
 let levelUpTimeout = null;
-let towerHealthIndicatorEl = null;
+//let towerHealthIndicatorEl = null;
+let topUiContainerEl = null; // The new parent container
+let hpNumberDisplayEl = null;
+let hpBarFillEl = null;
 let gameOverScreenEl = null;
 let finalScoreEl = null;
 let upgradesPopupEl = null;
@@ -978,6 +981,10 @@ let upgradePlayerDamageBtn = null;
 let closeUpgradePopupBtnEl = null;
 let manualUpgradesButtonEl = null;
 let levelDisplayEl = null;
+let xpLevelDisplayEl = null;
+let xpBarFillEl = null;
+let pauseMenuEl = null; 
+
 
 // Enemy Manager Setup
 window.enemyManager = {
@@ -1038,7 +1045,8 @@ window.updateLevelingState = function() {
         const oldLevel = currentLevel;
         currentLevel++;
         console.log(`%cLEVEL UP! Reached Level ${currentLevel} at Score ${score}`, "color: lime; font-weight: bold;");
-        window.updateLevelDisplay();
+       // window.updateLevelDisplay();
+       window.updateXPBar(); // <-- Add this call
         window.showLevelUpPopup(currentLevel);
         window.increaseEnemySpeed();
         if (currentLevel < GAME_CONFIG.LEVELING.MAX_LEVEL) { // Use Config
@@ -1119,20 +1127,56 @@ window.incrementScore = function() {
     if (isGameOver) return;
     score++;
     console.log("Score increased to:", score);
-    window.updateScoreDisplay();
+    window.updateScoreDisplay(); // Keep this if you want score elsewhere too, otherwise remove
     window.updateLevelingState();
+    window.updateXPBar(); // <-- Add this call
 };
 
 
 window.updateTowerHealthUI = function() {
-    towerHealthIndicatorEl = towerHealthIndicatorEl || document.getElementById('tower-health-indicator');
-    if (towerHealthIndicatorEl) {
-        towerHealthIndicatorEl.textContent = `Gyvybė: ${currentTowerHealth}/${currentMaxTowerHealth}`;
-        towerHealthIndicatorEl.style.display = isGameSetupComplete && !isGameOver ? 'block' : 'none';
-        const healthPercent = currentMaxTowerHealth > 0 ? (currentTowerHealth / currentMaxTowerHealth) : 0;
-        if (healthPercent > 0.6) towerHealthIndicatorEl.style.backgroundColor = 'rgba(0, 150, 0, 0.7)';
-        else if (healthPercent > 0.3) towerHealthIndicatorEl.style.backgroundColor = 'rgba(180, 130, 0, 0.7)';
-        else towerHealthIndicatorEl.style.backgroundColor = 'rgba(150, 0, 0, 0.7)';
+    // Cache elements
+    topUiContainerEl = topUiContainerEl || document.getElementById('top-ui-container');
+    hpNumberDisplayEl = hpNumberDisplayEl || document.getElementById('hp-number-display');
+    hpBarFillEl = hpBarFillEl || document.getElementById('hp-bar-fill');
+    console.log("hpNumberDisplayEl:", hpNumberDisplayEl);
+
+    // Ensure all elements exist
+    if (!topUiContainerEl || !hpNumberDisplayEl || !hpBarFillEl) {
+        // Hide container if elements are missing or game not set up
+        if(topUiContainerEl) topUiContainerEl.classList.add('hidden');
+        // console.warn("Health UI elements not found!"); // Optional warning
+        return;
+    }
+
+    // Toggle visibility based on game state
+    if (isGameSetupComplete && !isGameOver) {
+        topUiContainerEl.classList.remove('hidden');
+    } else {
+        topUiContainerEl.classList.add('hidden');
+        return; // Don't update values if not visible
+    }
+
+    // Update Text Display  
+      console.log("Setting HP text. Current:", currentTowerHealth, "Max:", currentMaxTowerHealth);
+
+      hpNumberDisplayEl.textContent = `${currentTowerHealth}/${currentMaxTowerHealth}`;
+
+    console.log("HP text set to:", hpNumberDisplayEl.textContent);
+    // Calculate Percentage
+    const healthPercent = currentMaxTowerHealth > 0 ? (currentTowerHealth / currentMaxTowerHealth) : 0;
+    const healthWidthPercentage = Math.max(0, Math.min(100, healthPercent * 100));
+
+    // Update Bar Width
+    hpBarFillEl.style.width = `${healthWidthPercentage}%`;
+
+    // Update Bar Color based on health
+    hpBarFillEl.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-600'); // Remove existing colors
+    if (healthPercent > 0.6) {
+        hpBarFillEl.classList.add('bg-green-500');
+    } else if (healthPercent > 0.3) {
+        hpBarFillEl.classList.add('bg-yellow-500');
+    } else {
+        hpBarFillEl.classList.add('bg-red-600');
     }
 };
 
@@ -1378,15 +1422,56 @@ window.enableUpgradeButton = function (buttonEl, enabledCondition, levelReq, isD
     }
 };
 
+
+
+window.updateXPBar = function() {
+    // Get elements if not already cached
+    xpLevelDisplayEl = xpLevelDisplayEl || document.getElementById('xp-level-display');
+    xpBarFillEl = xpBarFillEl || document.getElementById('xp-bar-fill');
+
+    if (!xpLevelDisplayEl || !xpBarFillEl) {
+        console.warn("XP Bar UI elements not found!");
+        return;
+    }
+
+    // Update Level Display
+    xpLevelDisplayEl.textContent = currentLevel;
+
+    // Calculate Progress
+    let progress = 0;
+    if (currentLevel >= GAME_CONFIG.LEVELING.MAX_LEVEL) {
+        progress = 1.0; // Max level, fill the bar
+    } else if (scoreGap > 0) {
+        // Calculate score needed to start the current level
+        const scoreAtStartOfLevel = scoreForNextLevel - scoreGap;
+        const scoreInCurrentLevel = score - scoreAtStartOfLevel;
+        // Calculate progress, clamped between 0 and 1
+        progress = Math.max(0, Math.min(1, scoreInCurrentLevel / scoreGap));
+    } else {
+        progress = 0; // Should not happen if scoreGap is always positive
+    }
+
+    // Update Bar Width
+    const percentage = progress * 100;
+    xpBarFillEl.style.width = `${percentage}%`;
+
+    // Optional: Log for debugging
+     console.log(`Updating XP Bar: Level ${currentLevel}, Score ${score}, Next ${scoreForNextLevel}, Gap ${scoreGap}, Progress <span class="math-inline">\{progress\.toFixed\(2\)\} \(</span>{percentage.toFixed(1)}%)`);
+};
+
 // **** PASTE resumeGame HERE ****
 window.resumeGame = function(forceClosePopup = true) {
     if (isGameOver) return;
     console.log("Resuming game...");
     isGamePaused = false;
-    placingUpgrade = null;
+    gameState = 'playing'; // Or appropriate state
     if (forceClosePopup) {
+        // Hide Upgrades Popup
         upgradesPopupEl = upgradesPopupEl || document.getElementById('upgrades-popup');
         if (upgradesPopupEl) upgradesPopupEl.style.display = 'none';
+        // **** HIDE PAUSE MENU ****
+        pauseMenuEl = pauseMenuEl || document.getElementById('pause-menu');
+        if (pauseMenuEl) pauseMenuEl.style.display = 'none';
     }
     confirmPlacementAreaEl = confirmPlacementAreaEl || document.getElementById('confirm-placement-area');
     if (confirmPlacementAreaEl) confirmPlacementAreaEl.style.display = 'none';
@@ -1461,9 +1546,10 @@ window.resetGame = function() {
 
 
     // Reset UI elements (Keep these updates)
-    window.updateScoreDisplay();
+    window.updateScoreDisplay(); // Keep or remove
     window.updateTowerHealthUI();
-    window.updateLevelDisplay();
+    // window.updateLevelDisplay(); // <-- REMOVE this line
+    window.updateXPBar(); // <-- Add this call
 
     // **** MODIFY UI RESET FOR AR MODE ****
     if (sceneElGlobal && sceneElGlobal.is('ar-mode')) {
@@ -2100,6 +2186,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const cameraEl = document.getElementById('player-camera');
     const cameraMarkerEl = document.getElementById('camera-aim-marker');
     const controlsWidget = document.getElementById('controls-widget');
+ pauseMenuEl = document.getElementById('pause-menu'); // Get pause menu
+    const pauseResumeButton = document.getElementById('pauseResumeButton'); // Get resume button
+    const pauseMainMenuButton = document.getElementById('pauseMainMenuButton'); // Get main menu button
     const placeTowerPopupEl = document.getElementById('place-tower-popup');
     const startGameButton = document.getElementById('startGameButton');
     const scanningFeedbackEl = document.getElementById('scanning-feedback');
@@ -2148,11 +2237,17 @@ document.addEventListener('DOMContentLoaded', () => {
      if (!closeUpgradePopupBtnEl) missingElements.push("closeUpgradePopupBtnEl (#closeUpgradePopupButton)");
      if (!manualUpgradesButtonEl) missingElements.push("manualUpgradesButtonEl (#manualUpgradesButton)");
      if (!levelDisplayEl) missingElements.push("levelDisplayEl (#level-display)"); // **** NEW CHECK ****
-
+     if (!document.getElementById('top-ui-container')) missingElements.push("topUiContainerEl (#top-ui-container)");
+     if (!document.getElementById('hp-number-display')) missingElements.push("hpNumberDisplayEl (#hp-number-display)");
+     if (!document.getElementById('hp-bar-fill')) missingElements.push("hpBarFillEl (#hp-bar-fill)");
+     if (!pauseMenuEl) missingElements.push("pauseMenuEl (#pause-menu)");
+     if (!pauseResumeButton) missingElements.push("pauseResumeButton (#pauseResumeButton)");
+     if (!pauseMainMenuButton) missingElements.push("pauseMainMenuButton (#pauseMainMenuButton)");
      // Check display elements
-     if (!towerHealthIndicatorEl) missingElements.push("towerHealthIndicatorEl (#tower-health-indicator)");
      if (!scoreDisplayEl) missingElements.push("scoreDisplayEl (#score-display)");
      if (!finalScoreEl) missingElements.push("finalScoreEl (#final-score)");
+
+
 
      if (missingElements.length > 0) {
         console.error(`Essential page element(s) missing! Check IDs in index.html: ${missingElements.join(', ')}`);
@@ -2233,7 +2328,82 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- UI Functions (Definitions are now attached to window) ---
+    if (exitVRButton) {
+        exitVRButton.addEventListener('click', () => {
+            // Don't exit VR, instead show pause menu IF game is running
+            if (isGameSetupComplete && !isGameOver && !isGamePaused) {
+                console.log("Pause button clicked. Pausing game.");
+                isGamePaused = true;
+                gameState = 'paused'; // Update game state
 
+                // Stop spawner
+                if (window.enemyManager.spawnTimerId) {
+                    clearInterval(window.enemyManager.spawnTimerId);
+                    window.enemyManager.spawnTimerId = null;
+                    console.log("Enemy spawner paused.");
+                }
+
+                // Hide controls, show pause menu
+                if (controlsWidget) controlsWidget.style.display = 'none';
+                if (pauseMenuEl) pauseMenuEl.style.display = 'flex'; // Use flex to center content
+
+            } else if (isGamePaused) {
+                 console.log("Pause button clicked while already paused. Resuming.");
+                 // If clicked while paused, treat as resume
+                 window.resumeGame(true); // Use existing resume function
+            } else {
+                console.log("Pause button clicked, but game not running or already over.");
+                // Optional: If clicked when game not running, maybe exit VR?
+                // const sceneEl = sceneElGlobal || document.querySelector('a-scene');
+                // if (sceneEl && sceneEl.is('ar-mode')) {
+                //     sceneEl.exitVR();
+                // }
+            }
+        });
+    } else { console.error("Exit VR/Pause Button element not found!"); }
+    // **** END MODIFIED Listener ****
+
+
+    // **** ADD Pause Menu Button Listeners ****
+
+    // Resume Button Listener
+    if (pauseResumeButton) {
+        pauseResumeButton.addEventListener('click', () => {
+            if (isGamePaused) {
+                console.log("Resume button clicked.");
+                // Use the existing resumeGame function (ensure it handles unpausing correctly)
+                window.resumeGame(true); // Pass true to force close pause menu
+            }
+        });
+    } else { console.error("Pause Resume Button element not found!"); }
+
+    // Main Menu Button (from Pause Menu) Listener
+    if (pauseMainMenuButton) {
+        pauseMainMenuButton.addEventListener('click', () => {
+            if (isGamePaused) {
+                console.log("Pause Menu -> Main Menu button clicked. Exiting VR/AR session...");
+                isGamePaused = false; // Ensure game is not paused before exiting
+
+                const sceneEl = sceneElGlobal || document.querySelector('a-scene');
+                if (sceneEl && sceneEl.is('ar-mode')) {
+                    sceneEl.exitVR(); // Trigger exit-vr listener for proper cleanup
+                } else {
+                    // Fallback if not in AR mode (shouldn't happen if pause menu shown)
+                    console.warn("Pause Menu -> Main Menu clicked, but not in AR/VR mode. Manually transitioning.");
+                    if (pauseMenuEl) pauseMenuEl.style.display = 'none';
+                    window.resetGame();
+                    const mainMenu = document.getElementById('main-menu');
+                    const menuHighScoreDisplay = document.getElementById('menuHighScore');
+                    const overlay = document.getElementById('dom-overlay');
+                    if (sceneEl) sceneEl.style.display = 'none';
+                    if (mainMenu) mainMenu.style.display = 'flex';
+                    if (overlay) overlay.style.display = 'none';
+                    if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore;
+                    gameState = 'menu';
+                }
+            }
+        });
+    } else { console.error("Pause Main Menu Button element not found!"); }
     // --- Shoot Button Listener ---
     shootButton.addEventListener('click', () => {
         console.log("Shoot button clicked.");
@@ -2312,9 +2482,10 @@ document.addEventListener('DOMContentLoaded', () => {
             window.enemyManager.speedMultiplier = 1.0;
 
             // Update UI
-            window.updateScoreDisplay(); // Use window.
-            window.updateTowerHealthUI();  // Use window.
-            window.updateLevelDisplay();
+                     window.updateScoreDisplay(); // Keep or remove
+        window.updateTowerHealthUI();
+        // window.updateLevelDisplay(); // <-- REMOVE this line
+        window.updateXPBar(); // <-- Add this call
 
             // ... (hide setup UI, show game UI, enable shoot button) ...
             if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
@@ -2337,6 +2508,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
      // --- Try Again Button Listener ---
     tryAgainButton.addEventListener('click', window.resetGame); // Use window.
+
+
+
+    const gameOverMenuButton = document.getElementById('gameOverMenuButton');
+    if (gameOverMenuButton) {
+        gameOverMenuButton.addEventListener('click', () => {
+            console.log("Game Over Menu Button clicked. Exiting VR/AR session...");
+
+            const sceneEl = sceneElGlobal || document.querySelector('a-scene');
+
+            // Check if we are actually in VR/AR mode before trying to exit
+            if (sceneEl && sceneEl.is('ar-mode')) {
+                // Programmatically exit the AR/VR session
+                sceneEl.exitVR();
+                // The 'exit-vr' event listener will handle the rest:
+                // - Hiding the scene
+                // - Showing the main menu
+                // - Hiding the overlay
+                // - Calling resetGame()
+                // - Updating high score display
+                // - Setting gameState = 'menu'
+            } else {
+                // Fallback if somehow not in VR/AR mode (shouldn't normally happen here)
+                console.warn("Menu button clicked, but not in AR/VR mode. Manually transitioning.");
+                const gameOverScreen = document.getElementById('game-over-screen');
+                if (gameOverScreen) gameOverScreen.style.display = 'none';
+                window.resetGame();
+                const mainMenu = document.getElementById('main-menu');
+                const menuHighScoreDisplay = document.getElementById('menuHighScore');
+                const overlay = document.getElementById('dom-overlay');
+                if (sceneEl) sceneEl.style.display = 'none';
+                if (mainMenu) mainMenu.style.display = 'flex';
+                if (overlay) overlay.style.display = 'none';
+                if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore;
+                gameState = 'menu';
+            }
+        });
+    } else { console.error("Game Over Menu Button element not found!"); }
+
 
    // --- Upgrade/Confirm/Manual/Close Listeners ---
    console.log("DEBUG: Attaching listeners for UPGRADE/Confirm/Close/Manual buttons directly...");

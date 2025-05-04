@@ -175,10 +175,8 @@
              max-height: 36px;
          }
          #exitVRButton .button-icon {
-             width: 55%; 
-             height: 55%;
-             max-width: 22px; 
-             max-height: 22px;
+          display: grid !important;
+          place-items: center !important;
          }
 
     </style>
@@ -297,15 +295,31 @@
     </a-scene>
 
     <section id="dom-overlay" class="text-slate-300 text-sm select-none">
-      <div id="fps-counter"
-          style="--stroke-border-light-override: var(--stroke-dark-border-light); --stroke-shadow-override: var(--stroke-dark-shadow); --stroke-border-dark-override: var(--stroke-dark-border-dark);"
-          class="absolute top-3 right-3 bg-slate-900 bg-opacity-75 backdrop-blur-sm rounded p-1.5 px-2.5 text-xs font-mono hidden border stroke-styling">
-          FPS: --
-      </div>
-      <div id="tower-health-indicator" 
-           style="--stroke-border-light-override: var(--stroke-cyan-border-light); --stroke-shadow-override: var(--stroke-cyan-shadow); --stroke-border-dark-override: var(--stroke-cyan-border-dark);"
-           class="absolute top-4 left-4 bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-md p-3 px-4 font-semibold shadow-lg hidden stroke-styling">
-      </div>
+      <div id="top-ui-container"
+      class="absolute top-3 left-4 right-4 md:left-1/2 md:transform md:-translate-x-1/2 md:max-w-md /* Positioning */
+             flex items-center gap-2 /* Flex layout & spacing */
+             hidden /* Start hidden */
+             ">
+ 
+             <div style="--stroke-border-light-override: var(--stroke-cyan-border-light); --stroke-shadow-override: var(--stroke-cyan-shadow); --stroke-border-dark-override: var(--stroke-cyan-border-dark);"
+             class="bg-cyan-600 rounded px-2 flex items-center gap-1.5 stroke-styling flex-shrink-0 h-7"> 
+            <span class="text-sm font-bold text-white">HP</span>
+            <span id="hp-number-display" class="text-sm font-semibold text-white">10/10</span>
+        </div>
+    
+        <div id="hp-bar-container"
+             style="--stroke-border-light-override: var(--stroke-light-border-light); --stroke-shadow-override: var(--stroke-light-shadow); --stroke-border-dark-override: var(--stroke-light-border-dark); background-color: var(--stroke-grey-border-dark);" 
+             class="flex-grow rounded overflow-hidden stroke-styling"> 
+            <div id="hp-bar-fill" class="h-7 bg-green-500 transition-all duration-300 ease-in-out" style="width: 100%;"></div>
+        </div>
+    
+        <div id="fps-counter"
+             style="--stroke-border-light-override: var(--stroke-dark-border-light); --stroke-shadow-override: var(--stroke-dark-shadow); --stroke-border-dark-override: var(--stroke-dark-border-dark);"
+             class="bg-slate-900 bg-opacity-75 backdrop-blur-sm rounded p-1.5 px-2.5 text-xs font-mono text-slate-300 stroke-styling flex-shrink-0">
+            FPS: --
+        </div>
+ 
+ </div>
       <div id="scanning-feedback" 
            style="--stroke-border-light-override: var(--btn-exit-border-light); --stroke-shadow-override: var(--btn-exit-shadow); --stroke-border-dark-override: var(--btn-exit-border-dark);"
            class="absolute bottom-10 left-1/2 transform -translate-x-1/2 
@@ -324,31 +338,43 @@
           <div id="level-number" class="text-lg opacity-90">Level: 1</div>
       </div>
       <div id="place-tower-popup"
-           style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
-           class="absolute top-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-sm
-                  container-styling stroke-styling
-                  z-20 p-5
-                  text-center
+           class="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-sm /* Positioned bottom-center, wider */
+                  z-20
+                  flex flex-col items-center gap-4 /* Flex column layout with gap-4 for spacing */
                   hidden">
-          <div class="font-bold text-lg text-gray-800 tracking-wide mb-2 hidden">
-              Padėkite bokšta prieš save.
-          </div>
-          <div class="text-sm mb-4 text-gray-700">
-              Paspausk betkur ant paviršiaus
-          </div>
-          <button id="startGameButton"
-                  disabled
-                  style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg);"
-                  class="hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
-                         text-white font-bold py-2 px-5 rounded 
-                         button-styling button-active-styling 
-                         disabled:bg-slate-400 disabled:text-slate-600 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
-              Pradėti.
-          </button>
-          <div id="tower-placed-feedback" class="text-xs mt-3 text-green-700 font-semibold hidden">
-              Pakeiskite poziciją arba pradėkite žaidimą.
-          </div>
+       
+
+            <div style="--stroke-border-light-override: var(--stroke-light-border-light); --stroke-shadow-override: var(--stroke-light-shadow); --stroke-border-dark-override: var(--stroke-light-border-dark);"
+                 class="relative w-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg shadow-md stroke-styling pt-8 pb-4 px-4"> 
+
+         
+                <div style="--stroke-border-light-override: var(--stroke-light-border-light); --stroke-shadow-override: var(--stroke-light-shadow); --stroke-border-dark-override: var(--stroke-light-border-dark);" 
+                     class="absolute top-0 left-4 transform -translate-y-1/3 /* Position top-left, pull up */
+                            bg-blue-600 rounded-lg p-3 flex items-center justify-center w-16 h-16 flex-shrink-0 stroke-styling shadow-lg">
+                     <img src="icons/tower_place.svg" alt="Place Tower Icon" class="w-full h-full filter brightness(0) invert(1)"
+                          onerror="this.onerror=null; this.src='https://placehold.co/64x64/1E40AF/FFFFFF?text=ICON';">
+                </div>
+
+               
+                <div class="text-left w-full pt-4">
+                    <div id="initial-place-text" class="text-sm text-gray-700 dark:text-slate-300 font-medium">Paspausk ant žemės prieš save, kad padėti bokštą.</div>
+                    <div id="tower-placed-feedback" class="text-xs text-green-700 font-semibold hidden mt-1">Bokštas padėtas! Paspausk kitur pakeisti jo poziciją arba pradėk žaist.</div>
+                </div>
+            </div>
+
+            <button id="startGameButton"
+                    disabled
+                    style="--stroke-border-light-override: var(--btn-start-border-light); --stroke-shadow-override: var(--btn-start-shadow); --stroke-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg);"
+                    class="hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)]
+                           text-white font-bold py-2 px-5 rounded w-full
+                           button-styling button-active-styling stroke-styling 
+                           disabled:bg-slate-400 disabled:text-slate-600 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none disabled:stroke-styling">
+                Pradėti.
+            </button>
+
       </div>
+
+ </div>
       
       <div id="upgrades-popup" 
            style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
@@ -422,69 +448,134 @@
                          button-styling button-active-styling 
                          disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">Patvirtinti</button>
       </div>
-      <div id="game-over-screen" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-80 backdrop-blur-md border border-red-500/50 rounded-lg z-50 p-8 text-center hidden shadow-xl">
-          <h2 class="mt-0 text-red-400 text-2xl font-bold tracking-wide">PABAIGA/h2>
-          <p id="final-score" class="text-lg my-6 text-cyan-100">TAVO TAŠKAI: 0</p>
-          <button id="tryAgainButton" 
-                  style="--btn-border-light-override: var(--btn-restart-border-light); --btn-shadow-override: var(--btn-restart-shadow); --btn-border-dark-override: var(--btn-restart-border-dark); background-color: var(--btn-restart-bg); box-shadow: inset 0 0 0 3px var(--btn-restart-border-light), 0 3px 0 0 var(--btn-restart-shadow);"
-                  class="py-3 px-6 text-lg hover:bg-[var(--btn-restart-bg-hover)] active:bg-[var(--btn-restart-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow">Pabandyk iš naujo</button>
+      <div id="game-over-screen"
+           class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
+                  bg-black bg-opacity-80 backdrop-blur-md border border-red-500/50 rounded-lg
+                  z-50 p-6 md:p-8 
+                  text-center shadow-xl
+                  w-11/12 max-w-sm
+                  hidden">
+
+          <h2 class="mt-0 mb-4 text-red-400 text-2xl md:text-3xl font-bold tracking-wide">PABAIGA</h2> 
+          <p id="final-score" class="text-lg md:text-xl my-5 md:my-6 text-cyan-100">TAVO TAŠKAI: 0</p>
+
+          <div class="flex flex-col sm:flex-row justify-center gap-4 mt-6"> 
+
+              <button id="gameOverMenuButton"
+                      style="--btn-border-light-override: var(--btn-close-border-light); --btn-shadow-override: var(--btn-close-shadow); --btn-border-dark-override: var(--btn-close-border-dark); background-color: var(--btn-close-bg); box-shadow: inset 0 0 0 3px var(--btn-close-border-light), 0 3px 0 0 var(--btn-close-shadow);"
+                      class="py-2 px-5 text-base hover:bg-[var(--btn-close-bg-hover)] active:bg-[var(--btn-close-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow stroke-styling flex-grow sm:flex-grow-0"> 
+                  Menu
+              </button>
+
+              <button id="tryAgainButton"
+                      style="--btn-border-light-override: var(--btn-restart-border-light); --btn-shadow-override: var(--btn-restart-shadow); --btn-border-dark-override: var(--btn-restart-border-dark); background-color: var(--btn-restart-bg); box-shadow: inset 0 0 0 3px var(--btn-restart-border-light), 0 3px 0 0 var(--btn-restart-shadow);"
+                      class="py-2 px-5 text-base hover:bg-[var(--btn-restart-bg-hover)] active:bg-[var(--btn-restart-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow stroke-styling flex-grow sm:flex-grow-0">
+                  Pabandyk iš naujo
+              </button>
+
+          </div>
       </div>
 
-      <div id="controls-widget" 
+      <div id="pause-menu"
+      class="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm /* Fullscreen overlay */
+             flex items-center justify-center /* Center content */
+             z-40 /* Ensure it's above game UI but potentially below other popups if needed */
+             hidden"> 
+
+     <div style="--stroke-border-light-override: var(--stroke-light-border-light); --stroke-shadow-override: var(--stroke-light-shadow); --stroke-border-dark-override: var(--stroke-light-border-dark);"
+          class="bg-slate-700 rounded-lg p-6 md:p-8 shadow-xl stroke-styling
+                 w-11/12 max-w-xs /* Size constraints */
+                 text-center">
+
+         <h2 class="mt-0 mb-6 text-slate-100 text-2xl md:text-3xl font-bold tracking-wider">PAUSE</h2>
+
+         <div class="flex flex-col justify-center gap-4">
+
+             <button id="pauseResumeButton"
+                     style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg); box-shadow: inset 0 0 0 3px var(--btn-start-border-light), 0 3px 0 0 var(--btn-start-shadow);"
+                     class="py-3 px-5 text-base hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow stroke-styling">
+                 Resume
+             </button>
+
+             <button id="pauseMainMenuButton"
+                     style="--btn-border-light-override: var(--btn-close-border-light); --btn-shadow-override: var(--btn-close-shadow); --btn-border-dark-override: var(--btn-close-border-dark); background-color: var(--btn-close-bg); box-shadow: inset 0 0 0 3px var(--btn-close-border-light), 0 3px 0 0 var(--btn-close-shadow);"
+                     class="py-3 px-5 text-base hover:bg-[var(--btn-close-bg-hover)] active:bg-[var(--btn-close-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow stroke-styling">
+                 Main Menu
+             </button>
+
+         </div>
+     </div>
+ </div>
+
+      <div id="controls-widget"
            style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
-           class="absolute bottom-4 left-4 right-4 md:left-auto md:right-auto md:w-auto 
-                  container-styling stroke-styling 
+           class="absolute bottom-4 left-4 right-4 md:left-auto md:right-auto md:w-auto
+                  container-styling stroke-styling
                   p-3 z-10 text-center md:text-left hidden">
-          <div class="flex flex-row justify-center md:justify-start gap-2 mb-3 px-2">
-              <div id="score-display" 
+
+          <div class="flex flex-row justify-center md:justify-start gap-2 mb-3 px-2 hidden">
+              <div id="score-display"
                    style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
                    class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling stroke-styling">Score: 0</div>
-              <div id="level-display" 
+              <div id="level-display"
                    style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
                    class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling stroke-styling">Level: 1</div>
           </div>
-  
-          <fieldset class="border-none p-0 flex justify-center items-center gap-3"> 
-              <button
-                  id="myEnterARButton"
-                  style="--stroke-border-light-override: var(--btn-exit-border-light); --stroke-shadow-override: var(--btn-exit-shadow); --stroke-border-dark-override: var(--btn-exit-border-dark);"
-                  onclick="console.log('Enter AR Button'); document.querySelector('a-scene').enterAR()"
-                  class="display:none bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-5 rounded shadow-md transition duration-150 ease-in-out active:scale-95 stroke-styling">
-                  Eiti į AR
-              </button>
-             
-              <button id="exitVRButton"
-              aria-label="Exit AR/VR"
-              style="--btn-border-light-override: var(--btn-exit-border-light); --btn-shadow-override: var(--btn-exit-shadow); --btn-border-dark-override: var(--btn-exit-border-dark); background-color: var(--btn-exit-bg); box-shadow: inset 0 0 0 3px var(--btn-exit-border-light), 0 3px 0 0 var(--btn-exit-shadow);"
-              class="hover:bg-[var(--btn-exit-bg-hover)] active:bg-[var(--btn-exit-bg-active)]
-                     button-styling button-active-styling-thick
-                     rounded-md shadow-md hidden w-12 h-12 p-2
-                     flex items-center justify-center"> 
-              <img src="icons/menu.svg" alt="Menu Icon" class="button-icon filter invert">
-      </button>
-  
-             
-              <button id="shootButton" 
-                      aria-label="Shoot"
-                      style="--btn-border-light-override: var(--btn-shoot-icon-border-light); --btn-shadow-override: var(--btn-shoot-icon-shadow); --btn-border-dark-override: var(--btn-shoot-icon-border-dark); background-color: var(--btn-shoot-icon-bg); box-shadow: inset 0 0 0 3px var(--btn-shoot-icon-border-light), 0 3px 0 0 var(--btn-shoot-icon-shadow);" 
-                      class="hover:bg-[var(--btn-shoot-icon-bg-hover)] active:bg-[var(--btn-shoot-icon-bg-active)] 
-                             button-styling button-active-styling-thick
-                             rounded-full shadow-lg transform disabled:opacity-50 disabled:cursor-not-allowed 
-                             w-16 h-16 p-3"> 
-                   <img src="icons/shoot.svg" alt="Shoot Icon" class="button-icon"> 
-              </button> 
-  
-          
-              <button id="manualUpgradesButton" 
-                      aria-label="Upgrades"
-                      style="--btn-border-light-override: var(--btn-upgrade-border-light); --btn-shadow-override: var(--btn-upgrade-shadow); --btn-border-dark-override: var(--btn-upgrade-border-dark); background-color: var(--btn-upgrade-bg); box-shadow: inset 0 0 0 3px var(--btn-upgrade-border-light), 0 3px 0 0 var(--btn-upgrade-shadow);" 
-                      class="hover:bg-[var(--btn-upgrade-bg-hover)] active:bg-[var(--btn-upgrade-bg-active)] 
-                             button-styling button-active-styling-thick
-                             text-white font-bold py-2 px-4 rounded shadow-md w-12 h-12 p-2"> 
-                   <span class="text-xs leading-none">UPGR</span> 
-              </button>
-           </fieldset>
-      </div>
-  </section> 
+
+          <div class="flex items-center justify-center md:justify-start gap-1 mb-3 px-1">
+
+              <div style="--stroke-border-light-override: var(--stroke-cyan-border-light); --stroke-shadow-override: var(--stroke-cyan-shadow); --stroke-border-dark-override: var(--stroke-cyan-border-dark);"
+                   class="h-5 w-10 bg-cyan-600 rounded px-1 flex items-center justify-center stroke-styling">
+                  <span id="xp-level-display" class="font-bold text-lg text-white">1</span>
+              </div>
+
+              <div id="xp-bar-container"
+              style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark); background-color: var(--stroke-grey-border-dark);" 
+              class="flex-grow h-5 rounded overflow-hidden stroke-styling"> 
+             <div id="xp-bar-fill" class="h-7 bg-green-500 rounded-l transition-width duration-300 ease-in-out" style="width: 0%;"></div>
+         </div>
+
+          </div>
+
+        <fieldset class="border-none p-0 flex justify-center items-center gap-3">
+            <button
+                id="myEnterARButton"
+                style="--stroke-border-light-override: var(--btn-exit-border-light); --stroke-shadow-override: var(--btn-exit-shadow); --stroke-border-dark-override: var(--btn-exit-border-dark);"
+                onclick="console.log('Enter AR Button'); document.querySelector('a-scene').enterAR()"
+                class="display:none bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-5 rounded shadow-md transition duration-150 ease-in-out active:scale-95 stroke-styling">
+                Eiti į AR
+            </button>
+
+            <button id="exitVRButton"
+                    aria-label="Exit AR/VR"
+                    style="--btn-border-light-override: var(--btn-exit-border-light); --btn-shadow-override: var(--btn-exit-shadow); --btn-border-dark-override: var(--btn-exit-border-dark); background-color: var(--btn-exit-bg); box-shadow: inset 0 0 0 3px var(--btn-exit-border-light), 0 3px 0 0 var(--btn-exit-shadow);"
+                    class="hover:bg-[var(--btn-exit-bg-hover)] active:bg-[var(--btn-exit-bg-active)]
+                           button-styling button-active-styling-thick
+                           rounded-md shadow-md hidden w-12 h-12 p-2
+                           grid place-items-center">
+                <img src="icons/menu.svg" alt="Menu Icon" class="button-icon filter invert">
+            </button>
+
+
+            <button id="shootButton"
+                    aria-label="Shoot"
+                    style="--btn-border-light-override: var(--btn-shoot-icon-border-light); --btn-shadow-override: var(--btn-shoot-icon-shadow); --btn-border-dark-override: var(--btn-shoot-icon-border-dark); background-color: var(--btn-shoot-icon-bg); box-shadow: inset 0 0 0 3px var(--btn-shoot-icon-border-light), 0 3px 0 0 var(--btn-shoot-icon-shadow);"
+                    class="hover:bg-[var(--btn-shoot-icon-bg-hover)] active:bg-[var(--btn-shoot-icon-bg-active)]
+                           button-styling button-active-styling-thick
+                           rounded-full shadow-lg transform disabled:opacity-50 disabled:cursor-not-allowed
+                           w-16 h-16 p-3">
+                 <img src="icons/shoot.svg" alt="Shoot Icon" class="button-icon">
+            </button>
+
+
+            <button id="manualUpgradesButton"
+                    aria-label="Upgrades"
+                    style="--btn-border-light-override: var(--btn-upgrade-border-light); --btn-shadow-override: var(--btn-upgrade-shadow); --btn-border-dark-override: var(--btn-upgrade-border-dark); background-color: var(--btn-upgrade-bg); box-shadow: inset 0 0 0 3px var(--btn-upgrade-border-light), 0 3px 0 0 var(--btn-upgrade-shadow);"
+                    class="hover:bg-[var(--btn-upgrade-bg-hover)] active:bg-[var(--btn-upgrade-bg-active)]
+                           button-styling button-active-styling-thick
+                           text-white font-bold py-2 px-4 rounded shadow-md w-12 h-12 p-2">
+                 <span class="text-xs leading-none">UPGR</span>
+            </button>
+         </fieldset> </div> </section>
   </body>
 </html>
