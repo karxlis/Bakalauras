@@ -42,7 +42,6 @@ const GAME_CONFIG = {
             LEVEL_FOR_DAMAGE_2: 2  // Internal shooterLevel when Dmg II is applied
         },
         SLOWER: {
-            INITIAL_SLOW_PERCENTAGE: 0.90,// Base slow for newly placed turret
             UPGRADE_FREQUENCY: 3, // Upgrade offered every 3 levels
             SPEED_INCREASE_FACTOR: 0.90, // Speed upgrade reduces delay to 90% (10% faster)
             SLOW_INCREASE_AMOUNT: 0.90, // Add +20% slow effectiveness
@@ -55,8 +54,8 @@ const GAME_CONFIG = {
             BASE_DAMAGE: 1
         },
         SLOWER: {
-            INITIAL_DELAY: 6000,
-            INITIAL_SLOW_PERCENTAGE: 0.3,
+            INITIAL_DELAY: 3000,
+            INITIAL_SLOW_PERCENTAGE: 0.5,
             PROJECTILE_COLOR: '#FFFFFF' // White projectiles
         },
         PROJECTILE_DEFAULTS: { // Shared defaults
@@ -538,20 +537,21 @@ AFRAME.registerComponent('move-towards-target', {
         this.originalColor = null; // To store original color when slowed
         // **** END SLOW STATE ****
 
+// Inside init function of move-towards-target:
+const currentScale = this.el.getAttribute('scale') || { x: 1, y: 1, z: 1 };
+// Define a slightly larger scale for the 'to' state
+const targetScaleUp = { x: currentScale.x * 3, y: currentScale.y * 3, z: currentScale.z * 3 };
 
-        const currentScale = this.el.getAttribute('scale') || { x: 1, y: 1, z: 1 }; // Get current scale if possible
-        const targetScale = { x: currentScale.x * 0.75, y: currentScale.y * 0.75, z: currentScale.z * 0.75 }; // Scale down slightly
-
-        this.el.setAttribute('animation__wiggle', { // Renamed animation for clarity
-            property: 'scale',                          // Target scale property
-            from: `${currentScale.x} ${currentScale.y} ${currentScale.z}`, // Start at original scale
-            to: `${targetScale.x} ${targetScale.y} ${targetScale.z}`,     // Go to smaller scale
-            dur: 500,                                   // Duration of one pulse phase (ms)
-            dir: 'alternate',                           // Go back and forth
-            loop: true,                                 // Repeat while slowed
-            easing: 'easeInOutSine',                    // Smooth easing
-            enabled: false                              // Start disabled
-        });
+this.el.setAttribute('animation__wiggle', {
+    property: 'scale',
+    from: `${currentScale.x} ${currentScale.y} ${currentScale.z}`, // Start at normal
+    to: `${targetScaleUp.x} ${targetScaleUp.y} ${targetScaleUp.z}`, // Go slightly bigger
+    dur: 400, // Maybe faster duration for a pulse
+    dir: 'alternate',
+    loop: true,
+    easing: 'easeInOutSine',
+    enabled: false
+});
         // **** END SCALE ANIMATION DEFINITION ****
         // Store the original Z rotation if needed (optional, lookAt might handle reset)
         this.originalZRotation = this.el.object3D.rotation.z;
@@ -1826,7 +1826,10 @@ else {
         const menuHighScoreDisplay = document.getElementById('menuHighScore');
         if (mainMenu) mainMenu.style.display = 'flex';
         if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore; // Update score display
-
+   // **** ADD THIS LINE ****
+   const overlay = document.getElementById('dom-overlay');
+   if (overlay) overlay.style.display = 'none'; // Hide the entire overlay
+   // **** END ADDED LINE ****
         // 5. Ensure overlay widgets hidden (Reset game might already do this)
         const fpsCounterEl = document.getElementById('fps-counter'); // Get FPS element
 

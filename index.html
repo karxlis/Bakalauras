@@ -13,109 +13,174 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="script.js" defer></script>
     <style>
-        /* Basic body styles */
-        /* Basic body styles */
         body {
-    margin: 0;
-    overflow: hidden;
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-}
-#dom-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-}
-#dom-overlay > * {
-    pointer-events: auto;
-}
- #placement-reticle { pointer-events: none; }
- #camera-aim-marker > * { pointer-events: none; }
- .upgrade-button:disabled .upgrade-desc-level { display: block; }
- .upgrade-button:not(:disabled) .upgrade-desc-level { display: none; }
+            margin: 0;
+            overflow: hidden;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+        #dom-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+        #dom-overlay > * {
+            pointer-events: auto;
+        }
+        #placement-reticle { pointer-events: none; }
+        #camera-aim-marker > * { pointer-events: none; }
+        .upgrade-button:disabled .upgrade-desc-level { display: block; }
+        .upgrade-button:not(:disabled) .upgrade-desc-level { display: none; }
 
- :root {
-    --btn-start-bg: #16BB77;
-    --btn-start-border-dark: #118959;
-    --btn-start-border-light: #1CD489;
-    --btn-start-shadow: #0E6F47;
-    --btn-start-bg-hover: #13A669;
-    --btn-start-bg-active: #118959;
+        :root {
+            /* Green Theme */
+            --btn-start-bg: #16BB77;
+            --btn-start-border-dark: #118959;
+            --btn-start-border-light: #1CD489;
+            --btn-start-shadow: #0E6F47;
+            --btn-start-bg-hover: #13A669;
+            --btn-start-bg-active: #118959;
 
-    --btn-howto-bg: #BBB316;
-    --btn-howto-border-dark: #827A10;
-    --btn-howto-border-light: #CEC64F;
-    --btn-howto-shadow: #6F680E;
-    --btn-howto-bg-hover: #A8A014;
-    --btn-howto-bg-active: #958D12;
+            /* Yellow Theme (HowTo/Restart/Upgrade) */
+            --btn-howto-bg: #BBB316; 
+            --btn-howto-border-dark: #827A10;
+            --btn-howto-border-light: #CEC64F;
+            --btn-howto-shadow: #6F680E;
+            --btn-howto-bg-hover: #A8A014;
+            --btn-howto-bg-active: #958D12;
 
-    --btn-restart-bg: var(--btn-howto-bg);
-    --btn-restart-border-dark: var(--btn-howto-border-dark);
-    --btn-restart-border-light: var(--btn-howto-border-light);
-    --btn-restart-shadow: var(--btn-howto-shadow);
-    --btn-restart-bg-hover: var(--btn-howto-bg-hover);
-    --btn-restart-bg-active: var(--btn-howto-bg-active);
+            --btn-restart-bg: var(--btn-howto-bg);
+            --btn-restart-border-dark: var(--btn-howto-border-dark);
+            --btn-restart-border-light: var(--btn-howto-border-light);
+            --btn-restart-shadow: var(--btn-howto-shadow);
+            --btn-restart-bg-hover: var(--btn-howto-bg-hover);
+            --btn-restart-bg-active: var(--btn-howto-bg-active);
 
-    --btn-confirm-bg: var(--btn-start-bg);
-    --btn-confirm-border-dark: var(--btn-start-border-dark);
-    --btn-confirm-border-light: var(--btn-start-border-light);
-    --btn-confirm-shadow: var(--btn-start-shadow);
-    --btn-confirm-bg-hover: var(--btn-start-bg-hover);
-    --btn-confirm-bg-active: var(--btn-start-bg-active);
+            --btn-confirm-bg: var(--btn-start-bg);
+            --btn-confirm-border-dark: var(--btn-start-border-dark);
+            --btn-confirm-border-light: var(--btn-start-border-light);
+            --btn-confirm-shadow: var(--btn-start-shadow);
+            --btn-confirm-bg-hover: var(--btn-start-bg-hover);
+            --btn-confirm-bg-active: var(--btn-start-bg-active);
 
-    --btn-shoot-bg: var(--btn-start-bg);
-    --btn-shoot-border-dark: var(--btn-start-border-dark);
-    --btn-shoot-border-light: var(--btn-start-border-light);
-    --btn-shoot-shadow: var(--btn-start-shadow);
-    --btn-shoot-bg-hover: var(--btn-start-bg-hover);
-    --btn-shoot-bg-active: var(--btn-start-bg-active);
+            /* Upgrade Button Theme (Uses Yellow) */
+            --btn-upgrade-bg: var(--btn-howto-bg); 
+            --btn-upgrade-border-dark: var(--btn-howto-border-dark);
+            --btn-upgrade-border-light: var(--btn-howto-border-light);
+            --btn-upgrade-shadow: var(--btn-howto-shadow);
+            --btn-upgrade-bg-hover: var(--btn-howto-bg-hover);
+            --btn-upgrade-bg-active: var(--btn-howto-bg-active);
 
-    --btn-upgrade-bg: var(--btn-howto-bg);
-    --btn-upgrade-border-dark: var(--btn-howto-border-dark);
-    --btn-upgrade-border-light: var(--btn-howto-border-light);
-    --btn-upgrade-shadow: var(--btn-howto-shadow);
-    --btn-upgrade-bg-hover: var(--btn-howto-bg-hover);
-    --btn-upgrade-bg-active: var(--btn-howto-bg-active);
+            /* Close Button Theme */
+            --btn-close-bg: #6b7280; 
+            --btn-close-border-dark: #374151; 
+            --btn-close-border-light: #9ca3af; 
+            --btn-close-shadow: #1f2937; 
+            --btn-close-bg-hover: #4b5563; 
+            --btn-close-bg-active: #374151; 
 
-    --btn-close-bg: #6b7280; /* gray-500 */
-    --btn-close-border-dark: #374151; /* gray-700 */
-    --btn-close-border-light: #9ca3af; /* gray-400 */
-    --btn-close-shadow: #1f2937; /* gray-800 */
-    --btn-close-bg-hover: #4b5563; /* gray-600 */
-    --btn-close-bg-active: #374151; /* gray-700 */
+            /* Exit Button Theme (Blue) */
+            --btn-exit-bg: #1C9FD7; 
+            --btn-exit-border-dark: #11648f; 
+            --btn-exit-border-light: #5cc5f2; 
+            --btn-exit-shadow: #0b4766; 
+            --btn-exit-bg-hover: #188abd; 
+            --btn-exit-bg-active: #11648f; 
+
+            /* Shoot Icon Button Theme (Custom Yellow/Brown) */
+            --btn-shoot-icon-bg: #FFCC00;
+            --btn-shoot-icon-border-dark: #B48000; 
+            --btn-shoot-icon-border-light: #FFF3C7; 
+            --btn-shoot-icon-shadow: #B48000; 
+            --btn-shoot-icon-bg-hover: #f0c100; 
+            --btn-shoot-icon-bg-active: #e0b500; 
+
+            /* Grey Theme for Strokes */
+            --stroke-grey-border-dark: #B8BAC7;
+            --stroke-grey-border-light: #ffffff;
+            --stroke-grey-shadow: #B8BAC7;
+
+             /* Dark Theme for Strokes */
+            --stroke-dark-border-dark: #374151; 
+            --stroke-dark-border-light: #6b7280; 
+            --stroke-dark-shadow: #1f2937; 
+
+            /* Cyan Theme for Strokes */
+            --stroke-cyan-border-dark: #0e7490; 
+            --stroke-cyan-border-light: #67e8f9; 
+            --stroke-cyan-shadow: #164e63; 
+
+            /* White/Light Grey Theme for Strokes */
+            --stroke-light-border-dark: #d1d5db; 
+            --stroke-light-border-light: #ffffff; 
+            --stroke-light-shadow: #9ca3af; 
 
 
-    --score-text-color: #4b5563;
+            --score-text-color: #4b5563;
 
-    --container-bg: #DADCE7;
-    --container-border-dark: #B8BAC7;
-    --container-border-light: #ffffff;
-    --container-shadow: #B8BAC7;
- }
+            --container-bg: #DADCE7;
+            --container-border-dark: #B8BAC7;
+            --container-border-light: #ffffff;
+            --container-shadow: #B8BAC7;
+         }
 
- .button-styling {
-     border-width: 1px;
-     box-shadow: inset 0 0 0 2px var(--btn-border-light-override, transparent), 0 3px 0 0 var(--btn-shadow-override, transparent);
-     color: white; /* Default button text color */
-     cursor: pointer;
-     transition: background-color 0.1s ease-in-out, transform 0.1s ease-in-out;
- }
- .button-active-styling:active {
-     transform: translateY(2px);
-     box-shadow: inset 0 0 0 2px var(--btn-border-light-override, transparent);
- }
- .container-styling {
-     background-color: var(--container-bg);
-     border-width: 1px;
-     border-color: var(--container-border-dark);
-     box-shadow: inset 0 0 0 2px var(--container-border-light), 0 3px 0 0 var(--container-shadow), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-     color: black; /* Default text color for containers */
-     border-radius: 0.5rem; /* rounded-lg */
- }
+         .button-styling {
+             border-width: 1px;
+             box-shadow: inset 0 0 0 2px var(--btn-border-light-override, transparent), 0 3px 0 0 var(--btn-shadow-override, transparent);
+             color: white; 
+             cursor: pointer;
+             transition: background-color 0.1s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+             display: flex; 
+             justify-content: center;
+             align-items: center;
+             border-color: var(--btn-border-dark-override, transparent);
+         }
+         .button-active-styling:active {
+             transform: translateY(2px);
+             box-shadow: inset 0 0 0 2px var(--btn-border-light-override, transparent); 
+         }
+         .button-active-styling-thick:active {
+             transform: translateY(2px);
+             box-shadow: inset 0 0 0 3px var(--btn-border-light-override, transparent); 
+         }
 
-         /* **** END CUSTOM CSS **** */
+         .container-styling {
+             background-color: var(--container-bg);
+             border-width: 1px;
+             border-color: var(--container-border-dark);
+             box-shadow: inset 0 0 0 2px var(--container-border-light), 0 3px 0 0 var(--container-shadow), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+             color: black; 
+             border-radius: 0.5rem; 
+         }
+         
+         .stroke-styling {
+             border-width: 1px; 
+             border-color: var(--stroke-border-dark-override, transparent); 
+             box-shadow: inset 0 0 0 2px var(--stroke-border-light-override, transparent), 0 3px 0 0 var(--stroke-shadow-override, transparent);
+         }
+
+         .button-icon {
+            width: 60%; 
+            height: 60%;
+            max-width: 24px; 
+            max-height: 24px;
+            object-fit: contain; 
+         }
+         #shootButton .button-icon {
+             width: 65%; 
+             height: 65%;
+             max-width: 36px; 
+             max-height: 36px;
+         }
+         #exitVRButton .button-icon {
+             width: 55%; 
+             height: 55%;
+             max-width: 22px; 
+             max-height: 22px;
+         }
+
     </style>
   </head>
   <body class="bg-blue-500 font-sans">
@@ -124,10 +189,10 @@
       <div class="text-black rounded-lg p-3 w-full max-w-xs container-styling">
           <div class="flex flex-col gap-2">
               <button
-              id="mainMenuStartButton"
-                  style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow);"
-                  class="bg-[var(--btn-start-bg)] hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)]
-                         rounded-md p-3 border-[var(--btn-start-border-dark)]
+                  id="mainMenuStartButton"
+                  style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg);"
+                  class="hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)]
+                         rounded-md p-3 
                          text-center flex flex-col justify-center items-center
                          button-styling button-active-styling h-16">
                   <span class="text-base font-semibold tracking-wider text-white block">Start Game</span>
@@ -135,9 +200,9 @@
 
               <button
                   id="menuHowToPlayButton"
-                  style="--btn-border-light-override: var(--btn-howto-border-light); --btn-shadow-override: var(--btn-howto-shadow);"
-                  class="bg-[var(--btn-howto-bg)] hover:bg-[var(--btn-howto-bg-hover)] active:bg-[var(--btn-howto-bg-active)]
-                         rounded-md p-3 border-[var(--btn-howto-border-dark)]
+                  style="--btn-border-light-override: var(--btn-howto-border-light); --btn-shadow-override: var(--btn-howto-shadow); --btn-border-dark-override: var(--btn-howto-border-dark); background-color: var(--btn-howto-bg);"
+                  class="hover:bg-[var(--btn-howto-bg-hover)] active:bg-[var(--btn-howto-bg-active)]
+                         rounded-md p-3 
                          text-center flex flex-col justify-center items-center
                          button-styling button-active-styling h-16">
                   <span class="text-base font-semibold tracking-wider text-white block">How to Play</span>
@@ -146,229 +211,280 @@
               <div class="text-black rounded-lg p-3 w-full container-styling flex items-center justify-center">
                    <span class="text-sm text-gray-700 mr-2">Your Score</span>
                    <span id="menuHighScore" class="text-4xl font-bold text-[var(--score-text-color)] leading-none block">
-                      0
-                  </span>
+                     0
+                   </span>
                </div>
           </div>
       </div>
-  </div>
+    </div>
 
 
   <a-scene
-  
-  id="myScene"
-  style="display: none;"
-  fps-counter reflection="directionalLight:a-light[type=directional]"
-  ar-hit-test="target: #placement-reticle; type: footprint;"
-  renderer="physicallyCorrectLights:true;colorManagement:true;exposure:0.4;toneMapping:ACESFilmic;"
-  webxr="overlayElement:#dom-overlay; optionalFeatures: hit-test, dom-overlay, anchors;"
-  cursor__mouse="rayOrigin: mouse;"
-  cursor__xr="rayOrigin: controller;"
-  raycaster="objects: .interactive;"
-  vr-mode-ui="enabled: false"
-  background="color: #ECECEC;"
->
-     
-        <a-assets>
-            <a-mixin id="cursor_animations"
-              animation__mouseenter="property: scale; to: 1.2 1.2 1.2; startEvents: mouseenter; dur: 200"
-              animation__mouseleave="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 200"
-              animation__jump="startEvents:click;property:object3D.position.y;from: 0.5; to: 0.8; dir:alternate;loop:1;easing:easeOutQuad;dur:300;">
-            </a-mixin>
-            <a-asset-item id="tower-model" src="models/tower.glb"></a-asset-item>
-            <img id="tower-texture" src="models/tower.png" alt="Tower Texture">
+    id="myScene"
+    style="display: none;"
+    fps-counter reflection="directionalLight:a-light[type=directional]"
+    ar-hit-test="target: #placement-reticle; type: footprint;"
+    renderer="physicallyCorrectLights:true;colorManagement:true;exposure:0.4;toneMapping:ACESFilmic;"
+    webxr="overlayElement:#dom-overlay; optionalFeatures: hit-test, dom-overlay, anchors;"
+    cursor__mouse="rayOrigin: mouse;"
+    cursor__xr="rayOrigin: controller;"
+    raycaster="objects: .interactive;"
+    vr-mode-ui="enabled: false"
+    background="color: #ECECEC;"
+  >
+      
+      <a-assets>
+          <a-mixin id="cursor_animations"
+            animation__mouseenter="property: scale; to: 1.2 1.2 1.2; startEvents: mouseenter; dur: 200"
+            animation__mouseleave="property: scale; to: 1 1 1; startEvents: mouseleave; dur: 200"
+            animation__jump="startEvents:click;property:object3D.position.y;from: 0.5; to: 0.8; dir:alternate;loop:1;easing:easeOutQuad;dur:300;">
+          </a-mixin>
+          <a-asset-item id="tower-model" src="models/tower.glb"></a-asset-item>
+          <img id="tower-texture" src="models/tower.png" alt="Tower Texture">
 
-            <a-asset-item id="basic-enemy-model" src="models/basic.glb"></a-asset-item>
-            <img id="basic-enemy-texture" src="models/basic.png" alt="Basic Enemy Texture">
-            <a-asset-item id="shooter-upgrade-model" src="models/shooter.glb"></a-asset-item>
-            <img id="shooter-upgrade-texture" src="models/shooter.png" alt="Shooter Texture">
-            <a-asset-item id="slower-upgrade-model" src="models/slower.glb"></a-asset-item>
-            <img id="slower-upgrade-texture" src="models/slower.png" alt="Slower Texture">
-            <a-asset-item id="tough-enemy-model" src="models/tough.glb"></a-asset-item>
-            <img id="tough-enemy-texture" src="models/tough.png" alt="Tough Enemy Texture">
-            <a-asset-item id="toughest-enemy-model" src="models/toughest.glb"></a-asset-item>
-            <img id="toughest-enemy-texture" src="models/toughest.png" alt="Toughest Enemy Texture">
-            <img id="flash-texture" src="textures/flash_red.png" alt="Flash Texture">
+          <a-asset-item id="basic-enemy-model" src="models/basic.glb"></a-asset-item>
+          <img id="basic-enemy-texture" src="models/basic.png" alt="Basic Enemy Texture">
+          <a-asset-item id="shooter-upgrade-model" src="models/shooter.glb"></a-asset-item>
+          <img id="shooter-upgrade-texture" src="models/shooter.png" alt="Shooter Texture">
+          <a-asset-item id="slower-upgrade-model" src="models/slower.glb"></a-asset-item>
+          <img id="slower-upgrade-texture" src="models/slower.png" alt="Slower Texture">
+          <a-asset-item id="tough-enemy-model" src="models/tough.glb"></a-asset-item>
+          <img id="tough-enemy-texture" src="models/tough.png" alt="Tough Enemy Texture">
+          <a-asset-item id="toughest-enemy-model" src="models/toughest.glb"></a-asset-item>
+          <img id="toughest-enemy-texture" src="models/toughest.png" alt="Toughest Enemy Texture">
+          <img id="flash-texture" src="textures/flash_red.png" alt="Flash Texture">
 
-            <img id="flash-texture" src="textures/flash_red.png" alt="Flash Texture"> <a-mixin
-            id="hit-explosion"
-            particle-system="
-              preset: dust;
-              particleCount: 30;
-              maxAge: 0.5;
-              size: 0.1;
-              sizeSpread: 0.05;
-              color: #FF5733, #FFC300;
-              velocityValue: 0 1.5 0;
-              velocitySpread: 1.5 0.5 1.5;
-              accelerationValue: 0 -1 0;
-              opacity: 0.8, 0;
-              texture: none;
-              duration: 0.1;
-              emitterType: sphere;
-              emitterRadius: 0.1;
-            "
+          <img id="flash-texture" src="textures/flash_red.png" alt="Flash Texture"> <a-mixin
+          id="hit-explosion"
+          particle-system="
+            preset: dust;
+            particleCount: 30;
+            maxAge: 0.5;
+            size: 0.1;
+            sizeSpread: 0.05;
+            color: #FF5733, #FFC300;
+            velocityValue: 0 1.5 0;
+            velocitySpread: 1.5 0.5 1.5;
+            accelerationValue: 0 -1 0;
+            opacity: 0.8, 0;
+            texture: none;
+            duration: 0.1;
+            emitterType: sphere;
+            emitterRadius: 0.1;
+          "
          ></a-mixin>
 
-          </a-assets>
+        </a-assets>
 
-          <a-light type="directional" light="castShadow:false;" position="1 1 1" intensity="0.5" shadow-camera-automatic=".interactive"></a-light>
-          <a-light type="ambient" intensity="0.6"></a-light>
+        <a-light type="directional" light="castShadow:false;" position="1 1 1" intensity="0.5" shadow-camera-automatic=".interactive"></a-light>
+        <a-light type="ambient" intensity="0.6"></a-light>
 
-          <a-camera id="player-camera" position="0 0.4 0" wasd-controls="enabled: false;">
-            <a-entity id="camera-aim-marker" position="0 -0.1 -1.5">
-                 <a-ring color="white" radius-inner="0.01" radius-outer="0.02"></a-ring>
-            </a-entity>
-          </a-camera>
-
-          <a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1" visible="true">
-            <a-entity id="enemies"></a-entity>
+        <a-camera id="player-camera" position="0 0.4 0" wasd-controls="enabled: false;">
+          <a-entity id="camera-aim-marker" position="0 -0.1 -1.5">
+              <a-ring color="white" radius-inner="0.01" radius-outer="0.02"></a-ring>
           </a-entity>
+        </a-camera>
 
-          <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
+        <a-entity id="objects" scale="0.2 0.2 0.2" position="0 0 -1" visible="true">
+          <a-entity id="enemies"></a-entity>
+        </a-entity>
 
-          <a-entity id="placement-reticle" visible="false">
-             <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
-          </a-entity>
+        <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
+
+        <a-entity id="placement-reticle" visible="false">
+            <a-ring radius-inner="0.02" radius-outer="0.03" color="lightblue" rotation="-90 0 0"></a-ring>
+        </a-entity>
     </a-scene>
 
-    <section id="dom-overlay" class="text-sm select-none">
+    <section id="dom-overlay" class="text-slate-300 text-sm select-none">
       <div id="fps-counter"
-          class="absolute top-3 right-3 bg-slate-900 bg-opacity-75 backdrop-blur-sm rounded p-1.5 px-2.5 text-xs font-mono hidden border border-slate-700 text-slate-300">
+          style="--stroke-border-light-override: var(--stroke-dark-border-light); --stroke-shadow-override: var(--stroke-dark-shadow); --stroke-border-dark-override: var(--stroke-dark-border-dark);"
+          class="absolute top-3 right-3 bg-slate-900 bg-opacity-75 backdrop-blur-sm rounded p-1.5 px-2.5 text-xs font-mono hidden border stroke-styling">
           FPS: --
       </div>
-
-      <div id="tower-health-indicator" class="absolute top-4 left-4 p-3 container-styling hidden w-auto">
-          Tower Health: <span id="health-value" class="font-bold text-[var(--score-text-color)]">100</span>
+      <div id="tower-health-indicator" 
+           style="--stroke-border-light-override: var(--stroke-cyan-border-light); --stroke-shadow-override: var(--stroke-cyan-shadow); --stroke-border-dark-override: var(--stroke-cyan-border-dark);"
+           class="absolute top-4 left-4 bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-md p-3 px-4 font-semibold shadow-lg hidden stroke-styling">
       </div>
-
-      <div id="scanning-feedback" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 p-3 container-styling hidden w-auto">
-          Scanning for surface... </div>
-
-      <div id="level-up-popup" class="absolute inset-0 bg-black/70 flex items-center justify-center p-4 hidden">
-          <div class="p-4 container-styling w-full max-w-xs text-center">
-              <h2 class="text-2xl font-bold mb-3 text-black">Level Up!</h2> <p class="text-gray-700">Your tower has improved!</p>
-          </div>
+      <div id="scanning-feedback" 
+           style="--stroke-border-light-override: var(--btn-exit-border-light); --stroke-shadow-override: var(--btn-exit-shadow); --stroke-border-dark-override: var(--btn-exit-border-dark);"
+           class="absolute bottom-10 left-1/2 transform -translate-x-1/2 
+                  bg-[var(--btn-exit-bg)] text-white 
+                  py-2 px-4 rounded-md text-center whitespace-pre pointer-events-none shadow-md hidden 
+                  stroke-styling animate-pulse">
+            Scanning for surface...
       </div>
-
+      <div id="level-up-popup" 
+           style="--stroke-border-light-override: var(--stroke-light-border-light); --stroke-shadow-override: var(--stroke-light-shadow); --stroke-border-dark-override: var(--stroke-light-border-dark);"
+           class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+                  bg-gradient-to-br from-green-500 to-cyan-600 text-white 
+                  p-5 px-7 rounded-lg border text-center z-30 pointer-events-none text-xl shadow-xl backdrop-blur-sm hidden 
+                  stroke-styling">
+          <div class="level-up-text font-bold text-2xl mb-1 tracking-wide">LEVEL UP!</div>
+          <div id="level-number" class="text-lg opacity-90">Level: 1</div>
+      </div>
       <div id="place-tower-popup"
-          class="absolute top-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-sm
-                 container-styling /* Applied main menu style */
-                 z-20 p-5
-                 text-center
-                 hidden
-                 ">
-          <div class="font-bold text-lg text-gray-800 tracking-wide mb-2 hidden"> Place Tower Before You.
+           style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
+           class="absolute top-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-sm
+                  container-styling stroke-styling
+                  z-20 p-5
+                  text-center
+                  hidden">
+          <div class="font-bold text-lg text-gray-800 tracking-wide mb-2 hidden">
+              Padėkite bokšta prieš save.
           </div>
-          <div class="text-sm mb-4 text-gray-700"> Tap anywhere on the surface
+          <div class="text-sm mb-4 text-gray-700">
+              Paspausk betkur ant paviršiaus
           </div>
           <button id="startGameButton"
                   disabled
-                  class="bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-slate-900 font-bold py-2 px-5 rounded shadow-md transition duration-150 ease-in-out disabled:bg-slate-400 disabled:text-slate-600 disabled:cursor-not-allowed">
-              Start Game
+                  style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg);"
+                  class="hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
+                         text-white font-bold py-2 px-5 rounded 
+                         button-styling button-active-styling 
+                         disabled:bg-slate-400 disabled:text-slate-600 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
+              Pradėti.
           </button>
-          <div id="tower-placed-feedback" class="text-xs mt-3 text-green-700 font-semibold hidden"> Reposition or press Start Game.
+          <div id="tower-placed-feedback" class="text-xs mt-3 text-green-700 font-semibold hidden">
+              Pakeiskite poziciją arba pradėkite žaidimą.
           </div>
       </div>
-
-      <div id="upgrades-popup" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 container-styling z-40 p-6 text-center hidden min-w-[360px] w-full max-w-md">
-          <h2 class="mt-0 mb-4 text-black text-xl font-bold tracking-wide">Level Up! Choose Upgrade:</h2>
+      
+      <div id="upgrades-popup" 
+           style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
+           class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+                  container-styling stroke-styling 
+                  z-40 p-6 text-center hidden min-w-[360px] w-full max-w-md"> 
+          <h2 style="--btn-border-light-override: var(--btn-howto-border-light); --btn-shadow-override: var(--btn-howto-shadow); --btn-border-dark-override: var(--btn-howto-border-dark); background-color: var(--btn-howto-bg);"
+              class="mt-0 mb-6 text-yellow-900 text-xl font-bold tracking-wide
+                     rounded-md p-2 button-styling animate-bounce"> 
+              Level Up! Choose Upgrade:
+          </h2>
           <div class="grid grid-cols-2 gap-4 mb-4">
-              <button id="upgradeShooter"  style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow);"
-              class="upgrade-button relative overflow-hidden 
-                     bg-[var(--btn-start-bg)] hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
-                     border-[var(--btn-start-border-dark)] button-styling button-active-styling
-                     text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] 
-                     flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out 
-                     disabled:bg-gray-400 disabled:text-gray-600 disabled:border-gray-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
-                  <span>SHOOTER</span>
+              <button id="upgradeShooter" 
+                      style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg);"
+                      class="upgrade-button relative overflow-hidden 
+                             hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
+                             button-styling button-active-styling
+                             text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] 
+                             flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out 
+                             disabled:bg-gray-400 disabled:text-gray-600 disabled:border-gray-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
+                  <span>ŠAUDYTOJAS</span>
                   <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal"></span>
-                  <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-600 font-semibold hidden"></span> </button>
-              <button id="upgradeHealth"  style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow);"
-              class="upgrade-button relative overflow-hidden 
-                     bg-[var(--btn-start-bg)] hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
-                     border-[var(--btn-start-border-dark)] button-styling button-active-styling
-                     text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] 
-                     flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out 
-                     disabled:bg-gray-400 disabled:text-gray-600 disabled:border-gray-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
-                  <span>TOWER HEALTH</span>
+                  <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span> 
+              </button>
+              <button id="upgradeHealth" 
+                      style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg);"
+                      class="upgrade-button relative overflow-hidden 
+                             hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
+                             button-styling button-active-styling
+                             text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] 
+                             flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out 
+                             disabled:bg-gray-400 disabled:text-gray-600 disabled:border-gray-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
+                  <span>BOKŠTO GYVYBĖ</span>
                   <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal">(+3 Max HP)</span>
-                  <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span> </button>
-              <button id="upgradeSlower"   style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow);"
-              class="upgrade-button relative overflow-hidden 
-                     bg-[var(--btn-start-bg)] hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
-                     border-[var(--btn-start-border-dark)] button-styling button-active-styling
-                     text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] 
-                     flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out 
-                     disabled:bg-gray-400 disabled:text-gray-600 disabled:border-gray-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
-                  <span>SLOWER</span>
+                  <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span>
+              </button>
+              <button id="upgradeSlower" 
+                      style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg);"
+                      class="upgrade-button relative overflow-hidden 
+                             hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
+                             button-styling button-active-styling
+                             text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] 
+                             flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out 
+                             disabled:bg-gray-400 disabled:text-gray-600 disabled:border-gray-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
+                  <span>LĖTINTOJAS</span>
                   <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal"></span>
-                  <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span> </button>
-              <button id="upgradePlayerDamage"   style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow);"
-              class="upgrade-button relative overflow-hidden 
-                     bg-[var(--btn-start-bg)] hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
-                     border-[var(--btn-start-border-dark)] button-styling button-active-styling
-                     text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] 
-                     flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out 
-                     disabled:bg-gray-400 disabled:text-gray-600 disabled:border-gray-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
-                  <span>DAMAGE</span>
-                  <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal">(+15 Player Damage)</span>
-                  <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span> </button>
+                  <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span>
+              </button>
+              <button id="upgradePlayerDamage" 
+                      style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg);"
+                      class="upgrade-button relative overflow-hidden 
+                             hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] 
+                             button-styling button-active-styling
+                             text-white font-semibold py-3 px-2 rounded text-sm min-w-[150px] 
+                             flex flex-col items-center justify-center h-24 transition duration-150 ease-in-out 
+                             disabled:bg-gray-400 disabled:text-gray-600 disabled:border-gray-500 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">
+                  <span>ŽALA</span>
+                  <span class="upgrade-desc block text-xs mt-1 opacity-80 font-normal">(+15% Player Damage)</span>
+                  <span class="upgrade-desc-level absolute bottom-1 text-xs text-amber-400 font-semibold hidden"></span>
+              </button>
           </div>
-           <button id="closeUpgradePopupButton" style="--btn-border-light-override: var(--btn-close-border-light); --btn-shadow-override: var(--btn-close-shadow);" class="mt-6 py-2 px-5 bg-[var(--btn-close-bg)] hover:bg-[var(--btn-close-bg-hover)] active:bg-[var(--btn-close-bg-active)] border-[var(--btn-close-border-dark)] text-white rounded button-styling button-active-styling">Close</button>
+          <button id="closeUpgradePopupButton" 
+                  style="--btn-border-light-override: var(--btn-close-border-light); --btn-shadow-override: var(--btn-close-shadow); --btn-border-dark-override: var(--btn-close-border-dark); background-color: var(--btn-close-bg);"
+                  class="mt-6 py-2 px-5 hover:bg-[var(--btn-close-bg-hover)] active:bg-[var(--btn-close-bg-active)] text-white rounded button-styling button-active-styling">Uždaryti</button>
+      </div>
+      <div id="confirm-placement-area" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-30 hidden">
+          <button id="confirmPlacementButton" 
+                  style="--btn-border-light-override: var(--btn-confirm-border-light); --btn-shadow-override: var(--btn-confirm-shadow); --btn-border-dark-override: var(--btn-confirm-border-dark); background-color: var(--btn-confirm-bg);"
+                  class="hover:bg-[var(--btn-confirm-bg-hover)] active:bg-[var(--btn-confirm-bg-active)] 
+                         text-white font-bold py-2 px-5 rounded 
+                         button-styling button-active-styling 
+                         disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none">Patvirtinti</button>
+      </div>
+      <div id="game-over-screen" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black bg-opacity-80 backdrop-blur-md border border-red-500/50 rounded-lg z-50 p-8 text-center hidden shadow-xl">
+          <h2 class="mt-0 text-red-400 text-2xl font-bold tracking-wide">PABAIGA/h2>
+          <p id="final-score" class="text-lg my-6 text-cyan-100">TAVO TAŠKAI: 0</p>
+          <button id="tryAgainButton" 
+                  style="--btn-border-light-override: var(--btn-restart-border-light); --btn-shadow-override: var(--btn-restart-shadow); --btn-border-dark-override: var(--btn-restart-border-dark); background-color: var(--btn-restart-bg); box-shadow: inset 0 0 0 3px var(--btn-restart-border-light), 0 3px 0 0 var(--btn-restart-shadow);"
+                  class="py-3 px-6 text-lg hover:bg-[var(--btn-restart-bg-hover)] active:bg-[var(--btn-restart-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow">Pabandyk iš naujo</button>
       </div>
 
-      <div id="confirm-placement-area" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 hidden">
-           <button id="confirmPlacementButton" style="--btn-border-light-override: var(--btn-confirm-border-light); --btn-shadow-override: var(--btn-confirm-shadow);" class="bg-[var(--btn-confirm-bg)] hover:bg-[var(--btn-confirm-bg-hover)] active:bg-[var(--btn-confirm-bg-active)] text-white font-bold py-2 px-5 rounded border-[var(--btn-confirm-border-dark)] button-styling button-active-styling disabled:opacity-50 disabled:cursor-not-allowed">Confirm</button>
-      </div>
-
-      <div id="game-over-screen" class="absolute inset-0 bg-red-900/80 flex flex-col items-center justify-center p-4 hidden z-50">
-           <div class="p-8 container-styling w-full max-w-xs text-center">
-              <h2 class="mt-0 text-red-700 text-2xl font-bold tracking-wide">GAME OVER</h2> <p id="final-score" class="text-lg my-6 text-gray-800">FINAL SCORE: 0</p> 
-              <button id="tryAgainButton"
-              style="--btn-border-light-override: var(--btn-howto-border-light); --btn-shadow-override: var(--btn-howto-shadow); box-shadow: inset 0 0 0 3px var(--btn-howto-border-light), 0 3px 0 0 var(--btn-howto-shadow);" /* Thicker 3px stroke added */
-              class="bg-[var(--btn-howto-bg)] hover:bg-[var(--btn-howto-bg-hover)] active:bg-[var(--btn-howto-bg-active)]
-                     rounded-md p-3 border-[var(--btn-howto-border-dark)]
-                     text-center flex justify-center items-center
-                     button-styling button-active-styling w-full text-lg px-6 py-3"> <span class="text-base font-semibold tracking-wider text-white block">Pabandyk iš naujo</span>
-      </button>
+      <div id="controls-widget" 
+           style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
+           class="absolute bottom-4 left-4 right-4 md:left-auto md:right-auto md:w-auto 
+                  container-styling stroke-styling 
+                  p-3 z-10 text-center md:text-left hidden">
+          <div class="flex flex-row justify-center md:justify-start gap-2 mb-3 px-2">
+              <div id="score-display" 
+                   style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
+                   class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling stroke-styling">Score: 0</div>
+              <div id="level-display" 
+                   style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
+                   class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling stroke-styling">Level: 1</div>
           </div>
-      </div>
-
-      <div id="controls-widget" class="absolute bottom-4 left-4 right-4 md:left-auto md:right-auto md:w-auto container-styling p-3 z-10 text-center md:text-left hidden">
-        <div class="flex flex-row justify-center md:justify-start gap-2 mb-3 px-2">
-            <div id="score-display" class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling">Score: 0</div>
-            <div id="level-display" class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling">Level: 1</div>
-        </div>
-          <fieldset class="border-none p-0 flex flex-wrap justify-center items-center gap-3">
+  
+          <fieldset class="border-none p-0 flex justify-center items-center gap-3"> 
               <button
                   id="myEnterARButton"
+                  style="--stroke-border-light-override: var(--btn-exit-border-light); --stroke-shadow-override: var(--btn-exit-shadow); --stroke-border-dark-override: var(--btn-exit-border-dark);"
                   onclick="console.log('Enter AR Button'); document.querySelector('a-scene').enterAR()"
-                  class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded shadow-md transition duration-150 ease-in-out active:scale-95">
-                  Enter AR
+                  class="display:none bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-5 rounded shadow-md transition duration-150 ease-in-out active:scale-95 stroke-styling">
+                  Eiti į AR
               </button>
-              <button id="exitVRButton" 
-                          style="--btn-border-light-override: var(--btn-exit-border-light); --btn-shadow-override: var(--btn-exit-shadow);"
-                          class="bg-[var(--btn-exit-bg)] hover:bg-[var(--btn-exit-bg-hover)] active:bg-[var(--btn-exit-bg-active)] 
-                                 border-[var(--btn-exit-border-dark)] button-styling button-active-styling
-                                 text-white font-bold py-2 px-4 rounded shadow-md hidden">
-                      Exit
-                  </button>
-                  <button id="shootButton"
-                   style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); box-shadow: inset 0 0 0 3px var(--btn-start-border-light), 0 3px 0 0 var(--btn-start-shadow);" /* Thicker 3px stroke added */
-                   class="bg-[var(--btn-start-bg)] hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)]
-                          rounded-lg p-3 border-[var(--btn-start-border-dark)]
-                          text-center flex justify-center items-center
-                          button-styling button-active-styling 
-                          text-black font-bold py-3 px-6 shadow-lg transform disabled:opacity-50 disabled:cursor-not-allowed"> Šauk
-           </button>                <button id="manualUpgradesButton" 
-           style="--btn-border-light-override: var(--btn-upgrade-border-light); --btn-shadow-override: var(--btn-upgrade-shadow);"
-           class="bg-[var(--btn-upgrade-bg)] hover:bg-[var(--btn-upgrade-bg-hover)] active:bg-[var(--btn-upgrade-bg-active)] 
-                  border-[var(--btn-upgrade-border-dark)] button-styling button-active-styling
-                  text-white font-bold py-2 px-4 rounded shadow-md">
-       Upgradai
-   </button>
-         </fieldset>
+             
+              <button id="exitVRButton"
+              aria-label="Exit AR/VR"
+              style="--btn-border-light-override: var(--btn-exit-border-light); --btn-shadow-override: var(--btn-exit-shadow); --btn-border-dark-override: var(--btn-exit-border-dark); background-color: var(--btn-exit-bg); box-shadow: inset 0 0 0 3px var(--btn-exit-border-light), 0 3px 0 0 var(--btn-exit-shadow);"
+              class="hover:bg-[var(--btn-exit-bg-hover)] active:bg-[var(--btn-exit-bg-active)]
+                     button-styling button-active-styling-thick
+                     rounded-md shadow-md hidden w-12 h-12 p-2
+                     flex items-center justify-center"> 
+              <img src="icons/menu.svg" alt="Menu Icon" class="button-icon filter invert">
+      </button>
+  
+             
+              <button id="shootButton" 
+                      aria-label="Shoot"
+                      style="--btn-border-light-override: var(--btn-shoot-icon-border-light); --btn-shadow-override: var(--btn-shoot-icon-shadow); --btn-border-dark-override: var(--btn-shoot-icon-border-dark); background-color: var(--btn-shoot-icon-bg); box-shadow: inset 0 0 0 3px var(--btn-shoot-icon-border-light), 0 3px 0 0 var(--btn-shoot-icon-shadow);" 
+                      class="hover:bg-[var(--btn-shoot-icon-bg-hover)] active:bg-[var(--btn-shoot-icon-bg-active)] 
+                             button-styling button-active-styling-thick
+                             rounded-full shadow-lg transform disabled:opacity-50 disabled:cursor-not-allowed 
+                             w-16 h-16 p-3"> 
+                   <img src="icons/shoot.svg" alt="Shoot Icon" class="button-icon"> 
+              </button> 
+  
+          
+              <button id="manualUpgradesButton" 
+                      aria-label="Upgrades"
+                      style="--btn-border-light-override: var(--btn-upgrade-border-light); --btn-shadow-override: var(--btn-upgrade-shadow); --btn-border-dark-override: var(--btn-upgrade-border-dark); background-color: var(--btn-upgrade-bg); box-shadow: inset 0 0 0 3px var(--btn-upgrade-border-light), 0 3px 0 0 var(--btn-upgrade-shadow);" 
+                      class="hover:bg-[var(--btn-upgrade-bg-hover)] active:bg-[var(--btn-upgrade-bg-active)] 
+                             button-styling button-active-styling-thick
+                             text-white font-bold py-2 px-4 rounded shadow-md w-12 h-12 p-2"> 
+                   <span class="text-xs leading-none">UPGR</span> 
+              </button>
+           </fieldset>
       </div>
-  </section></body>
+  </section> 
+  </body>
 </html>
