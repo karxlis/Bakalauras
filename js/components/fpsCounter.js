@@ -1,44 +1,44 @@
-// Component definition for fps-counter
+// komponento fps-counter aprašymas
 AFRAME.registerComponent('fps-counter', {
     schema: {
-      updateInterval: { type: 'number', default: 1000 } // Update display every 1000ms
+      updateInterval: { type: 'number', default: 1000 } // atnaujinti rodymą kas 1000ms
     },
     init: function () {
-      // Find the element in the DOM. Assumes it exists.
-      // Consider passing selector via schema if ID changes.
+      // rasti elementą dom'e. tikimės kad yra.
+      // galima paduot selektorių per schema jei id keičiasi.
       this.fpsTextEl = document.getElementById('fps-counter'); 
       this.frameCount = 0;
       this.lastUpdateTime = 0;
-      this.startTime = -1; // Use -1 to indicate not yet initialized by first tick
+      this.startTime = -1; // naudoti -1 rodyti, kad dar neinicijuota pirmu tick'u
   
       if (!this.fpsTextEl) {
-        console.error("FPS Counter INIT Error: DOM element #fps-counter not found!");
+        console.error("#fps-counter nerado");
       } else {
-        console.log("FPS Counter component initialized, found element.");
+        console.log("fps counter start");
       }
     },
     tick: function (time, timeDelta) {
-      if (!this.fpsTextEl) return; // Stop if element missing
+      if (!this.fpsTextEl) return; // sustoti jei elemento nėra
   
-      // Initialize time on the first valid tick
+      // inicijuoti laiką pirmame teisingame tick'e
       if (this.startTime === -1 && time > 0) {
           this.startTime = time;
           this.lastUpdateTime = time;
       } else if (this.startTime === -1) {
-          return; // Wait for valid time
+          return; // laukti teisingo laiko
       }
   
       this.frameCount++;
       const now = time;
       const elapsedTimeSinceUpdate = now - this.lastUpdateTime;
   
-      // Update display if interval passed
+      // atnaujinti rodymą jei intervalas praėjo
       if (elapsedTimeSinceUpdate >= this.data.updateInterval) {
         const interval = elapsedTimeSinceUpdate;
         const fps = Math.round((this.frameCount * 1000) / interval);
-        this.fpsTextEl.textContent = `FPS: ${fps}`;
+        this.fpsTextEl.textContent = `fps: ${fps}`;
   
-        // Reset for next interval
+        // nustatyti iš naujo kitam intervalui
         this.frameCount = 0;
         this.lastUpdateTime = now;
       }

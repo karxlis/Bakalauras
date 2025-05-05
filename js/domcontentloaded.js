@@ -1,18 +1,14 @@
-// ========================================================
-// ============ DOMContentLoaded SETUP & LISTENERS =========
-// ========================================================
+
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Content Loaded. Setting up UI listeners and initial state...");
 
-    // --- Get Element References ---
-    // Query crucial elements needed for setup and core listeners
-    sceneElGlobal = document.querySelector('a-scene'); // Cache global scene ref
+    sceneElGlobal = document.querySelector('a-scene'); 
     const overlay = document.getElementById('dom-overlay');
     const mainMenu = document.getElementById('main-menu');
     const mainMenuStartButton = document.getElementById('mainMenuStartButton');
     const menuHighScoreDisplay = document.getElementById('menuHighScore');
-    const exitVRButton = document.getElementById('exitVRButton'); // Pause button
+    const exitVRButton = document.getElementById('exitVRButton'); 
     const shootButton = document.getElementById('shootButton');
     const controlsWidget = document.getElementById('controls-widget');
     const pauseMenu = document.getElementById('pause-menu');
@@ -32,9 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const upgradePlayerDamageBtn = document.getElementById('upgradePlayerDamage');
     const closeUpgradePopupBtn = document.getElementById('closeUpgradePopupButton');
     const manualUpgradesButton = document.getElementById('manualUpgradesButton');
-    // Add other less critical elements or query them inside specific functions if preferred
+  
 
-    // --- Basic Element Checks ---
+    
     const essentialElements = {
         sceneElGlobal, overlay, mainMenu, mainMenuStartButton, menuHighScoreDisplay,
         exitVRButton, shootButton, controlsWidget, pauseMenu, pauseResumeButton,
@@ -48,30 +44,27 @@ document.addEventListener('DOMContentLoaded', () => {
                               .map(([name, _]) => name);
     if (missingElements.length > 0) {
         console.error(`Essential page element(s) missing! Check IDs in index.html: ${missingElements.join(', ')}`);
-        // Optionally, disable functionality or show an error message to the user
-        // return; // Might stop script execution if critical elements are missing
     }
 
-    // --- Initial State Setup ---
-    // Load High Score
+
     try {
         highScore = parseInt(localStorage.getItem('arTowerDefenseHighScore') || '0');
         if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore;
     } catch (e) {
         console.error("Failed to load high score from localStorage:", e);
-        highScore = 0; // Default to 0 on error
+        highScore = 0; 
     }
 
-    // Set initial UI visibility based on gameState (should be 'menu')
+    
     if (gameState === 'menu') {
         if (sceneElGlobal) sceneElGlobal.style.display = 'none';
         if (mainMenu) mainMenu.style.display = 'flex';
         if (controlsWidget) controlsWidget.classList.add('hidden');
     }
 
-    // --- Core Event Listeners ---
+    
 
-    // Scene Listeners (AR lifecycle, hit-testing)
+    
     if (sceneElGlobal) {
         sceneElGlobal.addEventListener('enter-vr', () => {
             console.log('Event: enter-vr');
@@ -80,12 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
             placedTowerEl = null;
             gameState = 'ar_setup';
 
-            // UI updates for entering AR
+            
             const myEnterARButton = document.getElementById('myEnterARButton');
             const scanningFeedbackEl = document.getElementById('scanning-feedback');
             const fpsCounterEl = document.getElementById('fps-counter');
             if (myEnterARButton) myEnterARButton.style.display = 'none';
-            if (exitVRButton) exitVRButton.style.display = 'inline-block'; // Show pause btn
+            if (exitVRButton) exitVRButton.style.display = 'inline-block';
             if (controlsWidget) controlsWidget.style.display = 'none';
             if (scanningFeedbackEl) {
                 scanningFeedbackEl.textContent = "Skanuojamas paviršius...";
@@ -104,15 +97,15 @@ document.addEventListener('DOMContentLoaded', () => {
         sceneElGlobal.addEventListener('exit-vr', () => {
             console.log('Event: exit-vr');
             gameState = 'menu';
-            resetGame(); // Handles state reset, entity removal, UI reset
+            resetGame(); 
 
-            // Ensure scene and overlay are hidden, menu is shown
+            
             if (sceneElGlobal) sceneElGlobal.style.display = 'none';
             if (overlay) overlay.style.display = 'none';
             if (mainMenu) mainMenu.style.display = 'flex';
-            if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore; // Update score display
+            if (menuHighScoreDisplay) menuHighScoreDisplay.textContent = highScore; 
 
-            // Explicitly hide FPS counter and exit button, show Enter AR button
+            
             const fpsCounterEl = document.getElementById('fps-counter');
             const myEnterARButton = document.getElementById('myEnterARButton');
             if (fpsCounterEl) fpsCounterEl.classList.add('hidden');
@@ -121,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         sceneElGlobal.addEventListener('ar-hit-test-start', () => {
-            // Show scanning feedback, hide reticle/placement UI during initial scan
+            
             if (!isGameSetupComplete) {
                 console.log('Event: ar-hit-test-start (Searching...)');
                 const reticleEl = document.getElementById('placement-reticle');
@@ -133,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         sceneElGlobal.addEventListener('ar-hit-test-achieved', () => {
-            // Surface found: Hide scanning, show reticle and placement UI
+            
             if (!isGameSetupComplete) {
                 console.log('Event: ar-hit-test-achieved (Surface Found!)');
                 const reticleEl = document.getElementById('placement-reticle');
@@ -146,14 +139,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     reticleEl.setAttribute('visible', 'false');
                 }
             } else if (placingUpgrade) {
-                 // Show reticle if placing an upgrade
+                 
                  const reticleEl = document.getElementById('placement-reticle');
                  if (reticleEl) reticleEl.setAttribute('visible', 'true');
             }
         });
 
         sceneElGlobal.addEventListener('ar-hit-test-lost', () => {
-            // Surface lost: Hide reticle/placement UI, show scanning feedback
+            
             if (!isGameSetupComplete) {
                 console.log('Event: ar-hit-test-lost (Surface Lost)');
                 const reticleEl = document.getElementById('placement-reticle');
@@ -162,22 +155,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (scanningFeedbackEl) scanningFeedbackEl.style.display = 'block';
                 if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
             } else {
-                 // Hide reticle if lost during upgrade placement
+                 
                  const reticleEl = document.getElementById('placement-reticle');
                  if (reticleEl) reticleEl.setAttribute('visible', 'false');
             }
         });
 
         sceneElGlobal.addEventListener('ar-hit-test-select', (e) => {
-            // Debounce
+            
             const now = performance.now();
             if (now - lastSelectTime < GAME_CONFIG.TIMINGS.DEBOUNCE_SELECT_MS) return;
             lastSelectTime = now;
 
-            // Prevent placement if tap is on UI
+            
             const targetElement = e.detail?.sourceEvent?.target;
             const isUITap = targetElement?.closest && targetElement.closest('#dom-overlay button, #dom-overlay fieldset, #dom-overlay section');
-            if (isUITap && targetElement.tagName !== 'CANVAS' /* Allow taps on canvas */) {
+            if (isUITap && targetElement.tagName !== 'CANVAS') {
                 console.log("AR Select ignored: Tap on overlay UI element.");
                 return;
             }
@@ -186,14 +179,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const reticleEl = document.getElementById('placement-reticle');
             const feedbackEl = document.getElementById('scanning-feedback');
 
-            // --- Upgrade Placement ---
+            
             if (placingUpgrade && reticleEl?.getAttribute('visible')) {
                 const position = reticleEl.getAttribute('position');
                 if (!position || isNaN(position.x)) {
                     console.error("Upgrade Placement failed: Invalid position."); return;
                 }
 
-                if (!placedUpgradeEl) { // First tap: Create visual
+                if (!placedUpgradeEl) { 
                     const upgradeEntity = document.createElement('a-entity');
                     upgradeEntity.setAttribute('id', `${placingUpgrade}-visual-${Date.now()}`);
                     let modelId = '', textureId = '', scale = '0.05 0.05 0.05';
@@ -201,51 +194,51 @@ document.addEventListener('DOMContentLoaded', () => {
                         modelId = '#shooter-upgrade-model'; textureId = '#shooter-upgrade-texture';
                     } else if (placingUpgrade.startsWith('slowTurret')) {
                         modelId = '#slower-upgrade-model'; textureId = '#slower-upgrade-texture';
-                    } else { return; } // Unknown type
+                    } else { return; } 
 
                     upgradeEntity.setAttribute('gltf-model', modelId);
-                    upgradeEntity.setAttribute('material', { shader: 'flat', src: textureId });
+                    upgradeEntity.setAttribute('material', { src: textureId });
                     upgradeEntity.setAttribute('scale', scale);
                     upgradeEntity.setAttribute('position', position);
                     sceneElGlobal.appendChild(upgradeEntity);
                     placedUpgradeEl = upgradeEntity;
 
-                    // Update UI for confirmation
+                    
                     if (confirmPlacementButton) confirmPlacementButton.disabled = false;
                     if (feedbackEl) { feedbackEl.textContent = "Paspausk pakeist poziciją arba pradėk"; feedbackEl.style.display = 'block';}
 
-                } else { // Subsequent taps: Move visual
+                } else { 
                      placedUpgradeEl.setAttribute('position', position);
                 }
-            // --- Tower Placement / Move ---
+            
             } else if (!isGameSetupComplete && reticleEl?.getAttribute('visible')) {
                 const position = reticleEl.getAttribute('position');
                 if (!position || isNaN(position.x)) {
                      console.error("Tower Placement/Move failed: Invalid position."); return;
                 }
 
-                if (!towerPlaced) { // First tap: Create Tower
+                if (!towerPlaced) { 
                     console.log('Placing TOWER...');
-                    const tower = document.createElement('a-entity'); // Use entity for consistency
+                    const tower = document.createElement('a-entity'); 
                     tower.setAttribute('id', 'placed-base-tower');
                     tower.setAttribute('gltf-model', '#tower-model');
-                    tower.setAttribute('material', { shader: 'flat', src: '#tower-texture' });
+                    tower.setAttribute('material', { src: '#tower-texture' });
                     tower.setAttribute('scale', '0.05 0.05 0.05');
                     tower.setAttribute('position', position);
                     sceneElGlobal.appendChild(tower);
                     placedTowerEl = tower;
                     towerPlaced = true;
 
-                    // Update UI: Enable Start button, show feedback
+                    
                     if (startGameButton) startGameButton.disabled = false;
                     const towerPlacedFeedback = document.getElementById('tower-placed-feedback');
                     if (towerPlacedFeedback) {
-                        towerPlacedFeedback.textContent = "Bokštas padėtas! Paspausk kitur pakeiti jo pozicija arba pradėk žaist.";
+                        towerPlacedFeedback.textContent = "Bokštas padėtas! Paspausk kitur pakeisti jo poziciją arba pradėk žaist.";
                         towerPlacedFeedback.style.display = 'block';
                     }
-                    if(reticleEl) reticleEl.setAttribute('visible', 'true'); // Keep reticle for move
+                    if(reticleEl) reticleEl.setAttribute('visible', 'true'); 
 
-                } else if (placedTowerEl) { // Subsequent taps: Move Tower
+                } else if (placedTowerEl) { 
                      placedTowerEl.setAttribute('position', position);
                 }
             } else {
@@ -254,11 +247,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Prevent AR select events when interacting with overlay buttons
+    
     if (overlay) {
         overlay.addEventListener('beforexrselect', (e) => {
             const targetElement = e.target;
-            // Allow default only if the target is a button within a known UI popup/widget area
+            
             const allowDefault = targetElement?.tagName === 'BUTTON' &&
                                  targetElement.closest &&
                                  targetElement.closest('#place-tower-popup, #upgrades-popup, #confirm-placement-area, #game-over-screen, #controls-widget, #pause-menu');
@@ -268,9 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- UI Button Listeners ---
+    
 
-    // Main Menu Buttons
+    
     if (mainMenuStartButton) {
         mainMenuStartButton.addEventListener('click', () => {
             console.log("Main Menu Start Button Clicked!");
@@ -280,8 +273,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log("Attempting to enter AR...");
                 sceneElGlobal.enterAR().catch(e => {
                     console.error("AR Entry Failed:", e);
-                    alert("AR nepalaikoma arba buvo atmesta."); // User message
-                    if (mainMenu) mainMenu.style.display = 'flex'; // Show menu again
+                    alert("AR nepalaikoma arba buvo atmesta."); 
+                    if (mainMenu) mainMenu.style.display = 'flex'; 
                     if (sceneElGlobal) sceneElGlobal.style.display = 'none';
                 });
                 gameState = 'starting_ar';
@@ -291,27 +284,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const howToPlayButton = document.getElementById('menuHowToPlayButton');
     if (howToPlayButton) {
         howToPlayButton.addEventListener('click', () => {
-            alert("Kaip žaisti:\n1. Nuskanuok aplinką.\n2. Paspausk ant mėlyno taikinuko, kad padėtum bokštą.\n3. Paspausk Pradėti žaidimą.\n4. Šaudyk priešus spausdamas mygtuką.\n5. Tobulink bokštą ir save kai pasieksi naują lygį!");
+            
+            alert("Kaip žaisti:\n1. Nuskanuok aplinką.\n2. Paspausk ant mėlyno taikinuko, kad padėtum bokštą.\n3. Paspausk Pradėti žaidimą.\n4. Šaudyk priešus spausdamas mygtuką.\n5. Tobulink bokštą ir save kai pasieksi naują lygį."); 
         });
     }
 
-    // Pause Button (Previously Exit VR)
+    
     if (exitVRButton) {
         exitVRButton.addEventListener('click', () => {
             if (isGameSetupComplete && !isGameOver && !isGamePaused) {
-                pauseGame(); // Call game logic function
-                // Show pause menu
+                pauseGame(); 
+                
                 if (controlsWidget) controlsWidget.style.display = 'none';
                 if (pauseMenu) pauseMenu.style.display = 'flex';
             } else if (isGamePaused) {
-                 resumeGame(true); // Resume if already paused
+                 resumeGame(true); 
             } else {
                 console.log("Pause button ignored (game not running or already over).");
             }
         });
     }
 
-    // Pause Menu Buttons
+    
     if (pauseResumeButton) {
         pauseResumeButton.addEventListener('click', () => {
             if (isGamePaused) resumeGame(true);
@@ -319,12 +313,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (pauseMainMenuButton) {
         pauseMainMenuButton.addEventListener('click', () => {
-            if (isGamePaused || isGameOver /* Allow exit from game over too */) {
+            if (isGamePaused || isGameOver) {
                 console.log("Transitioning to Main Menu...");
                 if (sceneElGlobal && sceneElGlobal.is('ar-mode')) {
-                    sceneElGlobal.exitVR(); // exit-vr listener handles cleanup
+                    sceneElGlobal.exitVR(); 
                 } else {
-                    // Manual transition if not in AR (shouldn't happen from pause)
+                    
                     if (pauseMenu) pauseMenu.style.display = 'none';
                     if (gameOverScreen) gameOverScreen.style.display = 'none';
                     resetGame();
@@ -337,25 +331,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Shoot Button (Uses global handleShootClick function)
+    
     if (shootButton) {
-        // If using onclick="handleShootClick()" in HTML, this listener is redundant
-        // shootButton.addEventListener('click', handleShootClick);
-        // Ensure the onclick attribute exists on the button in index.html
+        
+        
+        
         if (!shootButton.hasAttribute('onclick')) {
              console.warn("Shoot button missing onclick attribute, attaching listener via JS.");
              shootButton.addEventListener('click', handleShootClick);
         }
     }
 
-    // Start Game Button (Initial Setup)
+    
     if (startGameButton) {
         startGameButton.addEventListener('click', () => {
             if (towerPlaced) {
                 console.log("Start Game button clicked. Starting game!");
                 isGameSetupComplete = true;
                 isGameOver = false;
-                // Reset health/score/level (already done in resetGame, but safe to repeat)
+                
                 currentMaxTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH;
                 currentTowerHealth = GAME_CONFIG.TOWER.INITIAL_MAX_HEALTH;
                 score = 0;
@@ -364,26 +358,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 scoreGap = GAME_CONFIG.LEVELING.INITIAL_SCORE_GAP;
                 nextShooterUpgradeLevel = GAME_CONFIG.UPGRADES.SHOOTER.INITIAL_LEVEL_CHECK;
                 nextSlowTurretUpgradeLevel = GAME_CONFIG.UPGRADES.UNLOCKS.SLOW_TURRET + GAME_CONFIG.UPGRADES.SLOWER.UPGRADE_FREQUENCY;
-                playerDamageLevel = 0; // Reset player damage
+                playerDamageLevel = 0; 
                 shooterLevel = 0;
                 slowTurretLevel = 0;
                 upgradeShooter1Placed = false; upgradeShooter2Placed = false;
                 upgradeSlowTurretPlaced = false; upgradeSlowTurret2Placed = false;
 
-                // Update UI
+                
                 if (typeof updateScoreDisplay === 'function') updateScoreDisplay();
                 if (typeof updateTowerHealthUI === 'function') updateTowerHealthUI();
                 if (typeof updateLevelDisplay === 'function') updateLevelDisplay();
                 if (typeof updateXPBar === 'function') updateXPBar();
 
-                // Hide setup UI, show game UI
+                
                 if (placeTowerPopupEl) placeTowerPopupEl.style.display = 'none';
                 const reticleEl = document.getElementById('placement-reticle');
                 if (reticleEl) reticleEl.setAttribute('visible', false);
                 if (controlsWidget) controlsWidget.style.display = 'block';
                 if (shootButton) shootButton.disabled = false;
 
-                // Start Spawner
+                
                 enemyManager.startSpawner();
             } else {
                 console.warn("Start button clicked, but tower not placed yet.");
@@ -391,25 +385,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Try Again Button (Game Over)
+    
     if (tryAgainButton) {
         tryAgainButton.addEventListener('click', () => {
-            // Reset game state and UI to the AR placement phase
+            
             resetGame();
-            // Ensure game over screen is hidden
+            
             if (gameOverScreen) gameOverScreen.style.display = 'none';
-            // Resetting already handles UI for AR placement start
+            
         });
     }
 
-    // Game Over -> Main Menu Button
+    
     if (gameOverMenuButton) {
          gameOverMenuButton.addEventListener('click', () => {
             console.log("Game Over -> Main Menu button clicked.");
             if (sceneElGlobal && sceneElGlobal.is('ar-mode')) {
-                sceneElGlobal.exitVR(); // exit-vr listener handles cleanup
+                sceneElGlobal.exitVR(); 
             } else {
-                 // Manual transition if not in AR
+                 
                  if (gameOverScreen) gameOverScreen.style.display = 'none';
                  resetGame();
                  if (sceneElGlobal) sceneElGlobal.style.display = 'none';
@@ -420,14 +414,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Upgrade Button Listeners ---
+    
 
-    // Health Upgrade
+    
     if (upgradeHealthBtn) {
         upgradeHealthBtn.addEventListener('click', () => {
             if (isGamePaused) {
                  currentMaxTowerHealth += GAME_CONFIG.UPGRADES.HEALTH.HP_INCREASE;
-                 currentTowerHealth = currentMaxTowerHealth; // Heal to full on upgrade
+                 currentTowerHealth = currentMaxTowerHealth; 
                  if (typeof updateTowerHealthUI === 'function') updateTowerHealthUI();
                  console.log(`Health upgraded. Max: ${currentMaxTowerHealth}`);
                  resumeGame();
@@ -435,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Player Damage Upgrade
+    
     if (upgradePlayerDamageBtn) {
         upgradePlayerDamageBtn.addEventListener('click', () => {
              if (isGamePaused) {
@@ -447,17 +441,17 @@ document.addEventListener('DOMContentLoaded', () => {
          });
      }
 
-    // Shooter Upgrade / Placement
+    
     if (upgradeShooterBtn) {
         upgradeShooterBtn.addEventListener('click', () => {
             if (isGamePaused) {
                 const UNLOCKS = GAME_CONFIG.UPGRADES.UNLOCKS;
-                // Action: Place 1?
+                
                 if (!upgradeShooter1Placed) {
                      console.log("Initiating placement for Shooter 1...");
                      placingUpgrade = 'shooter1';
-                     placedUpgradeEl = null; // Clear any previous visual
-                     // Show placement UI
+                     placedUpgradeEl = null; 
+                     
                      const reticleEl = document.getElementById('placement-reticle');
                      const feedbackEl = document.getElementById('scanning-feedback');
                      if (reticleEl) reticleEl.setAttribute('visible', 'true');
@@ -466,12 +460,12 @@ document.addEventListener('DOMContentLoaded', () => {
                      if (confirmPlacementButton) confirmPlacementButton.disabled = true;
                      if (upgradesPopup) upgradesPopup.style.display = 'none';
                 }
-                // Action: Place 2?
+                
                 else if (!upgradeShooter2Placed && currentLevel >= UNLOCKS.SECOND_SHOOTER) {
                      console.log("Initiating placement for Shooter 2...");
                      placingUpgrade = 'shooter2';
                      placedUpgradeEl = null;
-                     // Show placement UI (similar to above)
+                     
                      const reticleEl = document.getElementById('placement-reticle');
                      const feedbackEl = document.getElementById('scanning-feedback');
                      if (reticleEl) reticleEl.setAttribute('visible', 'true');
@@ -480,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      if (confirmPlacementButton) confirmPlacementButton.disabled = true;
                      if (upgradesPopup) upgradesPopup.style.display = 'none';
                 }
-                // Action: Upgrade Existing?
+                
                 else if (upgradeShooter1Placed && upgradeShooter2Placed && currentLevel >= nextShooterUpgradeLevel) {
                     shooterLevel++;
                     console.log(`Applying Shooter Upgrade. Internal Level now: ${shooterLevel}.`);
@@ -488,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const TURRET_CONFIG = GAME_CONFIG.TURRETS.SHOOTER;
                     let upgradeApplied = false;
 
-                    // Apply Damage or Speed based on internal level
+                    
                     if (shooterLevel === SHOOTER_CONFIG.LEVEL_FOR_DAMAGE_1 || shooterLevel === SHOOTER_CONFIG.LEVEL_FOR_DAMAGE_2) {
                         const isDmg1 = shooterLevel === SHOOTER_CONFIG.LEVEL_FOR_DAMAGE_1;
                         console.log(` -> Applying Shooter Damage Upgrade ${isDmg1 ? 'I' : 'II'}`);
@@ -496,14 +490,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (shooterEl?.components['auto-shooter']) {
                                 let currentDamage = shooterEl.getAttribute('auto-shooter')?.turretDamage || TURRET_CONFIG.BASE_DAMAGE;
                                 const multiplier = isDmg1 ? SHOOTER_CONFIG.DAMAGE_1_MULTIPLIER : SHOOTER_CONFIG.DAMAGE_2_FACTOR;
-                                if (!isDmg1 && shooterLevel > SHOOTER_CONFIG.LEVEL_FOR_DAMAGE_1) { /* Ensure Dmg1 applied first */ }
+                                if (!isDmg1 && shooterLevel > SHOOTER_CONFIG.LEVEL_FOR_DAMAGE_1) { }
                                 const newDamage = Math.round(currentDamage * multiplier);
                                 shooterEl.setAttribute('auto-shooter', 'turretDamage', newDamage);
                                 console.log(`  - Turret ${shooterEl.id} damage set to ${newDamage}`);
                                 upgradeApplied = true;
                             }
                         });
-                    } else { // Apply Speed Upgrade
+                    } else { 
                         console.log(` -> Applying Shooter Speed Upgrade (Level ${shooterLevel})`);
                         activeShooterUpgrades.forEach(shooterEl => {
                             if (shooterEl?.components['auto-shooter']) {
@@ -520,27 +514,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         nextShooterUpgradeLevel += SHOOTER_CONFIG.UPGRADE_FREQUENCY;
                         console.log(`Next shooter upgrade available at Player Lv ${nextShooterUpgradeLevel}.`);
                     }
-                    resumeGame(); // Resume after applying
+                    resumeGame(); 
                 } else {
                      console.log("Shooter upgrade not available.");
-                     resumeGame(); // Resume even if no action
+                     resumeGame(); 
                 }
             }
         });
     }
 
-    // Slower Turret Upgrade / Placement
+    
     if (upgradeSlowerBtn) {
         upgradeSlowerBtn.addEventListener('click', () => {
             if (isGamePaused) {
                 const SLOWER_CONFIG = GAME_CONFIG.UPGRADES.SLOWER;
                 const UNLOCKS = GAME_CONFIG.UPGRADES.UNLOCKS;
-                // Action 1: Place First?
+                
                 if (!upgradeSlowTurretPlaced && currentLevel >= UNLOCKS.SLOW_TURRET) {
                      console.log("Initiating placement for Slow Turret 1...");
                      placingUpgrade = 'slowTurret1';
                      placedUpgradeEl = null;
-                     // Show placement UI
+                     
                      const reticleEl = document.getElementById('placement-reticle');
                      const feedbackEl = document.getElementById('scanning-feedback');
                      if (reticleEl) reticleEl.setAttribute('visible', 'true');
@@ -549,12 +543,12 @@ document.addEventListener('DOMContentLoaded', () => {
                      if (confirmPlacementButton) confirmPlacementButton.disabled = true;
                      if (upgradesPopup) upgradesPopup.style.display = 'none';
                 }
-                // Action 2: Place Second?
+                
                 else if (upgradeSlowTurretPlaced && !upgradeSlowTurret2Placed && currentLevel >= UNLOCKS.SECOND_SLOW_TURRET) {
                     console.log("Initiating placement for Slow Turret 2...");
                     placingUpgrade = 'slowTurret2';
                     placedUpgradeEl = null;
-                    // Show placement UI
+                    
                     const reticleEl = document.getElementById('placement-reticle');
                     const feedbackEl = document.getElementById('scanning-feedback');
                     if (reticleEl) reticleEl.setAttribute('visible', 'true');
@@ -563,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (confirmPlacementButton) confirmPlacementButton.disabled = true;
                     if (upgradesPopup) upgradesPopup.style.display = 'none';
                 }
-                // Action 3: Upgrade Existing?
+                
                 else if (upgradeSlowTurretPlaced && upgradeSlowTurret2Placed && currentLevel >= nextSlowTurretUpgradeLevel) {
                     slowTurretLevel++;
                     console.log(`Upgrading Slow Turrets to Level ${slowTurretLevel}.`);
@@ -598,17 +592,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Manual Upgrades Button (Toggle Popup)
+    
     if (manualUpgradesButton) {
         manualUpgradesButton.addEventListener('click', () => {
             if (!upgradesPopup) return;
             const isVisible = upgradesPopup.style.display === 'block';
             if (isVisible) {
-                // Hide popup, resume if paused by popup
+                
                 showUpgradePopup(false);
                 if (isGamePaused) resumeGame(false);
             } else if (!isGamePaused && isGameSetupComplete) {
-                // Show popup, don't pause game
+                
                 showUpgradePopup(true, false);
             } else {
                 console.log("Cannot open upgrades manually (Game Paused/Not Started).");
@@ -616,31 +610,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Close Upgrade Popup Button
+    
     if (closeUpgradePopupBtn) {
          closeUpgradePopupBtn.addEventListener('click', () => {
-             showUpgradePopup(false); // Hide the popup
-             // If the game was paused *because* of the popup, resume it
-             // Check isGamePaused state before resuming
+             showUpgradePopup(false); 
+             
+             
              if (isGamePaused) resumeGame(false);
          });
     }
 
-    // Confirm Upgrade Placement Button
+    
     if (confirmPlacementButton) {
-        // Use the globally defined function
+        
         confirmPlacementButton.addEventListener('click', confirmUpgradePlacement);
     }
 
-    // --- Initialize UI ---
+    
     console.log("Initializing UI states...");
     if (typeof updateScoreDisplay === 'function') updateScoreDisplay();
     if (typeof updateTowerHealthUI === 'function') updateTowerHealthUI();
     if (typeof updateLevelDisplay === 'function') updateLevelDisplay();
     if (typeof updateXPBar === 'function') updateXPBar();
 
-}); // End DOMContentLoaded
-
-// ========================================================
-// ========= END DOMContentLoaded SETUP & LISTENERS =======
-// ========================================================
+}); 

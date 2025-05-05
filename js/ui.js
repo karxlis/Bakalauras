@@ -1,10 +1,4 @@
-// ========================================================
-// ===================== UI MANAGER =======================
-// ========================================================
 
-// --- UI Element References ---
-// It's often better to query these when needed or cache them within functions,
-// but we'll keep the global-like references for now to match original structure.
 let scoreDisplayEl = null;
 let levelUpPopupEl = null;
 let levelNumberEl = null;
@@ -26,26 +20,25 @@ let levelDisplayEl = null;
 let xpLevelDisplayEl = null;
 let xpBarFillEl = null;
 let pauseMenuEl = null;
-let sceneElGlobal = null; // Might need reference here if UI depends on scene state
+let sceneElGlobal = null; 
 
-// --- UI Update Functions ---
 
-// Updates the score display (legacy element, likely hidden)
+
 function updateScoreDisplay() {
-    // Cache element lookup
+    
     scoreDisplayEl = scoreDisplayEl || document.getElementById('score-display');
     if (scoreDisplayEl) {
         scoreDisplayEl.textContent = `Score: ${score}`;
     }
 }
 
-// Updates the level display (legacy element, likely hidden)
+
 function updateLevelDisplay() {
     levelDisplayEl = levelDisplayEl || document.getElementById('level-display');
     if (levelDisplayEl) {
         levelDisplayEl.textContent = `Level: ${currentLevel}`;
     } else {
-        // Log error only once
+        
         if (!window._levelElWarned) {
              console.error("UI Error: Level display element (#level-display) not found!");
              window._levelElWarned = true;
@@ -53,7 +46,7 @@ function updateLevelDisplay() {
     }
 }
 
-// Shows the level up notification popup temporarily
+
 function showLevelUpPopup(level) {
     levelUpPopupEl = levelUpPopupEl || document.getElementById('level-up-popup');
     levelNumberEl = levelNumberEl || document.getElementById('level-number');
@@ -61,50 +54,50 @@ function showLevelUpPopup(level) {
     if (levelUpPopupEl && levelNumberEl) {
         levelNumberEl.textContent = `Level: ${level}`;
         levelUpPopupEl.style.display = 'block';
-        void levelUpPopupEl.offsetWidth; // Force reflow for potential transition
+        void levelUpPopupEl.offsetWidth; 
 
-        // Clear previous timeout if exists
+        
         if (levelUpTimeout) clearTimeout(levelUpTimeout);
 
         levelUpTimeout = setTimeout(() => {
             if (levelUpPopupEl) levelUpPopupEl.style.display = 'none';
             levelUpTimeout = null;
-        }, GAME_CONFIG.TIMINGS.LEVEL_UP_POPUP_MS); // Use config
+        }, GAME_CONFIG.TIMINGS.LEVEL_UP_POPUP_MS); 
     } else {
         console.error("UI Error: Could not find level-up popup elements!");
     }
 }
 
-// Updates the tower health bar and text display
+
 function updateTowerHealthUI() {
-    // Cache elements
+    
     topUiContainerEl = topUiContainerEl || document.getElementById('top-ui-container');
     hpNumberDisplayEl = hpNumberDisplayEl || document.getElementById('hp-number-display');
     hpBarFillEl = hpBarFillEl || document.getElementById('hp-bar-fill');
 
     if (!topUiContainerEl || !hpNumberDisplayEl || !hpBarFillEl) {
         if(topUiContainerEl) topUiContainerEl.classList.add('hidden');
-        // Optional: console.warn("Health UI elements not found!");
+        
         return;
     }
 
-    // Toggle visibility based on game state (assumes global state access)
+    
     if (isGameSetupComplete && !isGameOver) {
         topUiContainerEl.classList.remove('hidden');
     } else {
         topUiContainerEl.classList.add('hidden');
-        return; // Don't update values if hidden
+        return; 
     }
 
-    // Update Text
+    
     hpNumberDisplayEl.textContent = `${currentTowerHealth}/${currentMaxTowerHealth}`;
 
-    // Update Bar Width
+    
     const healthPercent = currentMaxTowerHealth > 0 ? (currentTowerHealth / currentMaxTowerHealth) : 0;
     const healthWidthPercentage = Math.max(0, Math.min(100, healthPercent * 100));
     hpBarFillEl.style.width = `${healthWidthPercentage}%`;
 
-    // Update Bar Color
+    
     hpBarFillEl.classList.remove('bg-green-500', 'bg-yellow-500', 'bg-red-600');
     if (healthPercent > 0.6) {
         hpBarFillEl.classList.add('bg-green-500');
@@ -115,7 +108,7 @@ function updateTowerHealthUI() {
     }
 }
 
-// Updates the XP bar (level and progress fill)
+
 function updateXPBar() {
     xpLevelDisplayEl = xpLevelDisplayEl || document.getElementById('xp-level-display');
     xpBarFillEl = xpBarFillEl || document.getElementById('xp-bar-fill');
@@ -134,18 +127,18 @@ function updateXPBar() {
         const scoreAtStartOfLevel = scoreForNextLevel - scoreGap;
         const scoreInCurrentLevel = score - scoreAtStartOfLevel;
         progress = Math.max(0, Math.min(1, scoreInCurrentLevel / scoreGap));
-    } // else progress remains 0
+    } 
 
     const percentage = progress * 100;
     xpBarFillEl.style.width = `${percentage}%`;
 
-    // Optional log
-    // console.log(`Updating XP Bar: Level ${currentLevel}, Progress ${percentage.toFixed(1)}%`);
+    
+    
 }
 
-// Shows or hides the upgrade popup
+
 function showUpgradePopup(show, pauseGame = false) {
-    if (isGameOver && show) return; // Don't show if game over
+    if (isGameOver && show) return; 
 
     upgradesPopupEl = upgradesPopupEl || document.getElementById('upgrades-popup');
     if (!upgradesPopupEl) { console.error("UI Error: Upgrade popup element not found!"); return; }
@@ -153,20 +146,20 @@ function showUpgradePopup(show, pauseGame = false) {
     if (show) {
         console.log(`Showing Upgrade Popup... (Pause: ${pauseGame})`);
         if (pauseGame && !isGamePaused) {
-            // Pausing logic should ideally be in game logic/state manager
+            
             isGamePaused = true;
             if (window.enemyManager && window.enemyManager.stopSpawner) { window.enemyManager.stopSpawner(); }
             const controlsWidget = document.getElementById('controls-widget');
             if (controlsWidget) controlsWidget.style.display = 'none';
         }
 
-        // Update button states *before* showing the popup
-        // Assumes updateUpgradePopupButtonStates is globally available or imported
+        
+        
         if (window.updateUpgradePopupButtonStates) window.updateUpgradePopupButtonStates();
 
         upgradesPopupEl.style.display = 'block';
 
-        // Hide reticle if pausing for popup
+        
         if (pauseGame) {
             const reticleEl = document.getElementById('placement-reticle');
             if (reticleEl) reticleEl.setAttribute('visible', 'false');
@@ -174,11 +167,11 @@ function showUpgradePopup(show, pauseGame = false) {
     } else {
         console.log("Hiding Upgrade Popup...");
         upgradesPopupEl.style.display = 'none';
-        // Resume logic should be handled separately (e.g., by resumeGame function)
+        
     }
 }
 
-// Helper to set the visual state of an upgrade button
+
 function setUpgradeButtonState(buttonEl, title, description, available, nextLevel = -1) {
     if (!buttonEl) return;
 
@@ -188,7 +181,7 @@ function setUpgradeButtonState(buttonEl, title, description, available, nextLeve
 
     if (titleSpan) titleSpan.textContent = title;
 
-    // Tailwind classes used for disabled state in original HTML
+    
     const disabledClasses = [
         'disabled:bg-gray-700', 'disabled:text-gray-500',
         'disabled:border-gray-600', 'disabled:opacity-70',
@@ -203,18 +196,14 @@ function setUpgradeButtonState(buttonEl, title, description, available, nextLeve
     } else {
         buttonEl.disabled = true;
         buttonEl.classList.add(...disabledClasses);
-        if (descSpan) descSpan.textContent = description; // Show base description even when disabled
+        if (descSpan) descSpan.textContent = description; 
         if (levelDescSpan) {
             if (nextLevel > 0) {
-                levelDescSpan.textContent = `(Unlock at Lv ${nextLevel})`;
+                levelDescSpan.textContent = `(Atsirakins ties ${nextLevel} Lyg.)`;
                 levelDescSpan.style.display = 'block';
             } else {
-                 levelDescSpan.style.display = 'none'; // Hide if disabled but no specific level needed
+                 levelDescSpan.style.display = 'none'; 
             }
         }
     }
 }
-
-// ========================================================
-// =================== END UI MANAGER =====================
-// ========================================================

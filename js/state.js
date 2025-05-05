@@ -1,55 +1,47 @@
-// ========================================================
-// =================== GAME STATE =======================
-// ========================================================
 
-// Core Game State
-let gameState = 'menu'; // menu, starting_ar, ar_setup, placing_tower, playing, paused, game_over
-let highScore = 0; // For storing high score
+
+// pagrindinė žaidimo būsena
+let gameState = 'menu'; // meniu, startuoja ar, ar ruošimas, stato bokštą, žaidžia, pauzė, žaidimas baigtas
+let highScore = 0; // aukščiausio rezultato saugojimui
 let score = 0;
 let currentLevel = 1;
-let scoreForNextLevel = 10; // Initial value, will be updated by GAME_CONFIG
-let scoreGap = 10;          // Initial value, will be updated by GAME_CONFIG
+let scoreForNextLevel = 10; // pradinė reikšmė, atnaujins game_config
+let scoreGap = 10;          // pradinė reikšmė, atnaujins game_config
 
-// Tower State
-let currentMaxTowerHealth = 10; // Initial value, will be updated by GAME_CONFIG
-let currentTowerHealth = 10;    // Initial value, will be updated by GAME_CONFIG
+// bokšto būsena
+let currentMaxTowerHealth = 10; // pradinė reikšmė, atnaujins game_config
+let currentTowerHealth = 10;    // pradinė reikšmė, atnaujins game_config
 
-// Upgrade State
+// upgrade'ų būsena
 let upgradeShooter1Placed = false;
 let upgradeShooter2Placed = false;
 let upgradeSlowTurretPlaced = false;
 let upgradeSlowTurret2Placed = false;
-let shooterLevel = 0;           // Internal level for shooter upgrades (speed/dmg)
-let playerDamageLevel = 0;      // Level for player's manual shot damage
-let slowTurretLevel = 0;        // Internal level for slower upgrades (speed/slow%)
-let nextShooterUpgradeLevel = 3; // Player level when next shooter upgrade is available (updated by config/logic)
-let nextSlowTurretUpgradeLevel = 5; // Player level when next slower upgrade is available (updated by config/logic)
+let shooterLevel = 0;           // vidinis šaudyklės upgrade'ų lygis (greitis/žala)
+let playerDamageLevel = 0;      // žaidėjo rankinio šūvio žalos lygis
+let slowTurretLevel = 0;        // vidinis lėtintojo upgrade'ų lygis (greitis/lėtinimo %)
+let nextShooterUpgradeLevel = 3; // žaidėjo lygis kada kitas šaudyklės upgrade'as galimas (atnaujina config/logika)
+let nextSlowTurretUpgradeLevel = 5; // žaidėjo lygis kada kitas lėtintojo upgrade'as galimas (atnaujina config/logika)
 
-// Gameplay Status Flags
-let isGameSetupComplete = false; // True after tower is placed and game started
-let towerPlaced = false;         // True once the base tower exists in AR
+// žaidimo eigos flag'ai
+let isGameSetupComplete = false; // true po bokšto padėjimo ir žaidimo starto
+let towerPlaced = false;         // true kai bokštas yra ar
 let isGamePaused = false;
 let isGameOver = false;
 
-// Placement State (for upgrades)
-let placingUpgrade = null; // Type of upgrade being placed (e.g., 'shooter1', 'slowTurret2')
-let placedUpgradeEl = null; // Reference to the temporary visual element being placed
+// padėjimo būsena (upgrade'ams)
+let placingUpgrade = null; // dedamo upgrade'o tipas (pvz., 'shooter1', 'slowTurret2')
+let placedUpgradeEl = null; // nuoroda į laikiną vizualų elementą kuris dedamas
 
-// References to Active Game Objects
-let placedTowerEl = null;        // Reference to the placed tower A-Frame element
-let activeShooterUpgrades = []; // Array to hold references to active shooter turret elements
-let activeSlowTurrets = [];   // Array to hold references to active slow turret elements
+// nuorodos į aktyvius žaidimo objektus
+let placedTowerEl = null;        // nuoroda į padėtą bokšto a-frame elementą
+let activeShooterUpgrades = []; // masyvas aktyvių šaudyklių elementų nuorodoms laikyti
+let activeSlowTurrets = [];   // masyvas aktyvių lėtintojų elementų nuorodoms laikyti
 
-// Technical State
-let lastSelectTime = 0;       // For debouncing AR placement taps
-// Note: SELECT_DEBOUNCE_MS is defined in GAME_CONFIG.TIMINGS
+// techninė būsena
+let lastSelectTime = 0;       // ar padėjimo paspaudimų
+// select_debounce_ms apibrėžtas game_config.timings
 
-// UI Element References (Consider moving entirely to uiManager.js if preferred)
-// Keeping some here temporarily if state logic directly uses them, but ideally UI manager handles all DOM refs.
-let levelUpTimeout = null; // Timeout ID for hiding the level up popup
-
-// ========================================================
-// ================= END GAME STATE =====================
-// ========================================================
-
-
+// ui elementų nuorodos (galima perkelt viską į uimanager.js jei norisi)
+// paliekam kai kurias čia laikinai jei būsenos logika tiesiogiai naudoja, bet idealiu atveju ui valdytojas tvarko visas dom nuorodas.
+let levelUpTimeout = null; // timeout id lygio pakilimo popupo slėpimui

@@ -1,54 +1,52 @@
-// ========================================================
-// ================= GAME CONFIGURATION ===================
-// ========================================================
+//configuracija
 const GAME_CONFIG = {
     DEBUG_LOGS: {
-        spawnValidation: true, // Set to true to see detailed spawn rejection reasons
-        spawnChance: true,     // Log enemy spawn chances
-        upgradeCalculation: false // Log detailed upgrade availability steps
+        spawnValidation: true, // įjungti jei nori matyt kodėl atmestas spawnas
+        spawnChance: true,     // rodyti priešų atsiradimo šansus
+        upgradeCalculation: false // rodyti detalius upgrade'o prieinamumo žingsnius
     },
     LEVELING: {
         MAX_LEVEL: 100,
         INITIAL_SCORE_THRESHOLD: 10,
         INITIAL_SCORE_GAP: 10,
-        GAP_MULTIPLIER: 1.1, // Score gap increases by 10% after level 4
-        GAP_MIN_INCREASE: 1    // Ensure gap increases by at least 1
+        GAP_MULTIPLIER: 1.1, // taškų skirtumas didėja 10% po 4 lygio
+        GAP_MIN_INCREASE: 1    // užtikrinti kad skirtumas didėtų bent 1
     },
     TOWER: {
         INITIAL_MAX_HEALTH: 10
     },
     PLAYER: {
         SHOOT_DAMAGE_BASE: 1,
-        DAMAGE_UPGRADE_MULTIPLIER: 1.30 // +30% damage per upgrade level
+        DAMAGE_UPGRADE_MULTIPLIER: 1.30 // +30% žalos per upgrade lygį
     },
     UPGRADES: {
         UNLOCKS: {
-            SLOW_TURRET: 2,      // Level required to unlock placing the slow turret
-            SECOND_SHOOTER: 10,  // Level required to unlock placing the second shooter
-            SHOOTER_DAMAGE_1: 15, // Player Level when Damage I upgrade *can* first be applied (via shooterLevel 1)
-            SHOOTER_DAMAGE_2: 25, // Player Level when Damage II upgrade *can* first be applied (via shooterLevel 2)
+            SLOW_TURRET: 2,      // lygis kada galima statyti lėtintoją
+            SECOND_SHOOTER: 10,  // lygis kada galima statyti antrą šaudyklę
+            SHOOTER_DAMAGE_1: 15, // žaidėjo lygis kada žalos i upgrade'as *gali* būti pritaikytas (per shooterlevel 1)
+            SHOOTER_DAMAGE_2: 25, // žaidėjo lygis kada žalos ii upgrade'as *gali* būti pritaikytas (per shooterlevel 2)
             SECOND_SLOW_TURRET: 13
         },
         HEALTH: {
             HP_INCREASE: 3
         },
         SHOOTER: {
-            UPGRADE_FREQUENCY: 2, // Upgrade offered every 2 levels (odd numbers)
-            INITIAL_LEVEL_CHECK: 3, // Start checking for upgrades from Player Level 3
-            SPEED_INCREASE_FACTOR: 0.85, // Speed upgrade reduces delay to 85% (15% faster)
-            DAMAGE_1_MULTIPLIER: 1.3, // +30% damage
-            DAMAGE_2_FACTOR: 1.2, // +20% on top of Damage 1
-            LEVEL_FOR_DAMAGE_1: 1, // Internal shooterLevel when Dmg I is applied
-            LEVEL_FOR_DAMAGE_2: 2  // Internal shooterLevel when Dmg II is applied
+            UPGRADE_FREQUENCY: 2, // upgrade'as siūlomas kas 2 lygius (nelyginiai skaičiai)
+            INITIAL_LEVEL_CHECK: 3, // pradėti tikrinti upgrade'us nuo žaidėjo 3 lygio
+            SPEED_INCREASE_FACTOR: 0.85, // greičio upgrade'as sumažina uždelsimą iki 85% (15% greičiau)
+            DAMAGE_1_MULTIPLIER: 1.3, // +30% žalos
+            DAMAGE_2_FACTOR: 1.2, // +20% ant žalos 1
+            LEVEL_FOR_DAMAGE_1: 1, // vidinis šaudyklės lygis kada žala i pritaikoma
+            LEVEL_FOR_DAMAGE_2: 2  // vidinis šaudyklės lygis kada žala ii pritaikoma
         },
         SLOWER: {
-            UPGRADE_FREQUENCY: 3, // Upgrade offered every 3 levels
-            SPEED_INCREASE_FACTOR: 0.90, // Speed upgrade reduces delay to 90% (10% faster)
-            SLOW_INCREASE_AMOUNT: 0.90, // Add +20% slow effectiveness
-            SLOW_MAX_PERCENTAGE: 0.90 // Cap slow effectiveness at 90%
+            UPGRADE_FREQUENCY: 3, // upgrade'as siūlomas kas 3 lygius
+            SPEED_INCREASE_FACTOR: 0.90, // greičio upgrade'as sumažina uždelsimą iki 90% (10% greičiau)
+            SLOW_INCREASE_AMOUNT: 0.90, // pridėti +20% lėtinimo efektyvumo (klaidingas komentaras, reiktų taisyt į 10% pagal faktorių arba formulę)
+            SLOW_MAX_PERCENTAGE: 0.90 // lėtinimo efektyvumo riba 90%
         }
     },
-    TURRETS: { // Default/Initial values for placed turrets
+    TURRETS: { 
         SHOOTER: {
             INITIAL_DELAY: 5000,
             BASE_DAMAGE: 1
@@ -56,35 +54,34 @@ const GAME_CONFIG = {
         SLOWER: {
             INITIAL_DELAY: 3000,
             INITIAL_SLOW_PERCENTAGE: 0.5,
-            PROJECTILE_COLOR: '#FFFFFF' // White projectiles
+            PROJECTILE_COLOR: '#FFFFFF' 
         },
-        PROJECTILE_DEFAULTS: { // Shared defaults
+        PROJECTILE_DEFAULTS: { 
             SPEED: 8.0,
             LIFETIME: 4000.0,
             RADIUS: 0.08,
-            COLOR: '#FF8C00' // Default shooter color
+            COLOR: '#FF8C00' 
         },
-        MIN_SHOOT_DELAY: 100 // Minimum delay in ms for any turret
+        MIN_SHOOT_DELAY: 100 
     },
     ENEMIES: {
         MAX_ACTIVE: 8,
         SPAWN_INTERVAL_MS: 1000,
         BASE_SPEED: 0.9,
-        SPEED_INCREASE_FACTOR: 1.1, // Speed multiplier increases by 10% per level (before cap)
-        SPEED_CAP_LEVEL: 8,         // Level at which speed stops increasing
+        SPEED_INCREASE_FACTOR: 1.1, // dideja kas 1.1x
+        SPEED_CAP_LEVEL: 8,         // greicio cap
         TARGET_REACH_DISTANCE: 0.2,
-        // Spawn Position Logic
-        SPAWN_DISTANCE_MIN: 12,
-        SPAWN_DISTANCE_RANGE: 6, // Spawn 12 to (12+6)=18 units away
-        SPAWN_ANGLE_RANGE_RAD: Math.PI / 3.0, // 60 degrees arc
+        SPAWN_DISTANCE_MIN: 10,
+        SPAWN_DISTANCE_RANGE: 6, // atsiranda 12 iki (12+6)=18 vienetų atstumu
+        SPAWN_ANGLE_RANGE_RAD: Math.PI / 3.0, // 60 laipsnių lankas
         MIN_DIST_FROM_CAM_SQ: 4 * 4,
         MIN_DIST_FROM_TOWER_SQ: 4 * 4,
-        VIEW_CONE_DOT_THRESHOLD: 0.3, // How far behind player they can spawn
+        VIEW_CONE_DOT_THRESHOLD: 0.3, // kiek už žaidėjo nugaros gali atsirasti
         Y_POS_CLAMP_MIN: 0.2,
         Y_POS_CLAMP_MAX: 3.0,
         MIN_ENEMY_SEPARATION_SQ:  4 * 4,
 
-        // Enemy Types & Chances
+        // priešų tipai ir šansai
         TOUGH: {
             SCORE_THRESHOLD: 10,
             BASE_CHANCE: 0.35,
@@ -93,37 +90,37 @@ const GAME_CONFIG = {
             HEALTH: 3,
             SCALE: '0.35 0.35 0.35',
             SHAPE: 'sphere',
-            COLOR: '#8B0000' // Dark Red
+            COLOR: '#8B0000' // tamsiai raudona
         },
         TOUGHEST: {
             SCORE_THRESHOLD: 30,
-            BASE_CHANCE: 0.2, // Reduced base chance
-            CHANCE_INCREASE_PER_5_SCORE: 0.05, // Kept increase rate
+            BASE_CHANCE: 0.2, // sumažintas pradinis šansas
+            CHANCE_INCREASE_PER_5_SCORE: 0.05, // paliktas didėjimo greitis
             CHANCE_CAP: 1.0,
             HEALTH: 7,
             SCALE: '0.45 0.45 0.45',
             SHAPE: 'dodecahedron',
-            COLOR: '#FFA500' // Neon Orange
+            COLOR: '#FFA500' // neoninė oranžinė
         },
         BASIC: {
             HEALTH: 1,
             SCALE: '0.25 0.25 0.25',
             SHAPE: 'box'
-            // Color is random HSL
+            // spalva yra atsitiktinė hsl
         }
     },
     EFFECTS: {
         SLOW_DURATION_MS: 3000,
-        HIT_FLASH_COLOR_ENEMY: '#FF0000', // Red flash
-        SLOW_COLOR_INDICATOR: '#87CEEB' // Light blue
+        HIT_FLASH_COLOR_ENEMY: '#FF0000', // raudonas blyksnis
+        SLOW_COLOR_INDICATOR: '#87CEEB' // šviesiai mėlyna
     },
-    PROJECTILES: { // Defaults for projectile-hitter if not overridden
+    PROJECTILES: { // numatytosios reikšmės projectile-hitter jei nenurodyta kitaip
         SPEED: 10.0,
         LIFETIME: 3000.0,
         COLLISION_RADIUS: 0.2,
-        PLAYER_COLOR: '#FFFF00', // Yellow
+        PLAYER_COLOR: '#FFFF00', // geltona
         PLAYER_RADIUS: 0.1,
-        AOE_SLOW_RADIUS: 1.5
+        AOE_SLOW_RADIUS: 1.5 // plotinio lėtinimo spindulys
     },
     TIMINGS: {
         LEVEL_UP_POPUP_MS: 1500,
@@ -133,8 +130,3 @@ const GAME_CONFIG = {
         DEBOUNCE_SELECT_MS: 100
     }
 };
-// ========================================================
-// ============ END GAME CONFIGURATION ====================
-// ========================================================
-
-// Removed export default GAME_CONFIG; - Scripts are loaded globally

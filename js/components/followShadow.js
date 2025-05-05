@@ -1,45 +1,45 @@
-// Component definition for follow-shadow
+// komponento follow-shadow aprašymas
 AFRAME.registerComponent('follow-shadow', {
     schema: {type: 'selector'},
     init: function() {
-        console.log("[follow-shadow] Initializing");
-        this.el.object3D.renderOrder = -1; // Ensure shadow renders underneath
+        console.log("[follow-shadow] inicijuojama");
+        this.el.object3D.renderOrder = -1; // užtikrinti, kad šešėlis renderintųsi po apačia
         this.targetEl = null;
         this.initialPosSet = false;
 
-        this.targetEl = this.data; // this.data IS the resolved target element
+        this.targetEl = this.data; // this.data YRA išspręstas target elementas
 
         if (this.targetEl) {
-            console.log(`[follow-shadow] Initial target element found: ${this.targetEl.id}`);
+            console.log(`[follow-shadow] pradinis target elementas rastas: ${this.targetEl.id}`);
         } else {
-             console.warn(`[follow-shadow] Initial target element selector could not be resolved.`);
+             console.warn(`[follow-shadow] pradinis target elemento selektorius neišspręstas.`);
         }
     },
     update: function(oldData) {
         if (this.data !== oldData) {
-            console.log("[follow-shadow] Target data updated.");
-            this.targetEl = this.data; // Update reference to the new target element
-            this.initialPosSet = false; // Reset position flag on target change
+            console.log("[follow-shadow] target duomenys atnaujinti.");
+            this.targetEl = this.data; // atnaujinti nuorodą į naują target elementą
+            this.initialPosSet = false; // nustatyti pozicijos flag'ą iš naujo kai keičiasi target
 
              if (this.targetEl) {
-                 console.log("[follow-shadow] New target element assigned:", this.targetEl.id);
+                 console.log("[follow-shadow] naujas target elementas priskirtas:", this.targetEl.id);
              } else {
-                  console.warn(`[follow-shadow] New target element selector could not be resolved.`);
+                  console.warn(`[follow-shadow] naujas target elemento selektorius neišspręstas.`);
              }
         }
     },
     tick: function() {
         if (this.targetEl?.object3D?.visible) {
-            // Use target's world position if needed, or local if parent relationship is guaranteed
-            // Using local position assuming shadow is child of the same parent or scene
+            // naudoti target pasaulio poziciją jei reikia, arba lokalią jei parent ryšys garantuotas
+            // naudojama lokali pozicija darant prielaidą, kad šešėlis yra to paties parent arba scenos vaikas
             const targetPos = this.targetEl.object3D.position;
 
-            if (!this.initialPosSet && targetPos.y > -100) { // Check y isn't default large negative
+            if (!this.initialPosSet && targetPos.y > -100) { // tikrinti ar y nėra numatytoji didelė neigiama
                  this.initialPosSet = true;
             }
             if (this.initialPosSet) {
                  this.el.object3D.position.copy(targetPos);
-                 this.el.object3D.position.y = 0.001; // Keep shadow slightly above ground
+                 this.el.object3D.position.y = 0.001; // laikyti šešėlį truputį virš žemės
                  if (!this.el.object3D.visible) { this.el.object3D.visible = true; }
             } else if (this.el.object3D.visible) {
                  this.el.object3D.visible = false;

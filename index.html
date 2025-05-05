@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>AR Tower Defense - Main Menu</title> 
+    <title>TowAR Defence</title> 
     <meta name="description" content="Place cubes via hit-test or shoot projectiles towards camera marker.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -34,7 +34,7 @@
         .upgrade-button:not(:disabled) .upgrade-desc-level { display: none; }
 
         :root {
-            /* Green Theme */
+            /* žalia tema */
             --btn-start-bg: #16BB77;
             --btn-start-border-dark: #118959;
             --btn-start-border-light: #1CD489;
@@ -42,7 +42,7 @@
             --btn-start-bg-hover: #13A669;
             --btn-start-bg-active: #118959;
 
-            /* Yellow Theme (HowTo/Restart/Upgrade) */
+            /* geltona tema (howTo/restart/upgrade) */
             --btn-howto-bg: #BBB316; 
             --btn-howto-border-dark: #827A10;
             --btn-howto-border-light: #CEC64F;
@@ -64,7 +64,7 @@
             --btn-confirm-bg-hover: var(--btn-start-bg-hover);
             --btn-confirm-bg-active: var(--btn-start-bg-active);
 
-            /* Upgrade Button Theme (Uses Yellow) */
+            /* upgrade mygtuko tema (naudoja geltoną) */
             --btn-upgrade-bg: var(--btn-howto-bg); 
             --btn-upgrade-border-dark: var(--btn-howto-border-dark);
             --btn-upgrade-border-light: var(--btn-howto-border-light);
@@ -72,7 +72,7 @@
             --btn-upgrade-bg-hover: var(--btn-howto-bg-hover);
             --btn-upgrade-bg-active: var(--btn-howto-bg-active);
 
-            /* Close Button Theme */
+            /* uždarymo mygtuko tema */
             --btn-close-bg: #6b7280; 
             --btn-close-border-dark: #374151; 
             --btn-close-border-light: #9ca3af; 
@@ -80,7 +80,7 @@
             --btn-close-bg-hover: #4b5563; 
             --btn-close-bg-active: #374151; 
 
-            /* Exit Button Theme (Blue) */
+            /* išėjimo mygtuko tema (mėlyna) */
             --btn-exit-bg: #1C9FD7; 
             --btn-exit-border-dark: #11648f; 
             --btn-exit-border-light: #5cc5f2; 
@@ -88,7 +88,7 @@
             --btn-exit-bg-hover: #188abd; 
             --btn-exit-bg-active: #11648f; 
 
-            /* Shoot Icon Button Theme (Custom Yellow/Brown) */
+            /* šaudymo ikonos mygtuko tema (geltona/ruda) */
             --btn-shoot-icon-bg: #FFCC00;
             --btn-shoot-icon-border-dark: #B48000; 
             --btn-shoot-icon-border-light: #FFF3C7; 
@@ -96,22 +96,22 @@
             --btn-shoot-icon-bg-hover: #f0c100; 
             --btn-shoot-icon-bg-active: #e0b500; 
 
-            /* Grey Theme for Strokes */
+            /* pilka tema kraštinėms */
             --stroke-grey-border-dark: #B8BAC7;
             --stroke-grey-border-light: #ffffff;
             --stroke-grey-shadow: #B8BAC7;
 
-             /* Dark Theme for Strokes */
+             /* tamsi tema kraštinėms */
             --stroke-dark-border-dark: #374151; 
             --stroke-dark-border-light: #6b7280; 
             --stroke-dark-shadow: #1f2937; 
 
-            /* Cyan Theme for Strokes */
+            /* žydra tema kraštinėms */
             --stroke-cyan-border-dark: #0e7490; 
             --stroke-cyan-border-light: #67e8f9; 
             --stroke-cyan-shadow: #164e63; 
 
-            /* White/Light Grey Theme for Strokes */
+            /* balta/šviesiai pilka tema kraštinėms */
             --stroke-light-border-dark: #d1d5db; 
             --stroke-light-border-light: #ffffff; 
             --stroke-light-shadow: #9ca3af; 
@@ -180,10 +180,10 @@
 
     </style>
 
-    <!-- Add New Scripts in Order -->
+   
     <script src="js/config.js"></script>
-    <script src="js/state.js"></script> <!-- State variables -->
-    <!-- Load Components -->
+    <script src="js/state.js"></script> 
+ 
     <script src="js/components/followShadow.js"></script>
     <script src="js/components/attachDomElement.js"></script>
     <script src="js/components/projectileHitter.js"></script>
@@ -191,12 +191,12 @@
     <script src="js/components/moveTowardsTarget.js"></script>
     <script src="js/components/autoShooter.js"></script>
     <script src="js/components/fpsCounter.js"></script>
-    <!-- Load Managers/Logic -->
-    <script src="js/ui.js"></script>          <!-- UI update functions -->
-    <script src="js/game_logic.js"></script>  <!-- Core game functions -->
-    <!-- Load Main Setup / Event Listeners -->
-    <script src="js/domcontentloaded.js"></script> <!-- Attaches listeners -->
-    <!-- <script src="js/main.js"></script> --> <!-- Keep if needed for final setup -->
+
+    <script src="js/ui.js"></script>          
+    <script src="js/game_logic.js"></script>  
+
+    <script src="js/domcontentloaded.js"></script> 
+    
 
   </head>
   <body class="bg-blue-500 font-sans">
@@ -211,7 +211,7 @@
                          rounded-md p-3 
                          text-center flex flex-col justify-center items-center
                          button-styling button-active-styling h-16">
-                  <span class="text-base font-semibold tracking-wider text-white block">Start Game</span>
+                  <span class="text-base font-semibold tracking-wider text-white block">Pradėti žaidimą</span>
               </button>
 
               <button
@@ -221,11 +221,11 @@
                          rounded-md p-3 
                          text-center flex flex-col justify-center items-center
                          button-styling button-active-styling h-16">
-                  <span class="text-base font-semibold tracking-wider text-white block">How to Play</span>
+                  <span class="text-base font-semibold tracking-wider text-white block">Kaip žaisti</span>
               </button>
 
               <div class="text-black rounded-lg p-3 w-full container-styling flex items-center justify-center">
-                   <span class="text-sm text-gray-700 mr-2">Your Score</span>
+                   <span class="text-sm text-gray-700 mr-2">Tavo taškai</span>
                    <span id="menuHighScore" class="text-4xl font-bold text-[var(--score-text-color)] leading-none block">
                      0
                    </span>
@@ -256,21 +256,21 @@
             animation__jump="startEvents:click;property:object3D.position.y;from: 0.5; to: 0.8; dir:alternate;loop:1;easing:easeOutQuad;dur:300;">
           </a-mixin>
           <a-asset-item id="tower-model" src="models/tower.glb"></a-asset-item>
-          <img id="tower-texture" src="models/tower.png" alt="Tower Texture">
+          <img id="tower-texture" src="models/tower.png" alt="Bokšto tekstūra">
 
           <a-asset-item id="basic-enemy-model" src="models/basic.glb"></a-asset-item>
-          <img id="basic-enemy-texture" src="models/basic.png" alt="Basic Enemy Texture">
+          <img id="basic-enemy-texture" src="models/basic.png" alt="Paprasto priešo tekstūra">
           <a-asset-item id="shooter-upgrade-model" src="models/shooter.glb"></a-asset-item>
-          <img id="shooter-upgrade-texture" src="models/shooter.png" alt="Shooter Texture">
+          <img id="shooter-upgrade-texture" src="models/shooter.png" alt="Šaudyklės tekstūra">
           <a-asset-item id="slower-upgrade-model" src="models/slower.glb"></a-asset-item>
-          <img id="slower-upgrade-texture" src="models/slower.png" alt="Slower Texture">
+          <img id="slower-upgrade-texture" src="models/slower.png" alt="Lėtintojo tekstūra">
           <a-asset-item id="tough-enemy-model" src="models/tough.glb"></a-asset-item>
-          <img id="tough-enemy-texture" src="models/tough.png" alt="Tough Enemy Texture">
+          <img id="tough-enemy-texture" src="models/tough.png" alt="Kieto priešo tekstūra">
           <a-asset-item id="toughest-enemy-model" src="models/toughest.glb"></a-asset-item>
-          <img id="toughest-enemy-texture" src="models/toughest.png" alt="Toughest Enemy Texture">
-          <img id="flash-texture" src="textures/flash_red.png" alt="Flash Texture">
+          <img id="toughest-enemy-texture" src="models/toughest.png" alt="Kietžiausio priešo tekstūra">
+          <img id="flash-texture" src="textures/flash_red.png" alt="Blykstelėjimo tekstūra">
 
-          <img id="flash-texture" src="textures/flash_red.png" alt="Flash Texture"> <a-mixin
+          <img id="flash-texture" src="textures/flash_red.png" alt="Blykstelėjimo tekstūra"> <a-mixin
           id="hit-explosion"
           particle-system="
             preset: dust;
@@ -314,9 +314,9 @@
 
     <section id="dom-overlay" class="text-slate-300 text-sm select-none">
       <div id="top-ui-container"
-      class="absolute top-3 left-4 right-4 md:left-1/2 md:transform md:-translate-x-1/2 md:max-w-md /* Positioning */
-             flex items-center gap-2 /* Flex layout & spacing */
-             hidden /* Start hidden */
+      class="absolute top-3 left-4 right-4 md:left-1/2 md:transform md:-translate-x-1/2 md:max-w-md /* pozicija */
+             flex items-center gap-2 /* flex išdėstymas ir tarpai */
+             hidden /* pradžioje paslėpta */
              ">
  
              <div style="--stroke-border-light-override: var(--stroke-cyan-border-light); --stroke-shadow-override: var(--stroke-cyan-shadow); --stroke-border-dark-override: var(--stroke-cyan-border-dark);"
@@ -344,7 +344,7 @@
                   bg-[var(--btn-exit-bg)] text-white 
                   py-2 px-4 rounded-md text-center whitespace-pre pointer-events-none shadow-md hidden 
                   stroke-styling animate-pulse">
-            Scanning for surface...
+            Skanuojamas paviršius...
       </div>
       <div id="level-up-popup" 
            style="--stroke-border-light-override: var(--stroke-light-border-light); --stroke-shadow-override: var(--stroke-light-shadow); --stroke-border-dark-override: var(--stroke-light-border-dark);"
@@ -352,13 +352,13 @@
                   bg-gradient-to-br from-green-500 to-cyan-600 text-white 
                   p-5 px-7 rounded-lg border text-center z-30 pointer-events-none text-xl shadow-xl backdrop-blur-sm hidden 
                   stroke-styling">
-          <div class="level-up-text font-bold text-2xl mb-1 tracking-wide">LEVEL UP!</div>
-          <div id="level-number" class="text-lg opacity-90">Level: 1</div>
+          <div class="level-up-text font-bold text-2xl mb-1 tracking-wide">Naujas Lygis!</div>
+          <div id="level-number" class="text-lg opacity-90">Lygis: 1</div>
       </div>
       <div id="place-tower-popup"
-           class="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-sm /* Positioned bottom-center, wider */
+           class="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-11/12 max-w-sm /* apačioj centre, platesnis */
                   z-20
-                  flex flex-col items-center gap-4 /* Flex column layout with gap-4 for spacing */
+                  flex flex-col items-center gap-4 /* flex stulpelis su gap-4 tarpais */
                   hidden">
        
 
@@ -367,9 +367,9 @@
 
          
                 <div style="--stroke-border-light-override: var(--stroke-light-border-light); --stroke-shadow-override: var(--stroke-light-shadow); --stroke-border-dark-override: var(--stroke-light-border-dark);" 
-                     class="absolute top-0 left-4 transform -translate-y-1/3 /* Position top-left, pull up */
+                     class="absolute top-0 left-4 transform -translate-y-1/3 /* viršuj kairėj, patraukta į viršų */
                             bg-blue-600 rounded-lg p-3 flex items-center justify-center w-16 h-16 flex-shrink-0 stroke-styling shadow-lg">
-                     <img src="icons/tower_place.svg" alt="Place Tower Icon" class="w-full h-full filter brightness(0) invert(1)"
+                     <img src="icons/tower_place.svg" alt="Bokšto padėjimo ikona" class="w-full h-full filter brightness(0) invert(1)"
                           onerror="this.onerror=null; this.src='https://placehold.co/64x64/1E40AF/FFFFFF?text=ICON';">
                 </div>
 
@@ -387,7 +387,7 @@
                            text-white font-bold py-2 px-5 rounded w-full
                            button-styling button-active-styling stroke-styling 
                            disabled:bg-slate-400 disabled:text-slate-600 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none disabled:stroke-styling">
-                Pradėti.
+                Pradėti žaidimą
             </button>
 
       </div>
@@ -402,7 +402,7 @@
           <h2 style="--btn-border-light-override: var(--btn-howto-border-light); --btn-shadow-override: var(--btn-howto-shadow); --btn-border-dark-override: var(--btn-howto-border-dark); background-color: var(--btn-howto-bg);"
               class="mt-0 mb-6 text-yellow-900 text-xl font-bold tracking-wide
                      rounded-md p-2 button-styling animate-bounce"> 
-              Level Up! Choose Upgrade:
+              Naujas Lygis! Pasirink patobulinimą:
           </h2>
           <div class="grid grid-cols-2 gap-4 mb-4">
               <button id="upgradeShooter" 
@@ -482,7 +482,7 @@
               <button id="gameOverMenuButton"
                       style="--btn-border-light-override: var(--btn-close-border-light); --btn-shadow-override: var(--btn-close-shadow); --btn-border-dark-override: var(--btn-close-border-dark); background-color: var(--btn-close-bg); box-shadow: inset 0 0 0 3px var(--btn-close-border-light), 0 3px 0 0 var(--btn-close-shadow);"
                       class="py-2 px-5 text-base hover:bg-[var(--btn-close-bg-hover)] active:bg-[var(--btn-close-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow stroke-styling flex-grow sm:flex-grow-0"> 
-                  Menu
+                  Meniu
               </button>
 
               <button id="tryAgainButton"
@@ -495,30 +495,30 @@
       </div>
 
       <div id="pause-menu"
-      class="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm /* Fullscreen overlay */
-             flex items-center justify-center /* Center content */
-             z-40 /* Ensure it's above game UI but potentially below other popups if needed */
+      class="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm /* viso ekrano sluoksnis */
+             flex items-center justify-center /* centruoti turinį */
+             z-40 /* užtikrinti, kad virš žaidimo ui, bet galbūt po kitais popupais jei reikia */
              hidden"> 
 
      <div style="--stroke-border-light-override: var(--stroke-light-border-light); --stroke-shadow-override: var(--stroke-light-shadow); --stroke-border-dark-override: var(--stroke-light-border-dark);"
           class="bg-slate-700 rounded-lg p-6 md:p-8 shadow-xl stroke-styling
-                 w-11/12 max-w-xs /* Size constraints */
+                 w-11/12 max-w-xs /* dydžio apribojimai */
                  text-center">
 
-         <h2 class="mt-0 mb-6 text-slate-100 text-2xl md:text-3xl font-bold tracking-wider">PAUSE</h2>
+         <h2 class="mt-0 mb-6 text-slate-100 text-2xl md:text-3xl font-bold tracking-wider">PAUZĖ</h2>
 
          <div class="flex flex-col justify-center gap-4">
 
              <button id="pauseResumeButton"
                      style="--btn-border-light-override: var(--btn-start-border-light); --btn-shadow-override: var(--btn-start-shadow); --btn-border-dark-override: var(--btn-start-border-dark); background-color: var(--btn-start-bg); box-shadow: inset 0 0 0 3px var(--btn-start-border-light), 0 3px 0 0 var(--btn-start-shadow);"
                      class="py-3 px-5 text-base hover:bg-[var(--btn-start-bg-hover)] active:bg-[var(--btn-start-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow stroke-styling">
-                 Resume
+                 Tęsti
              </button>
 
              <button id="pauseMainMenuButton"
                      style="--btn-border-light-override: var(--btn-close-border-light); --btn-shadow-override: var(--btn-close-shadow); --btn-border-dark-override: var(--btn-close-border-dark); background-color: var(--btn-close-bg); box-shadow: inset 0 0 0 3px var(--btn-close-border-light), 0 3px 0 0 var(--btn-close-shadow);"
                      class="py-3 px-5 text-base hover:bg-[var(--btn-close-bg-hover)] active:bg-[var(--btn-close-bg-active)] text-white rounded cursor-pointer button-styling button-active-styling-thick shadow stroke-styling">
-                 Main Menu
+                 Pagrindinis Meniu
              </button>
 
          </div>
@@ -534,10 +534,10 @@
           <div class="flex flex-row justify-center md:justify-start gap-2 mb-3 px-2 hidden">
               <div id="score-display"
                    style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
-                   class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling stroke-styling">Score: 0</div>
+                   class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling stroke-styling">Taškai: 0</div>
               <div id="level-display"
                    style="--stroke-border-light-override: var(--stroke-grey-border-light); --stroke-shadow-override: var(--stroke-grey-shadow); --stroke-border-dark-override: var(--stroke-grey-border-dark);"
-                   class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling stroke-styling">Level: 1</div>
+                   class="text-sm font-semibold text-gray-700 opacity-95 p-1 px-2 container-styling stroke-styling">Lygis: 1</div>
           </div>
 
           <div class="flex items-center justify-center md:justify-start gap-1 mb-3 px-1">
@@ -565,29 +565,29 @@
             </button>
 
             <button id="exitVRButton"
-                    aria-label="Exit AR/VR"
+                    aria-label="Išeiti iš AR/VR"
                     style="--btn-border-light-override: var(--btn-exit-border-light); --btn-shadow-override: var(--btn-exit-shadow); --btn-border-dark-override: var(--btn-exit-border-dark); background-color: var(--btn-exit-bg); box-shadow: inset 0 0 0 3px var(--btn-exit-border-light), 0 3px 0 0 var(--btn-exit-shadow);"
                     class="hover:bg-[var(--btn-exit-bg-hover)] active:bg-[var(--btn-exit-bg-active)]
                            button-styling button-active-styling-thick
                            rounded-md shadow-md hidden w-12 h-12 p-2
                            grid place-items-center">
-                <img src="icons/menu.svg" alt="Menu Icon" class="button-icon filter invert">
+                <img src="icons/menu.svg" alt="Meniu Ikona" class="button-icon filter invert">
             </button>
 
 
             <button id="shootButton"
-                    aria-label="Shoot"
+                    aria-label="Šauti"
                     style="--btn-border-light-override: var(--btn-shoot-icon-border-light); --btn-shadow-override: var(--btn-shoot-icon-shadow); --btn-border-dark-override: var(--btn-shoot-icon-border-dark); background-color: var(--btn-shoot-icon-bg); box-shadow: inset 0 0 0 3px var(--btn-shoot-icon-border-light), 0 3px 0 0 var(--btn-shoot-icon-shadow);"
                     class="hover:bg-[var(--btn-shoot-icon-bg-hover)] active:bg-[var(--btn-shoot-icon-bg-active)]
                            button-styling button-active-styling-thick
                            rounded-full shadow-lg transform disabled:opacity-50 disabled:cursor-not-allowed
                            w-16 h-16 p-3">
-                 <img src="icons/shoot.svg" alt="Shoot Icon" class="button-icon">
+                 <img src="icons/shoot.svg" alt="Šūvio Ikona" class="button-icon">
             </button>
 
 
             <button id="manualUpgradesButton"
-                    aria-label="Upgrades"
+                    aria-label="Patobulinimai"
                     style="--btn-border-light-override: var(--btn-upgrade-border-light); --btn-shadow-override: var(--btn-upgrade-shadow); --btn-border-dark-override: var(--btn-upgrade-border-dark); background-color: var(--btn-upgrade-bg); box-shadow: inset 0 0 0 3px var(--btn-upgrade-border-light), 0 3px 0 0 var(--btn-upgrade-shadow);"
                     class="hover:bg-[var(--btn-upgrade-bg-hover)] active:bg-[var(--btn-upgrade-bg-active)]
                            button-styling button-active-styling-thick

@@ -13,7 +13,8 @@ AFRAME.registerComponent('auto-shooter', {
     },
 
     init: function () {
-        console.log(`[auto-shooter] Initializing on ${this.el.id}. Type: ${this.data.type}, Delay: ${this.data.shootDelay}ms, Damage: ${this.data.turretDamage}, Slow: ${this.data.slowPercentage}`);
+        // ADDED LOG: Check if init is called
+        console.log(`%c[auto-shooter ${this.el.id}] INIT called. Type: ${this.data.type}, Delay: ${this.data.shootDelay}ms`, "color: yellow; font-weight: bold;");
         this.lastShotTime = 0;
         this.targets = []; // Re-query periodically in tick
         this.shooterWorldPos = new THREE.Vector3();
@@ -25,6 +26,8 @@ AFRAME.registerComponent('auto-shooter', {
     tick: function (time, timeDelta) {
         // --- Basic Checks --- Don't shoot if game over/paused/etc.
         if (isGameOver || isGamePaused || !isGameSetupComplete || !this.el.object3D?.visible) {
+            // ADDED LOG: Check why not shooting
+            console.log(`[auto-shooter ${this.el.id}] Tick skipped: isGameOver=${isGameOver}, isGamePaused=${isGamePaused}, !isGameSetupComplete=${!isGameSetupComplete}, !visible=${!this.el.object3D?.visible}`);
             return;
         }
 
@@ -33,21 +36,31 @@ AFRAME.registerComponent('auto-shooter', {
             return;
         }
 
-        // --- Find Targets --- Get potential targets (visible enemies)
-        // Query within tick to get the current list of enemies
-        const potentialTargets = this.el.sceneEl.querySelectorAll(this.data.targetSelector + '[visible="true"]');
-        if (potentialTargets.length === 0) {
-            return; // No visible enemies
-        }
+        // ADDED LOG: About to find targets
+        console.log(`[auto-shooter ${this.el.id}] Tick: Checking for targets (Delay: ${this.data.shootDelay}ms)`);
 
-        // --- Find Closest Visible Target ---
+        // --- Find Targets --- Get potential targets (visible enemies)
+        // Query just by class first
+        const potentialTargets = this.el.sceneEl.querySelectorAll(this.data.targetSelector);
+
+        // ADDED LOG: Total .enemy elements found
+        console.log(`[auto-shooter ${this.el.id}] Found ${potentialTargets.length} total elements with class '${this.data.targetSelector}'.`);
+
+        // Filter for visible targets and find the closest
         let closestTarget = null;
+        let visibleTargetsFound = 0;
         let minDistanceSq = Infinity;
         this.el.object3D.getWorldPosition(this.shooterWorldPos);
 
         for (const targetEl of potentialTargets) {
-            // Basic check if object3D exists (it should if visible=true was queried)
-            if (!targetEl.object3D) continue;
+            // Check visibility using object3D.visible
+            if (!targetEl.object3D?.visible) {
+                // Optional Log: console.log(`[auto-shooter ${this.el.id}] Skipping non-visible target: ${targetEl.id}`);
+                continue;
+            }
+
+            // Increment count of actual visible targets
+            visibleTargetsFound++;
 
             targetEl.object3D.getWorldPosition(this.targetWorldPos);
             const distanceSq = this.shooterWorldPos.distanceToSquared(this.targetWorldPos);
@@ -58,9 +71,13 @@ AFRAME.registerComponent('auto-shooter', {
             }
         }
 
+        // ADDED LOG: Number of *actually* visible targets found after filtering
+        console.log(`[auto-shooter ${this.el.id}] Found ${visibleTargetsFound} potential targets that are object3D.visible.`);
+
         // --- Shoot if a Target Was Found ---
         if (closestTarget) {
-            console.log(`AUTO-SHOOTER (${this.data.type}) TICK: Closest visible target is ${closestTarget.id}. Firing!`);
+            // UPDATED LOG: More specific log
+            console.log(`%c[auto-shooter ${this.el.id}] Firing at closest visible target: ${closestTarget.id}`, "color: orange");
 
             // Calculate direction
             closestTarget.object3D.getWorldPosition(this.targetWorldPos);
