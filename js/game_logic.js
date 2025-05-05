@@ -174,9 +174,11 @@ function spawnEnemy() {
     if (enemyType === 'tough') {
         modelId = '#tough-enemy-model';
         textureId = '#tough-enemy-texture';
+        scale = '0.3 0.3 0.3';
     } else if (enemyType === 'toughest') {
         modelId = '#toughest-enemy-model';
         textureId = '#toughest-enemy-texture';
+        scale = '0.3 0.3 0.3';
     }
     enemy.setAttribute('gltf-model', modelId);
     enemy.setAttribute('material', { src: textureId });

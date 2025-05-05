@@ -21,11 +21,11 @@ const GAME_CONFIG = {
     },
     UPGRADES: {
         UNLOCKS: {
-            SLOW_TURRET: 2,      // lygis kada galima statyti lėtintoją
+            SLOW_TURRET: 5,      // lygis kada galima statyti lėtintoją
             SECOND_SHOOTER: 10,  // lygis kada galima statyti antrą šaudyklę
-            SHOOTER_DAMAGE_1: 15, // žaidėjo lygis kada žalos i upgrade'as *gali* būti pritaikytas (per shooterlevel 1)
-            SHOOTER_DAMAGE_2: 25, // žaidėjo lygis kada žalos ii upgrade'as *gali* būti pritaikytas (per shooterlevel 2)
-            SECOND_SLOW_TURRET: 13
+            SHOOTER_DAMAGE_1: 5, // žaidėjo lygis kada žalos i upgrade'as *gali* būti pritaikytas (per shooterlevel 1)
+            SHOOTER_DAMAGE_2: 20, // žaidėjo lygis kada žalos ii upgrade'as *gali* būti pritaikytas (per shooterlevel 2)
+            SECOND_SLOW_TURRET:14
         },
         HEALTH: {
             HP_INCREASE: 3
@@ -65,14 +65,14 @@ const GAME_CONFIG = {
         MIN_SHOOT_DELAY: 100 
     },
     ENEMIES: {
-        MAX_ACTIVE: 8,
+        MAX_ACTIVE: 5,
         SPAWN_INTERVAL_MS: 1000,
-        BASE_SPEED: 0.9,
-        SPEED_INCREASE_FACTOR: 1.1, // dideja kas 1.1x
+        BASE_SPEED: 0.5,
+        SPEED_INCREASE_FACTOR: 1.2, // dideja kas 1.1x
         SPEED_CAP_LEVEL: 8,         // greicio cap
         TARGET_REACH_DISTANCE: 0.2,
         SPAWN_DISTANCE_MIN: 10,
-        SPAWN_DISTANCE_RANGE: 6, // atsiranda 12 iki (12+6)=18 vienetų atstumu
+        SPAWN_DISTANCE_RANGE: 8, // atsiranda 12 iki (12+6)=18 vienetų atstumu
         SPAWN_ANGLE_RANGE_RAD: Math.PI / 3.0, // 60 laipsnių lankas
         MIN_DIST_FROM_CAM_SQ: 4 * 4,
         MIN_DIST_FROM_TOWER_SQ: 4 * 4,
@@ -83,8 +83,8 @@ const GAME_CONFIG = {
 
         // priešų tipai ir šansai
         TOUGH: {
-            SCORE_THRESHOLD: 10,
-            BASE_CHANCE: 0.35,
+            SCORE_THRESHOLD: 15,
+            BASE_CHANCE: 0.2,
             CHANCE_INCREASE_PER_5_SCORE: 0.07,
             CHANCE_CAP: 0.60,
             HEALTH: 3,
@@ -93,12 +93,12 @@ const GAME_CONFIG = {
             COLOR: '#8B0000' // tamsiai raudona
         },
         TOUGHEST: {
-            SCORE_THRESHOLD: 30,
-            BASE_CHANCE: 0.2, // sumažintas pradinis šansas
+            SCORE_THRESHOLD: 40,
+            BASE_CHANCE: 0.1, // sumažintas pradinis šansas
             CHANCE_INCREASE_PER_5_SCORE: 0.05, // paliktas didėjimo greitis
             CHANCE_CAP: 1.0,
             HEALTH: 7,
-            SCALE: '0.45 0.45 0.45',
+            SCALE: '0.3 0.3 0.3',
             SHAPE: 'dodecahedron',
             COLOR: '#FFA500' // neoninė oranžinė
         },
@@ -110,7 +110,7 @@ const GAME_CONFIG = {
         }
     },
     EFFECTS: {
-        SLOW_DURATION_MS: 3000,
+        SLOW_DURATION_MS: 5000,
         HIT_FLASH_COLOR_ENEMY: '#FF0000', // raudonas blyksnis
         SLOW_COLOR_INDICATOR: '#87CEEB' // šviesiai mėlyna
     },
